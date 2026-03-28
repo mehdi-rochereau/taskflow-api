@@ -1,5 +1,5 @@
 HELP.md
-.gradle
+.gradle/
 build/
 !gradle/wrapper/gradle-wrapper.jar
 !**/src/main/**/build/
@@ -35,3 +35,13 @@ out/
 
 ### VS Code ###
 .vscode/
+
+### Spring Boot
+*.jar
+*.war
+application-local.yml
+.env
+
+### OS ###
+.DS_Store
+Thumbs.db
