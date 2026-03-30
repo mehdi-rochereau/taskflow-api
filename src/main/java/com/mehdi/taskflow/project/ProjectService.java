@@ -49,7 +49,7 @@ public class ProjectService {
         Project project = projectRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Projet introuvable"));
 
-        if (!project.getOwner().getId().equals(currentUser.getId())) {
+        if (!projectRepository.existsByIdAndOwnerId(id, currentUser.getId())) {
             throw new RuntimeException("Accès refusé");
         }
 
@@ -65,7 +65,7 @@ public class ProjectService {
         Project project = projectRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Projet introuvable"));
 
-        if (!project.getOwner().getId().equals(currentUser.getId())) {
+        if (!projectRepository.existsByIdAndOwnerId(id, currentUser.getId())) {
             throw new RuntimeException("Accès refusé");
         }
 
