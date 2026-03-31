@@ -1,6 +1,7 @@
 package com.mehdi.taskflow.project;
 
 import com.mehdi.taskflow.project.dto.ProjectRequest;
+import com.mehdi.taskflow.project.dto.ProjectResponse;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -19,19 +20,24 @@ public class ProjectController {
     }
 
     @GetMapping
-    public ResponseEntity<List<Project>> getMyProjects() {
-        return ResponseEntity.ok(projectService.getMyProjects());
+    public ResponseEntity<List<ProjectResponse>> getMyProjects() {
+        return ResponseEntity.ok(
+                projectService.getMyProjects().stream()
+                        .map(ProjectResponse::new)
+                        .toList()
+        );
     }
 
     @PostMapping
-    public ResponseEntity<Project> createProject(@Valid @RequestBody ProjectRequest request) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(projectService.createProject(request));
+    public ResponseEntity<ProjectResponse> createProject(@Valid @RequestBody ProjectRequest request) {
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(new ProjectResponse(projectService.createProject(request)));
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<Project> updateProject(@PathVariable Long id,
-                                                 @Valid @RequestBody ProjectRequest request) {
-        return ResponseEntity.ok(projectService.updateProject(id, request));
+    public ResponseEntity<ProjectResponse> updateProject(@PathVariable Long id,
+                                                         @Valid @RequestBody ProjectRequest request) {
+        return ResponseEntity.ok(new ProjectResponse(projectService.updateProject(id, request)));
     }
 
     @DeleteMapping("/{id}")
