@@ -1,5 +1,6 @@
 package com.mehdi.taskflow.task;
 
+import com.mehdi.taskflow.exception.ResourceNotFoundException;
 import com.mehdi.taskflow.project.Project;
 import com.mehdi.taskflow.project.ProjectRepository;
 import com.mehdi.taskflow.task.dto.TaskRequest;
@@ -30,7 +31,7 @@ public class TaskService {
         String username = SecurityContextHolder.getContext()
                 .getAuthentication().getName();
         return userRepository.findByUsername(username)
-                .orElseThrow(() -> new RuntimeException("Utilisateur introuvable"));
+                .orElseThrow(() -> new ResourceNotFoundException("Utilisateur introuvable"));
     }
 
     @PreAuthorize("isAuthenticated()")
@@ -49,7 +50,7 @@ public class TaskService {
         User currentUser = getCurrentUser();
 
         Project project = projectRepository.findById(projectId)
-                .orElseThrow(() -> new RuntimeException("Projet introuvable"));
+                .orElseThrow(() -> new ResourceNotFoundException("Projet introuvable"));
 
         if (!project.getOwner().getId().equals(currentUser.getId())) {
             throw new RuntimeException("Accès refusé");
@@ -65,7 +66,7 @@ public class TaskService {
 
         if (request.getAssigneeId() != null) {
             User assignee = userRepository.findById(request.getAssigneeId())
-                    .orElseThrow(() -> new RuntimeException("Assignee introuvable"));
+                    .orElseThrow(() -> new ResourceNotFoundException("Assignee introuvable"));
             task.setAssignee(assignee);
         }
 
@@ -81,7 +82,7 @@ public class TaskService {
         }
 
         Task task = taskRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Tâche introuvable"));
+                .orElseThrow(() -> new ResourceNotFoundException("Tâche introuvable"));
 
         task.setTitle(request.getTitle());
         task.setDescription(request.getDescription());
@@ -91,7 +92,7 @@ public class TaskService {
 
         if (request.getAssigneeId() != null) {
             User assignee = userRepository.findById(request.getAssigneeId())
-                    .orElseThrow(() -> new RuntimeException("Assignee introuvable"));
+                    .orElseThrow(() -> new ResourceNotFoundException("Assignee introuvable"));
             task.setAssignee(assignee);
         }
 
@@ -107,7 +108,7 @@ public class TaskService {
         }
 
         Task task = taskRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Tâche introuvable"));
+                .orElseThrow(() -> new ResourceNotFoundException("Tâche introuvable"));
 
         taskRepository.delete(task);
     }

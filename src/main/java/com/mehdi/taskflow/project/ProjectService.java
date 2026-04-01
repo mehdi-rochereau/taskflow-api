@@ -1,5 +1,6 @@
 package com.mehdi.taskflow.project;
 
+import com.mehdi.taskflow.exception.ResourceNotFoundException;
 import com.mehdi.taskflow.project.dto.ProjectRequest;
 import com.mehdi.taskflow.user.User;
 import com.mehdi.taskflow.user.UserRepository;
@@ -25,7 +26,7 @@ public class ProjectService {
         String username = SecurityContextHolder.getContext()
                 .getAuthentication().getName();
         return userRepository.findByUsername(username)
-                .orElseThrow(() -> new RuntimeException("Utilisateur introuvable"));
+                .orElseThrow(() -> new ResourceNotFoundException("Utilisateur introuvable"));
     }
 
     @PreAuthorize("isAuthenticated()")
@@ -55,7 +56,7 @@ public class ProjectService {
         }
 
         Project project = projectRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Projet introuvable"));
+                .orElseThrow(() -> new ResourceNotFoundException("Projet introuvable"));
 
         project.setName(request.getName());
         project.setDescription(request.getDescription());
@@ -72,7 +73,7 @@ public class ProjectService {
         }
 
         Project project = projectRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Projet introuvable"));
+                .orElseThrow(() -> new ResourceNotFoundException("Projet introuvable"));
 
         projectRepository.delete(project);
     }
