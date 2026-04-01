@@ -4,6 +4,7 @@ import com.mehdi.taskflow.exception.ResourceNotFoundException;
 import com.mehdi.taskflow.project.dto.ProjectRequest;
 import com.mehdi.taskflow.user.User;
 import com.mehdi.taskflow.user.UserRepository;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
@@ -36,6 +37,17 @@ public class ProjectService {
     }
 
     @PreAuthorize("isAuthenticated()")
+    public Project getProjectById(Long id) {
+        User currentUser = getCurrentUser();
+        Project project = projectRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Projet introuvable"));
+        if (!project.getOwner().getId().equals(currentUser.getId())) {
+            throw new AccessDeniedException("Accès refusé");
+        }
+        return project;
+    }
+
+    @PreAuthorize("isAuthenticated()")
     public Project createProject(ProjectRequest request) {
         User currentUser = getCurrentUser();
 
@@ -52,7 +64,7 @@ public class ProjectService {
         User currentUser = getCurrentUser();
 
         if (!projectRepository.existsByIdAndOwnerId(id, currentUser.getId())) {
-            throw new RuntimeException("Accès refusé");
+            throw new AccessDeniedException("Accès refusé");
         }
 
         Project project = projectRepository.findById(id)
@@ -69,7 +81,7 @@ public class ProjectService {
         User currentUser = getCurrentUser();
 
         if (!projectRepository.existsByIdAndOwnerId(id, currentUser.getId())) {
-            throw new RuntimeException("Accès refusé");
+            throw new AccessDeniedException("Accès refusé");
         }
 
         Project project = projectRepository.findById(id)

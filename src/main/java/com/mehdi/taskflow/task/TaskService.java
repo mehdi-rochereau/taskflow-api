@@ -6,6 +6,7 @@ import com.mehdi.taskflow.project.ProjectRepository;
 import com.mehdi.taskflow.task.dto.TaskRequest;
 import com.mehdi.taskflow.user.User;
 import com.mehdi.taskflow.user.UserRepository;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
@@ -46,6 +47,17 @@ public class TaskService {
     }
 
     @PreAuthorize("isAuthenticated()")
+    public Task getTaskById(Long id) {
+        User currentUser = getCurrentUser();
+        Task task = taskRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Tâche introuvable"));
+        if (!taskRepository.existsByIdAndProjectOwnerId(id, currentUser.getId())) {
+            throw new AccessDeniedException("Accès refusé");
+        }
+        return task;
+    }
+
+    @PreAuthorize("isAuthenticated()")
     public Task createTask(Long projectId, TaskRequest request) {
         User currentUser = getCurrentUser();
 
@@ -53,7 +65,7 @@ public class TaskService {
                 .orElseThrow(() -> new ResourceNotFoundException("Projet introuvable"));
 
         if (!project.getOwner().getId().equals(currentUser.getId())) {
-            throw new RuntimeException("Accès refusé");
+            throw new AccessDeniedException("Accès refusé");
         }
 
         Task task = new Task();
@@ -78,7 +90,7 @@ public class TaskService {
         User currentUser = getCurrentUser();
 
         if (!taskRepository.existsByIdAndProjectOwnerId(id, currentUser.getId())) {
-            throw new RuntimeException("Accès refusé");
+            throw new AccessDeniedException("Accès refusé");
         }
 
         Task task = taskRepository.findById(id)
@@ -104,7 +116,7 @@ public class TaskService {
         User currentUser = getCurrentUser();
 
         if (!taskRepository.existsByIdAndProjectOwnerId(id, currentUser.getId())) {
-            throw new RuntimeException("Accès refusé");
+            throw new AccessDeniedException("Accès refusé");
         }
 
         Task task = taskRepository.findById(id)

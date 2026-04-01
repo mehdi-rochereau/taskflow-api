@@ -31,6 +31,13 @@ public class TaskController {
         );
     }
 
+    @GetMapping("/{id}")
+    public ResponseEntity<TaskResponse> getTaskById(
+            @PathVariable Long projectId,
+            @PathVariable Long id) {
+        return ResponseEntity.ok(new TaskResponse(taskService.getTaskById(id)));
+    }
+
     @PostMapping
     public ResponseEntity<TaskResponse> createTask(
             @PathVariable Long projectId,

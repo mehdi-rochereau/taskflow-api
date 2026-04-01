@@ -28,6 +28,11 @@ public class ProjectController {
         );
     }
 
+    @GetMapping("/{id}")
+    public ResponseEntity<ProjectResponse> getProjectById(@PathVariable Long id) {
+        return ResponseEntity.ok(new ProjectResponse(projectService.getProjectById(id)));
+    }
+
     @PostMapping
     public ResponseEntity<ProjectResponse> createProject(@Valid @RequestBody ProjectRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED)
