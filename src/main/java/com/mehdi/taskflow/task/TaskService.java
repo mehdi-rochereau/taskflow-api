@@ -5,6 +5,7 @@ import com.mehdi.taskflow.project.ProjectRepository;
 import com.mehdi.taskflow.task.dto.TaskRequest;
 import com.mehdi.taskflow.user.User;
 import com.mehdi.taskflow.user.UserRepository;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
@@ -32,6 +33,7 @@ public class TaskService {
                 .orElseThrow(() -> new RuntimeException("Utilisateur introuvable"));
     }
 
+    @PreAuthorize("isAuthenticated()")
     public List<Task> getTasksByProject(Long projectId, TaskStatus status, TaskPriority priority) {
         if (status != null) {
             return taskRepository.findByProjectIdAndStatus(projectId, status);
@@ -42,6 +44,7 @@ public class TaskService {
         return taskRepository.findByProjectId(projectId);
     }
 
+    @PreAuthorize("isAuthenticated()")
     public Task createTask(Long projectId, TaskRequest request) {
         User currentUser = getCurrentUser();
 
@@ -69,6 +72,7 @@ public class TaskService {
         return taskRepository.save(task);
     }
 
+    @PreAuthorize("isAuthenticated()")
     public Task updateTask(Long id, TaskRequest request) {
         User currentUser = getCurrentUser();
 
@@ -94,6 +98,7 @@ public class TaskService {
         return taskRepository.save(task);
     }
 
+    @PreAuthorize("isAuthenticated()")
     public void deleteTask(Long id) {
         User currentUser = getCurrentUser();
 
@@ -103,7 +108,6 @@ public class TaskService {
 
         Task task = taskRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Tâche introuvable"));
-
 
         taskRepository.delete(task);
     }
