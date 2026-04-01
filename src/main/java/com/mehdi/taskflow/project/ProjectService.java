@@ -3,6 +3,7 @@ package com.mehdi.taskflow.project;
 import com.mehdi.taskflow.project.dto.ProjectRequest;
 import com.mehdi.taskflow.user.User;
 import com.mehdi.taskflow.user.UserRepository;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
@@ -27,11 +28,13 @@ public class ProjectService {
                 .orElseThrow(() -> new RuntimeException("Utilisateur introuvable"));
     }
 
+    @PreAuthorize("isAuthenticated()")
     public List<Project> getMyProjects() {
         User currentUser = getCurrentUser();
         return projectRepository.findByOwnerId(currentUser.getId());
     }
 
+    @PreAuthorize("isAuthenticated()")
     public Project createProject(ProjectRequest request) {
         User currentUser = getCurrentUser();
 
@@ -43,15 +46,16 @@ public class ProjectService {
         return projectRepository.save(project);
     }
 
+    @PreAuthorize("isAuthenticated()")
     public Project updateProject(Long id, ProjectRequest request) {
         User currentUser = getCurrentUser();
-
-        Project project = projectRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Projet introuvable"));
 
         if (!projectRepository.existsByIdAndOwnerId(id, currentUser.getId())) {
             throw new RuntimeException("Accès refusé");
         }
+
+        Project project = projectRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Projet introuvable"));
 
         project.setName(request.getName());
         project.setDescription(request.getDescription());
@@ -59,15 +63,16 @@ public class ProjectService {
         return projectRepository.save(project);
     }
 
+    @PreAuthorize("isAuthenticated()")
     public void deleteProject(Long id) {
         User currentUser = getCurrentUser();
-
-        Project project = projectRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Projet introuvable"));
 
         if (!projectRepository.existsByIdAndOwnerId(id, currentUser.getId())) {
             throw new RuntimeException("Accès refusé");
         }
+
+        Project project = projectRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Projet introuvable"));
 
         projectRepository.delete(project);
     }
