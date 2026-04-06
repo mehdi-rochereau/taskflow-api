@@ -131,6 +131,44 @@ class AuthControllerTest {
     }
 
     @Test
+    void register_shouldReturn400_whenUsernameAlreadyExists() throws Exception {
+        // GIVEN
+        RegisterRequest request = new RegisterRequest();
+        request.setUsername("mehdi");
+        request.setEmail("mehdi@test.com");
+        request.setPassword("password123");
+
+        when(userService.register(any(RegisterRequest.class)))
+                .thenThrow(new IllegalArgumentException("Ce nom d'utilisateur est déjà pris"));
+
+        // WHEN & THEN
+        mockMvc.perform(post("/api/auth/register")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("Ce nom d'utilisateur est déjà pris"));
+    }
+
+    @Test
+    void register_shouldReturn500_whenUnexpectedErrorOccurs() throws Exception {
+        // GIVEN
+        RegisterRequest request = new RegisterRequest();
+        request.setUsername("mehdi");
+        request.setEmail("mehdi@test.com");
+        request.setPassword("password123");
+
+        when(userService.register(any(RegisterRequest.class)))
+                .thenThrow(new RuntimeException("Erreur inattendue"));
+
+        // WHEN & THEN
+        mockMvc.perform(post("/api/auth/register")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isInternalServerError())
+                .andExpect(jsonPath("$.message").value("Une erreur inattendue s'est produite"));
+    }
+
+    @Test
     void login_shouldReturn200_whenCredentialsAreValid() throws Exception {
         // GIVEN
         LoginRequest request = new LoginRequest();
