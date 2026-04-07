@@ -2,7 +2,39 @@ plugins {
 	id 'java'
 	id 'org.springframework.boot' version '3.5.13'
 	id 'io.spring.dependency-management' version '1.1.7'
+	id 'jacoco'
 }
+
+jacoco {
+	toolVersion = "0.8.11"
+}
+
+tasks.test {
+	useJUnitPlatform()
+	finalizedBy jacocoTestReport  // génère le rapport après les tests
+}
+
+tasks.jacocoTestReport {
+	dependsOn test  // s'assure que les tests tournent avant
+	reports {
+		html.required = true
+		html.outputLocation = layout.buildDirectory.dir("reports/jacoco/html")
+		xml.required = true   // utile pour les outils CI/CD
+		csv.required = false
+	}
+	// Exclure les classes qui n'ont pas besoin d'être couvertes
+	afterEvaluate {
+		classDirectories.setFrom(files(classDirectories.files.collect {
+			fileTree(dir: it, exclude: [
+					'**/dto/**',           // DTOs — getters/setters inutiles à tester
+					'**/*Application*',    // classe main Spring Boot
+					'**/config/**',        // configuration Spring
+					'**/*Exception*'       // exceptions simples
+			])
+		}))
+	}
+}
+
 
 group = 'com.mehdi.taskflow'
 version = '0.0.1-SNAPSHOT'
