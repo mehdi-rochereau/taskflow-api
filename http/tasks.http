@@ -1,0 +1,59 @@
+### Get tasks by project
+GET {{baseUrl}}/api/projects/1/tasks
+Authorization: Bearer {{token}}
+
+### Get tasks filtered by status
+GET {{baseUrl}}/api/projects/1/tasks?status=TODO
+Authorization: Bearer {{token}}
+
+### Get tasks filtered by priority
+GET {{baseUrl}}/api/projects/1/tasks?priority=MEDIUM
+Authorization: Bearer {{token}}
+
+### Get task by id
+GET {{baseUrl}}/api/projects/1/tasks/1
+Authorization: Bearer {{token}}
+
+### Create task
+POST {{baseUrl}}/api/projects/1/tasks
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "title": "Ma première tâche",
+  "description": "Description de la tâche",
+  "status": "TODO",
+  "priority": "HIGH",
+  "dueDate": "2026-12-31"
+}
+
+### Create task — validation error (blank title)
+POST {{baseUrl}}/api/projects/1/tasks
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "title": "",
+  "status": "TODO",
+  "priority": "MEDIUM"
+}
+
+### Update task
+PUT {{baseUrl}}/api/projects/1/tasks/1
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "title": "Tâche modifiée",
+  "description": "Description modifiée",
+  "status": "IN_PROGRESS",
+  "priority": "HIGH"
+}
+
+### Delete task
+DELETE {{baseUrl}}/api/projects/1/tasks/1
+Authorization: Bearer {{token}}
+
+### Type mismatch error
+GET {{baseUrl}}/api/projects/abc
+Authorization: Bearer {{token}}

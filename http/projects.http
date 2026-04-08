@@ -1,0 +1,45 @@
+### Get my projects
+GET {{baseUrl}}/api/projects
+Authorization: Bearer {{token}}
+
+### Get project by id
+GET {{baseUrl}}/api/projects/1
+Authorization: Bearer {{token}}
+
+### Get project not found
+GET {{baseUrl}}/api/projects/999
+Authorization: Bearer {{token}}
+
+### Create project
+POST {{baseUrl}}/api/projects
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "name": "Mon premier projet",
+  "description": "Description du projet"
+}
+
+### Create project — validation error (blank name)
+POST {{baseUrl}}/api/projects
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "name": "",
+  "description": "Description"
+}
+
+### Update project
+PUT {{baseUrl}}/api/projects/1
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "name": "Projet modifié",
+  "description": "Nouvelle description"
+}
+
+### Delete project
+DELETE {{baseUrl}}/api/projects/1
+Authorization: Bearer {{token}}

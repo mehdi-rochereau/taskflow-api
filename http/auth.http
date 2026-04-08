@@ -1,0 +1,51 @@
+### Register
+POST {{baseUrl}}/api/auth/register
+Content-Type: application/json
+
+{
+  "username": "mehdi",
+  "email": "mehdi@test.com",
+  "password": "password123"
+}
+
+### Login with username
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+
+{
+  "identifier": "mehdi",
+  "password": "password123"
+}
+
+### Login with email
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+
+{
+  "identifier": "mehdi@test.com",
+  "password": "password123"
+}
+
+> {%
+    client.global.set("token", response.body.token);
+%}
+
+### Register — validation error (blank username)
+POST {{baseUrl}}/api/auth/register
+Content-Type: application/json
+
+{
+  "username": "",
+  "email": "mehdi@test.com",
+  "password": "password123"
+}
+
+### Register — validation error (invalid email)
+POST {{baseUrl}}/api/auth/register
+Content-Type: application/json
+
+{
+  "username": "mehdi",
+  "email": "not-an-email",
+  "password": "password123"
+}
