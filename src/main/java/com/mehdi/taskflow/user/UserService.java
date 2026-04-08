@@ -53,13 +53,14 @@ public class UserService {
     public AuthResponse login(LoginRequest request) {
         authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(
-                        request.getUsername(),
+                        request.getIdentifier(),
                         request.getPassword()
                 )
         );
 
-        User user = userRepository.findByUsername(request.getUsername())
-                .orElseThrow(() -> new IllegalArgumentException("Utilisateur introuvable"));
+        User user = userRepository.findByUsername(request.getIdentifier())
+                .or(() -> userRepository.findByEmail(request.getIdentifier()))
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
 
         String token = jwtService.generateToken(user);
         return new AuthResponse(token, user.getUsername(), user.getEmail());
