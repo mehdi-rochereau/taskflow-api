@@ -19,7 +19,7 @@ import java.util.List;
 @Tag(name = "Projets", description = "Gestion des projets de l'utilisateur connecté")
 @SecurityRequirement(name = "bearerAuth")
 @RestController
-@RequestMapping("/api/projects")
+@RequestMapping(value = "/api/projects", produces = "application/json")
 public class ProjectController {
 
     private final ProjectService projectService;

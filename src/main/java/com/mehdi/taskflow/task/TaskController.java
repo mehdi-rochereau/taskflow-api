@@ -19,7 +19,7 @@ import java.util.List;
 @Tag(name = "Tâches", description = "Gestion des tâches par projet")
 @SecurityRequirement(name = "bearerAuth")
 @RestController
-@RequestMapping("/api/projects/{projectId}/tasks")
+@RequestMapping(value = "/api/projects/{projectId}/tasks", produces = "application/json")
 public class TaskController {
 
     private final TaskService taskService;
