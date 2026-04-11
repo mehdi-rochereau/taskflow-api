@@ -172,7 +172,7 @@ class AuthControllerTest {
     void login_shouldReturn200_whenCredentialsAreValid() throws Exception {
         // GIVEN
         LoginRequest request = new LoginRequest();
-        request.setUsername("mehdi");
+        request.setIdentifier("mehdi");
         request.setPassword("password123");
 
         AuthResponse authResponse = new AuthResponse("fake-token", "mehdi", "mehdi@test.com");
@@ -191,7 +191,7 @@ class AuthControllerTest {
     void login_shouldReturn400_whenUsernameIsBlank() throws Exception {
         // GIVEN
         LoginRequest request = new LoginRequest();
-        request.setUsername("");
+        request.setIdentifier("");
         request.setPassword("password123");
 
         // WHEN & THEN
@@ -205,7 +205,7 @@ class AuthControllerTest {
     void login_shouldReturn400_whenPasswordIsBlank() throws Exception {
         // GIVEN
         LoginRequest request = new LoginRequest();
-        request.setUsername("mehdi");
+        request.setIdentifier("mehdi");
         request.setPassword("");
 
         // WHEN & THEN

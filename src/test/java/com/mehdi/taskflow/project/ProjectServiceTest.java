@@ -2,8 +2,8 @@ package com.mehdi.taskflow.project;
 
 import com.mehdi.taskflow.exception.ResourceNotFoundException;
 import com.mehdi.taskflow.project.dto.ProjectRequest;
+import com.mehdi.taskflow.security.SecurityUtils;
 import com.mehdi.taskflow.user.User;
-import com.mehdi.taskflow.user.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -11,9 +11,6 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.access.AccessDeniedException;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContext;
-import org.springframework.security.core.context.SecurityContextHolder;
 
 import java.util.List;
 import java.util.Optional;
@@ -29,13 +26,7 @@ class ProjectServiceTest {
     private ProjectRepository projectRepository;
 
     @Mock
-    private UserRepository userRepository;
-
-    @Mock
-    private SecurityContext securityContext;
-
-    @Mock
-    private Authentication authentication;
+    private SecurityUtils securityUtils;
 
     @InjectMocks
     private ProjectService projectService;
@@ -60,10 +51,7 @@ class ProjectServiceTest {
         projectRequest.setName("Nouveau nom");
         projectRequest.setDescription("Description");
 
-        SecurityContextHolder.setContext(securityContext);
-        when(securityContext.getAuthentication()).thenReturn(authentication);
-        when(authentication.getName()).thenReturn("mehdi");
-        when(userRepository.findByUsername("mehdi")).thenReturn(Optional.of(currentUser));
+        when(securityUtils.getCurrentUser()).thenReturn(currentUser);
     }
 
     @Test
@@ -94,20 +82,18 @@ class ProjectServiceTest {
 
     @Test
     void updateProject_shouldThrow_whenNotOwner() {
-        // GIVEN — accès refusé avant même de charger le projet
+        // GIVEN
         when(projectRepository.existsByIdAndOwnerId(1L, 1L)).thenReturn(false);
 
         // WHEN & THEN
         assertThrows(AccessDeniedException.class,
                 () -> projectService.updateProject(1L, projectRequest));
-
-        // verify le projet n'est jamais chargé
         verify(projectRepository, never()).findById(any());
     }
 
     @Test
     void updateProject_shouldThrow_whenProjectNotFound() {
-        // GIVEN — accès ok mais projet introuvable
+        // GIVEN
         when(projectRepository.existsByIdAndOwnerId(1L, 1L)).thenReturn(true);
         when(projectRepository.findById(1L)).thenReturn(Optional.empty());
 
@@ -139,7 +125,6 @@ class ProjectServiceTest {
         // WHEN & THEN
         assertThrows(AccessDeniedException.class,
                 () -> projectService.deleteProject(1L));
-
         verify(projectRepository, never()).findById(any());
         verify(projectRepository, never()).delete(any());
     }
@@ -153,7 +138,6 @@ class ProjectServiceTest {
         // WHEN & THEN
         assertThrows(ResourceNotFoundException.class,
                 () -> projectService.deleteProject(1L));
-
         verify(projectRepository, never()).delete(any());
     }
 

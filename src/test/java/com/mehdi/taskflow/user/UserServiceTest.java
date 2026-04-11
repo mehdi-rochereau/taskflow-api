@@ -49,7 +49,7 @@ class UserServiceTest {
         registerRequest.setPassword("password123");
 
         loginRequest = new LoginRequest();
-        loginRequest.setUsername("mehdi");
+        loginRequest.setIdentifier("mehdi");
         loginRequest.setPassword("password123");
 
         user = new User();

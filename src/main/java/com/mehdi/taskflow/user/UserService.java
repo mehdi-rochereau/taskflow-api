@@ -42,7 +42,6 @@ public class UserService {
         user.setEmail(request.getEmail());
         user.setPassword(passwordEncoder.encode(request.getPassword()));
         user.setRole("ROLE_USER");
-        user.setCreatedAt(LocalDateTime.now());
 
         userRepository.save(user);
 
