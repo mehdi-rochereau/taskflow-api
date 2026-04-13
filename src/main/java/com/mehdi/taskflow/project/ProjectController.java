@@ -16,6 +16,18 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
+/**
+ * REST controller handling project management operations.
+ *
+ * <p>All endpoints require a valid JWT token passed as a
+ * {@code Authorization: Bearer <token>} header.
+ * Operations are automatically scoped to the authenticated user —
+ * only projects owned by the current user are accessible.</p>
+ *
+ * <p>All responses are produced in {@code application/json} format.</p>
+ *
+ * @see ProjectService
+ */
 @Tag(name = "Projets", description = "Gestion des projets de l'utilisateur connecté")
 @SecurityRequirement(name = "bearerAuth")
 @RestController
@@ -24,10 +36,21 @@ public class ProjectController {
 
     private final ProjectService projectService;
 
+    /**
+     * Constructs a new {@code ProjectController} with its required dependency.
+     *
+     * @param projectService service handling project business logic
+     */
     public ProjectController(ProjectService projectService) {
         this.projectService = projectService;
     }
 
+    /**
+     * Returns all projects owned by the authenticated user.
+     *
+     * @return {@code 200 OK} with the list of projects, empty array if none exist,
+     *         or {@code 401 Unauthorized} if the JWT token is missing or invalid
+     */
     @Operation(
             summary = "Lister mes projets",
             description = "Retourne tous les projets appartenant à l'utilisateur connecté",
@@ -49,6 +72,17 @@ public class ProjectController {
         );
     }
 
+    /**
+     * Returns a project by its identifier.
+     *
+     * <p>Access is restricted to the project owner.</p>
+     *
+     * @param id the project identifier
+     * @return {@code 200 OK} with the project details,
+     *         {@code 401 Unauthorized} if the JWT token is missing or invalid,
+     *         {@code 403 Forbidden} if the project belongs to another user,
+     *         or {@code 404 Not Found} if no project exists with the given id
+     */
     @Operation(
             summary = "Récupérer un projet par ID",
             description = "Retourne le détail d'un projet si l'utilisateur en est le propriétaire",
@@ -69,6 +103,14 @@ public class ProjectController {
         return ResponseEntity.ok(new ProjectResponse(projectService.getProjectById(id)));
     }
 
+    /**
+     * Creates a new project for the authenticated user.
+     *
+     * @param request the project data — name and optional description
+     * @return {@code 201 Created} with the created project,
+     *         {@code 400 Bad Request} if validation fails,
+     *         or {@code 401 Unauthorized} if the JWT token is missing or invalid
+     */
     @Operation(
             summary = "Créer un projet",
             description = "Crée un nouveau projet associé à l'utilisateur connecté",
@@ -88,7 +130,19 @@ public class ProjectController {
                 .body(new ProjectResponse(projectService.createProject(request)));
     }
 
-
+    /**
+     * Updates an existing project.
+     *
+     * <p>Only the project owner can perform this operation.</p>
+     *
+     * @param id      the identifier of the project to update
+     * @param request the updated project data — name and optional description
+     * @return {@code 200 OK} with the updated project,
+     *         {@code 400 Bad Request} if validation fails,
+     *         {@code 401 Unauthorized} if the JWT token is missing or invalid,
+     *         {@code 403 Forbidden} if the project belongs to another user,
+     *         or {@code 404 Not Found} if no project exists with the given id
+     */
     @Operation(
             summary = "Modifier un projet",
             description = "Met à jour le nom et la description d'un projet dont l'utilisateur est propriétaire",
@@ -111,6 +165,17 @@ public class ProjectController {
         return ResponseEntity.ok(new ProjectResponse(projectService.updateProject(id, request)));
     }
 
+    /**
+     * Permanently deletes a project.
+     *
+     * <p>Only the project owner can perform this operation.</p>
+     *
+     * @param id the identifier of the project to delete
+     * @return {@code 204 No Content} on success,
+     *         {@code 401 Unauthorized} if the JWT token is missing or invalid,
+     *         {@code 403 Forbidden} if the project belongs to another user,
+     *         or {@code 404 Not Found} if no project exists with the given id
+     */
     @Operation(
             summary = "Supprimer un projet",
             description = "Supprime définitivement un projet dont l'utilisateur est propriétaire",
