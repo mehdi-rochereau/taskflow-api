@@ -1,6 +1,11 @@
 spring:
   application:
     name: taskflow-api
+  messages:
+    basename: messages
+    encoding: UTF-8
+    default-locale: en
+    fallback-to-system-locale: false
 
   datasource:
     url: jdbc:mysql://localhost:3306/taskflow?createDatabaseIfNotExist=true&useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
