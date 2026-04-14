@@ -72,6 +72,9 @@ public class SecurityConfig {
      *   <li>Public routes: {@code /api/auth/**}, {@code /swagger-ui/**}, {@code /v3/api-docs/**}</li>
      *   <li>All other routes require authentication</li>
      *   <li>Session management: {@link SessionCreationPolicy#STATELESS} — no HTTP session created</li>
+     *   <li>Custom {@link org.springframework.security.web.AuthenticationEntryPoint} — returns a
+     *       structured {@code 401 Unauthorized} JSON response instead of the default HTML error page
+     *       when an unauthenticated request reaches a protected endpoint</li>
      *   <li>{@link JwtFilter} inserted before {@link UsernamePasswordAuthenticationFilter}</li>
      * </ul>
      *
