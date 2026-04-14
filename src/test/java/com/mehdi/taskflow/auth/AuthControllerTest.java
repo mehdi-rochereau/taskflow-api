@@ -1,6 +1,7 @@
 package com.mehdi.taskflow.auth;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.mehdi.taskflow.config.MessageService;
 import com.mehdi.taskflow.config.SecurityConfig;
 import com.mehdi.taskflow.security.JwtFilter;
 import com.mehdi.taskflow.security.JwtService;
@@ -11,6 +12,7 @@ import com.mehdi.taskflow.user.dto.LoginRequest;
 import com.mehdi.taskflow.user.dto.RegisterRequest;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
+import org.hamcrest.Matchers;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -22,6 +24,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.io.IOException;
+import java.util.Locale;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doAnswer;
@@ -55,13 +58,20 @@ class AuthControllerTest {
     @MockitoBean
     private JwtFilter jwtFilter;
 
+    @MockitoBean
+    private MessageService messageService;
+
     @BeforeEach
     void setUp() throws ServletException, IOException {
+        Locale.setDefault(java.util.Locale.ENGLISH);
         doAnswer(invocation -> {
             FilterChain chain = invocation.getArgument(2);
             chain.doFilter(invocation.getArgument(0), invocation.getArgument(1));
             return null;
         }).when(jwtFilter).doFilter(any(), any(), any());
+
+        when(messageService.get("error.unexpected")).thenReturn("An unexpected error occurred");
+        when(messageService.get("error.access.denied")).thenReturn("Access denied");
     }
 
     @Test
@@ -97,7 +107,54 @@ class AuthControllerTest {
         mockMvc.perform(post("/api/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
-                .andExpect(status().isBadRequest());
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errors.username",
+                        Matchers.containsInAnyOrder(
+                                "Username is required",
+                                "Username must be between 3 and 50 characters"
+                        )));
+    }
+
+    @Test
+    void register_shouldReturn400_whenUsernameIsTooShort() throws Exception {
+        // GIVEN
+        RegisterRequest request = new RegisterRequest();
+        request.setUsername("me");
+        request.setEmail("mehdi@test.com");
+        request.setPassword("password123");
+
+        // WHEN & THEN
+        mockMvc.perform(post("/api/auth/register")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errors.username").exists())
+                .andExpect(jsonPath("$.errors.username").isArray())
+                .andExpect(jsonPath("$.errors.username",
+                        Matchers.contains(
+                                "Username must be between 3 and 50 characters"
+                        )));
+    }
+
+    @Test
+    void register_shouldReturn400_whenUsernameIsTooLong() throws Exception {
+        // GIVEN
+        RegisterRequest request = new RegisterRequest();
+        request.setUsername("m".repeat(51));
+        request.setEmail("mehdi@test.com");
+        request.setPassword("password123");
+
+        // WHEN & THEN
+        mockMvc.perform(post("/api/auth/register")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errors.username").exists())
+                .andExpect(jsonPath("$.errors.username").isArray())
+                .andExpect(jsonPath("$.errors.username",
+                        Matchers.contains(
+                                "Username must be between 3 and 50 characters"
+                        )));
     }
 
     @Test
@@ -112,7 +169,34 @@ class AuthControllerTest {
         mockMvc.perform(post("/api/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
-                .andExpect(status().isBadRequest());
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errors.email").exists())
+                .andExpect(jsonPath("$.errors.email").isArray())
+                .andExpect(jsonPath("$.errors.email",
+                        Matchers.contains(
+                                "Invalid email address"
+                        )));
+    }
+
+    @Test
+    void register_shouldReturn400_whenEmailIsBlank() throws Exception {
+        // GIVEN
+        RegisterRequest request = new RegisterRequest();
+        request.setUsername("mehdi");
+        request.setEmail("");
+        request.setPassword("password123");
+
+        // WHEN & THEN
+        mockMvc.perform(post("/api/auth/register")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errors.email").exists())
+                .andExpect(jsonPath("$.errors.email").isArray())
+                .andExpect(jsonPath("$.errors.email",
+                        Matchers.contains(
+                                "Email is required"
+                        )));
     }
 
     @Test
@@ -127,7 +211,33 @@ class AuthControllerTest {
         mockMvc.perform(post("/api/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
-                .andExpect(status().isBadRequest());
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errors.password").exists())
+                .andExpect(jsonPath("$.errors.password").isArray())
+                .andExpect(jsonPath("$.errors.password",
+                        Matchers.contains(
+                                "Password must be at least 8 characters")));
+    }
+
+    @Test
+    void register_shouldReturn400_whenPasswordIsBlank() throws Exception {
+        // GIVEN
+        RegisterRequest request = new RegisterRequest();
+        request.setUsername("mehdi");
+        request.setEmail("mehdi@test.com");
+        request.setPassword("");
+
+        // WHEN & THEN
+        mockMvc.perform(post("/api/auth/register")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errors.password").exists())
+                .andExpect(jsonPath("$.errors.password").isArray())
+                .andExpect(jsonPath("$.errors.password",
+                        Matchers.containsInAnyOrder(
+                                "Password is required",
+                                "Password must be at least 8 characters")));
     }
 
     @Test
@@ -139,14 +249,14 @@ class AuthControllerTest {
         request.setPassword("password123");
 
         when(userService.register(any(RegisterRequest.class)))
-                .thenThrow(new IllegalArgumentException("Ce nom d'utilisateur est déjà pris"));
+                .thenThrow(new IllegalArgumentException("This username is already taken"));
 
         // WHEN & THEN
         mockMvc.perform(post("/api/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.message").value("Ce nom d'utilisateur est déjà pris"));
+                .andExpect(jsonPath("$.message").value("This username is already taken"));
     }
 
     @Test
@@ -158,18 +268,18 @@ class AuthControllerTest {
         request.setPassword("password123");
 
         when(userService.register(any(RegisterRequest.class)))
-                .thenThrow(new RuntimeException("Erreur inattendue"));
+                .thenThrow(new RuntimeException("unexpected"));
 
         // WHEN & THEN
         mockMvc.perform(post("/api/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isInternalServerError())
-                .andExpect(jsonPath("$.message").value("Une erreur inattendue s'est produite"));
+                .andExpect(jsonPath("$.message").value("An unexpected error occurred"));
     }
 
     @Test
-    void login_shouldReturn200_whenCredentialsAreValid() throws Exception {
+    void login_shouldReturn200_whenCredentialsWithUsernameAreValid() throws Exception {
         // GIVEN
         LoginRequest request = new LoginRequest();
         request.setIdentifier("mehdi");
@@ -184,11 +294,32 @@ class AuthControllerTest {
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.token").value("fake-token"))
-                .andExpect(jsonPath("$.username").value("mehdi"));
+                .andExpect(jsonPath("$.username").value("mehdi"))
+                .andExpect(jsonPath("$.email").value("mehdi@test.com"));
     }
 
     @Test
-    void login_shouldReturn400_whenUsernameIsBlank() throws Exception {
+    void login_shouldReturn200_whenCredentialsWithEmailAreValid() throws Exception {
+        // GIVEN
+        LoginRequest request = new LoginRequest();
+        request.setIdentifier("mehdi@test.com");
+        request.setPassword("password123");
+
+        AuthResponse authResponse = new AuthResponse("fake-token", "mehdi", "mehdi@test.com");
+        when(userService.login(any(LoginRequest.class))).thenReturn(authResponse);
+
+        // WHEN & THEN
+        mockMvc.perform(post("/api/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.token").value("fake-token"))
+                .andExpect(jsonPath("$.username").value("mehdi"))
+                .andExpect(jsonPath("$.email").value("mehdi@test.com"));
+    }
+
+    @Test
+    void login_shouldReturn400_whenIdentifierIsBlank() throws Exception {
         // GIVEN
         LoginRequest request = new LoginRequest();
         request.setIdentifier("");
@@ -198,7 +329,12 @@ class AuthControllerTest {
         mockMvc.perform(post("/api/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
-                .andExpect(status().isBadRequest());
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errors.identifier").exists())
+                .andExpect(jsonPath("$.errors.identifier").isArray())
+                .andExpect(jsonPath("$.errors.identifier",
+                        Matchers.contains(
+                                "Username or email is required")));
     }
 
     @Test
@@ -212,6 +348,28 @@ class AuthControllerTest {
         mockMvc.perform(post("/api/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
-                .andExpect(status().isBadRequest());
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errors.password").exists())
+                .andExpect(jsonPath("$.errors.password").isArray())
+                .andExpect(jsonPath("$.errors.password",
+                        Matchers.contains(
+                                "Password is required"
+                        )));
+    }
+
+    @Test
+    void login_shouldReturn400_whenIdentifierAndPasswordAreBlanks() throws Exception {
+        // GIVEN
+        LoginRequest request = new LoginRequest();
+        request.setIdentifier("");
+        request.setPassword("");
+
+        // WHEN & THEN
+        mockMvc.perform(post("/api/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errors.password").exists())
+                .andExpect(jsonPath("$.errors.identifier").exists());
     }
 }
