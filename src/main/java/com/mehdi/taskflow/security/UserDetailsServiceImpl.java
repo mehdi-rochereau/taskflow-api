@@ -1,5 +1,6 @@
 package com.mehdi.taskflow.security;
 
+import com.mehdi.taskflow.config.MessageService;
 import com.mehdi.taskflow.user.UserRepository;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
@@ -23,14 +24,17 @@ import org.springframework.stereotype.Service;
 public class UserDetailsServiceImpl implements UserDetailsService {
 
     private final UserRepository userRepository;
+    private final MessageService messageService;
 
     /**
      * Constructs a new {@code UserDetailsServiceImpl} with its required dependency.
      *
      * @param userRepository repository used to look up users by username or email
+     * @param messageService utility component for resolving i18n messages based on the current request locale
      */
-    public UserDetailsServiceImpl(UserRepository userRepository) {
+    public UserDetailsServiceImpl(UserRepository userRepository, MessageService messageService) {
         this.userRepository = userRepository;
+        this.messageService = messageService;
     }
 
     /**
@@ -56,7 +60,6 @@ public class UserDetailsServiceImpl implements UserDetailsService {
         return userRepository.findByUsername(identifier)
                 .or(() -> userRepository.findByEmail(identifier))
                 .orElseThrow(() -> new UsernameNotFoundException(
-                        "No user found with identifier: " + identifier
-                ));
+                        messageService.get("error.identifier.not.found", identifier)));
     }
 }

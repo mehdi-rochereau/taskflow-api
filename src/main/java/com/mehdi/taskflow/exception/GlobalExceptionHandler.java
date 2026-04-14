@@ -1,5 +1,6 @@
 package com.mehdi.taskflow.exception;
 
+import com.mehdi.taskflow.config.MessageService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
@@ -44,6 +45,17 @@ import java.util.Map;
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
+    private final MessageService messageService;
+
+    /**
+     * Constructs a new {@code GlobalExceptionHandler} with its required dependencies.
+     *
+     * @param messageService utility component for resolving i18n messages based on the current request locale
+     */
+    public GlobalExceptionHandler(MessageService messageService) {
+        this.messageService = messageService;
+    }
+
     /**
      * Handles resource not found exceptions.
      *
@@ -65,7 +77,7 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(AccessDeniedException.class)
     public ResponseEntity<Map<String, Object>> handleAccessDenied(
             AccessDeniedException ex) {
-        return buildResponse(HttpStatus.FORBIDDEN, "Accès refusé");
+        return buildResponse(HttpStatus.FORBIDDEN, messageService.get("error.access.denied"));
     }
 
     /**
@@ -113,7 +125,7 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(Exception.class)
     public ResponseEntity<Map<String, Object>> handleGeneric(Exception ex) {
         return buildResponse(HttpStatus.INTERNAL_SERVER_ERROR,
-                "Une erreur inattendue s'est produite");
+                messageService.get("error.unexpected"));
     }
 
     /**
@@ -126,8 +138,8 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(MethodArgumentTypeMismatchException.class)
     public ResponseEntity<Map<String, Object>> handleTypeMismatch(
             MethodArgumentTypeMismatchException ex) {
-        String message = String.format(
-                "Parameter '%s' must be of type %s",
+        String message = messageService.get(
+                "error.parameter.type.mismatch",
                 ex.getName(),
                 ex.getRequiredType() != null ? ex.getRequiredType().getSimpleName() : "unknown"
         );

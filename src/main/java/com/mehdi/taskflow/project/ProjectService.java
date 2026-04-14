@@ -1,9 +1,11 @@
 package com.mehdi.taskflow.project;
 
+import com.mehdi.taskflow.config.MessageService;
 import com.mehdi.taskflow.exception.ResourceNotFoundException;
 import com.mehdi.taskflow.project.dto.ProjectRequest;
 import com.mehdi.taskflow.security.SecurityUtils;
 import com.mehdi.taskflow.user.User;
+import org.hibernate.validator.internal.engine.messageinterpolation.parser.MessageDescriptorFormatException;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
@@ -28,17 +30,19 @@ public class ProjectService {
 
     private final ProjectRepository projectRepository;
     private final SecurityUtils securityUtils;
+    private final MessageService messageService;
 
     /**
      * Constructs a new {@code ProjectService} with its required dependencies.
      *
      * @param projectRepository repository for project persistence
      * @param securityUtils     utility for resolving the currently authenticated user
+     * @param messageService utility component for resolving i18n messages based on the current request locale
      */
-    public ProjectService(ProjectRepository projectRepository,
-                          SecurityUtils securityUtils) {
+    public ProjectService(ProjectRepository projectRepository, SecurityUtils securityUtils, MessageService messageService) {
         this.projectRepository = projectRepository;
         this.securityUtils = securityUtils;
+        this.messageService = messageService;
     }
 
     /**
@@ -67,9 +71,10 @@ public class ProjectService {
     public Project getProjectById(Long id) {
         User currentUser = securityUtils.getCurrentUser();
         Project project = projectRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Projet introuvable"));
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        messageService.get("error.project.not.found")));
         if (!project.getOwner().getId().equals(currentUser.getId())) {
-            throw new AccessDeniedException("Accès refusé");
+            throw new AccessDeniedException(messageService.get("error.access.denied"));
         }
         return project;
     }
@@ -106,10 +111,11 @@ public class ProjectService {
     public Project updateProject(Long id, ProjectRequest request) {
         User currentUser = securityUtils.getCurrentUser();
         if (!projectRepository.existsByIdAndOwnerId(id, currentUser.getId())) {
-            throw new AccessDeniedException("Accès refusé");
+            throw new AccessDeniedException(messageService.get("error.access.denied"));
         }
         Project project = projectRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Projet introuvable"));
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        messageService.get("error.project.not.found")));
         project.setName(request.getName());
         project.setDescription(request.getDescription());
         return projectRepository.save(project);
@@ -129,10 +135,11 @@ public class ProjectService {
     public void deleteProject(Long id) {
         User currentUser = securityUtils.getCurrentUser();
         if (!projectRepository.existsByIdAndOwnerId(id, currentUser.getId())) {
-            throw new AccessDeniedException("Accès refusé");
+            throw new AccessDeniedException(messageService.get("error.access.denied"));
         }
         Project project = projectRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Projet introuvable"));
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        messageService.get("error.project.not.found")));
         projectRepository.delete(project);
     }
 }

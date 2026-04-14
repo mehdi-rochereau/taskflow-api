@@ -1,5 +1,6 @@
 package com.mehdi.taskflow.task;
 
+import com.mehdi.taskflow.config.MessageService;
 import com.mehdi.taskflow.exception.ResourceNotFoundException;
 import com.mehdi.taskflow.project.Project;
 import com.mehdi.taskflow.project.ProjectRepository;
@@ -36,6 +37,7 @@ public class TaskService {
     private final ProjectRepository projectRepository;
     private final UserRepository userRepository;
     private final SecurityUtils securityUtils;
+    private final MessageService messageService;
 
     /**
      * Constructs a new {@code TaskService} with its required dependencies.
@@ -44,15 +46,18 @@ public class TaskService {
      * @param projectRepository repository for project lookups
      * @param userRepository    repository for assignee lookups
      * @param securityUtils     utility for resolving the currently authenticated user
+     * @param messageService utility component for resolving i18n messages based on the current request locale
      */
     public TaskService(TaskRepository taskRepository,
                        ProjectRepository projectRepository,
                        UserRepository userRepository,
-                       SecurityUtils securityUtils) {
+                       SecurityUtils securityUtils,
+                       MessageService messageService) {
         this.taskRepository = taskRepository;
         this.projectRepository = projectRepository;
         this.userRepository = userRepository;
         this.securityUtils = securityUtils;
+        this.messageService = messageService;
     }
 
     /**
@@ -91,9 +96,10 @@ public class TaskService {
     public Task getTaskById(Long id) {
         User currentUser = securityUtils.getCurrentUser();
         Task task = taskRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Tâche introuvable"));
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        messageService.get("error.task.not.found")));
         if (!taskRepository.existsByIdAndProjectOwnerId(id, currentUser.getId())) {
-            throw new AccessDeniedException("Accès refusé");
+            throw new AccessDeniedException(messageService.get("error.access.denied"));
         }
         return task;
     }
@@ -114,9 +120,10 @@ public class TaskService {
     public Task createTask(Long projectId, TaskRequest request) {
         User currentUser = securityUtils.getCurrentUser();
         Project project = projectRepository.findById(projectId)
-                .orElseThrow(() -> new ResourceNotFoundException("Projet introuvable"));
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        messageService.get("error.project.not.found")));
         if (!project.getOwner().getId().equals(currentUser.getId())) {
-            throw new AccessDeniedException("Accès refusé");
+            throw new AccessDeniedException(messageService.get("error.access.denied"));
         }
         Task task = new Task();
         task.setTitle(request.getTitle());
@@ -127,7 +134,8 @@ public class TaskService {
         task.setProject(project);
         if (request.getAssigneeId() != null) {
             User assignee = userRepository.findById(request.getAssigneeId())
-                    .orElseThrow(() -> new ResourceNotFoundException("Assignee introuvable"));
+                    .orElseThrow(() -> new ResourceNotFoundException(
+                            messageService.get("error.assignee.not.found")));
             task.setAssignee(assignee);
         }
         return taskRepository.save(task);
@@ -149,10 +157,11 @@ public class TaskService {
     public Task updateTask(Long id, TaskRequest request) {
         User currentUser = securityUtils.getCurrentUser();
         if (!taskRepository.existsByIdAndProjectOwnerId(id, currentUser.getId())) {
-            throw new AccessDeniedException("Accès refusé");
+            throw new AccessDeniedException(messageService.get("error.access.denied"));
         }
         Task task = taskRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Tâche introuvable"));
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        messageService.get("error.task.not.found")));
         task.setTitle(request.getTitle());
         task.setDescription(request.getDescription());
         task.setStatus(request.getStatus());
@@ -160,7 +169,8 @@ public class TaskService {
         task.setDueDate(request.getDueDate());
         if (request.getAssigneeId() != null) {
             User assignee = userRepository.findById(request.getAssigneeId())
-                    .orElseThrow(() -> new ResourceNotFoundException("Assignee introuvable"));
+                    .orElseThrow(() -> new ResourceNotFoundException(
+                            messageService.get("error.assignee.not.found")));
             task.setAssignee(assignee);
         }
         return taskRepository.save(task);
@@ -180,10 +190,11 @@ public class TaskService {
     public void deleteTask(Long id) {
         User currentUser = securityUtils.getCurrentUser();
         if (!taskRepository.existsByIdAndProjectOwnerId(id, currentUser.getId())) {
-            throw new AccessDeniedException("Accès refusé");
+            throw new AccessDeniedException(messageService.get("error.access.denied"));
         }
         Task task = taskRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Tâche introuvable"));
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        messageService.get("error.task.not.found")));
         taskRepository.delete(task);
     }
 }

@@ -1,5 +1,6 @@
 package com.mehdi.taskflow.security;
 
+import com.mehdi.taskflow.config.MessageService;
 import io.jsonwebtoken.ExpiredJwtException;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -48,16 +49,19 @@ public class JwtFilter extends OncePerRequestFilter {
 
     private final JwtService jwtService;
     private final UserDetailsServiceImpl userDetailsService;
+    private final MessageService messageService;
 
     /**
      * Constructs a new {@code JwtFilter} with its required dependencies.
      *
      * @param jwtService         service for token validation and claim extraction
      * @param userDetailsService service for loading user details from the database
+     * @param messageService utility component for resolving i18n messages based on the current request locale
      */
-    public JwtFilter(JwtService jwtService, UserDetailsServiceImpl userDetailsService) {
+    public JwtFilter(JwtService jwtService, UserDetailsServiceImpl userDetailsService, MessageService messageService) {
         this.jwtService = jwtService;
         this.userDetailsService = userDetailsService;
+        this.messageService = messageService;
     }
 
     /**
@@ -121,12 +125,14 @@ public class JwtFilter extends OncePerRequestFilter {
         } catch (ExpiredJwtException e) {
             response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
             response.setContentType("application/json");
-            response.getWriter().write("{\"status\":401,\"message\":\"Token expiré\"}");
+            response.getWriter().write("{\"status\":401,\"message\":\""
+                    + messageService.get("error.jwt.expired") + "\"}");
             return;
         } catch (Exception e) {
             response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
             response.setContentType("application/json");
-            response.getWriter().write("{\"status\":401,\"message\":\"Token invalide\"}");
+            response.getWriter().write("{\"status\":401,\"message\":\""
+                    + messageService.get("error.jwt.invalid") + "\"}");
             return;
         }
 

@@ -1,5 +1,6 @@
 package com.mehdi.taskflow.user;
 
+import com.mehdi.taskflow.config.MessageService;
 import com.mehdi.taskflow.security.JwtService;
 import com.mehdi.taskflow.user.dto.AuthResponse;
 import com.mehdi.taskflow.user.dto.LoginRequest;
@@ -29,6 +30,7 @@ public class UserService {
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
     private final AuthenticationManager authenticationManager;
+    private final MessageService messageService;
 
     /**
      * Constructs a new {@code UserService} with its required dependencies.
@@ -37,15 +39,18 @@ public class UserService {
      * @param passwordEncoder       BCrypt encoder for password hashing
      * @param jwtService            service for JWT token generation
      * @param authenticationManager Spring Security authentication manager
+     * @param messageService utility component for resolving i18n messages based on the current request locale
      */
     public UserService(UserRepository userRepository,
                        PasswordEncoder passwordEncoder,
                        JwtService jwtService,
-                       AuthenticationManager authenticationManager) {
+                       AuthenticationManager authenticationManager,
+                       MessageService messageService) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtService = jwtService;
         this.authenticationManager = authenticationManager;
+        this.messageService = messageService;
     }
 
     /**
@@ -61,10 +66,10 @@ public class UserService {
      */
     public AuthResponse register(RegisterRequest request) {
         if (userRepository.existsByUsername(request.getUsername())) {
-            throw new IllegalArgumentException("Ce nom d'utilisateur est déjà pris");
+            throw new IllegalArgumentException(messageService.get("error.username.taken"));
         }
         if (userRepository.existsByEmail(request.getEmail())) {
-            throw new IllegalArgumentException("Cet email est déjà utilisé");
+            throw new IllegalArgumentException(messageService.get("error.email.taken"));
         }
 
         User user = new User();
@@ -89,9 +94,8 @@ public class UserService {
      *
      * @param request login data containing the identifier (username or email) and password
      * @return an {@link AuthResponse} containing the JWT token and user details
-     * @throws org.springframework.security.authentication.BadCredentialsException
-     *         if the credentials are invalid
-     * @throws IllegalArgumentException if no user matches the provided identifier
+     * @throws org.springframework.security.authentication.BadCredentialsException if the credentials are invalid
+     * @throws IllegalArgumentException                                            if no user matches the provided identifier
      */
     public AuthResponse login(LoginRequest request) {
         authenticationManager.authenticate(
@@ -103,7 +107,8 @@ public class UserService {
 
         User user = userRepository.findByUsername(request.getIdentifier())
                 .or(() -> userRepository.findByEmail(request.getIdentifier()))
-                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+                .orElseThrow(() -> new IllegalArgumentException(
+                        messageService.get("error.user.not.found")));
 
         String token = jwtService.generateToken(user);
         return new AuthResponse(token, user.getUsername(), user.getEmail());

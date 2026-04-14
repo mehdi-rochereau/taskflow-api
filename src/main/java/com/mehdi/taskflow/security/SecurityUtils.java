@@ -1,5 +1,6 @@
 package com.mehdi.taskflow.security;
 
+import com.mehdi.taskflow.config.MessageService;
 import com.mehdi.taskflow.exception.ResourceNotFoundException;
 import com.mehdi.taskflow.user.User;
 import com.mehdi.taskflow.user.UserRepository;
@@ -28,14 +29,17 @@ import org.springframework.stereotype.Component;
 public class SecurityUtils {
 
     private final UserRepository userRepository;
+    private final MessageService messageService;
 
     /**
      * Constructs a new {@code SecurityUtils} with its required dependency.
      *
      * @param userRepository repository used to load the authenticated user
+     * @param messageService utility component for resolving i18n messages based on the current request locale
      */
-    public SecurityUtils(UserRepository userRepository) {
+    public SecurityUtils(UserRepository userRepository, MessageService messageService) {
         this.userRepository = userRepository;
+        this.messageService = messageService;
     }
 
     /**
@@ -46,14 +50,15 @@ public class SecurityUtils {
      *
      * @return the authenticated user
      * @throws ResourceNotFoundException if no user matches the authenticated username —
-     *         this should not occur in normal operation as the JWT filter already
-     *         validates the token against an existing user
-     * @throws IllegalStateException if called outside an authenticated request context
+     *                                   this should not occur in normal operation as the JWT filter already
+     *                                   validates the token against an existing user
+     * @throws IllegalStateException     if called outside an authenticated request context
      */
     public User getCurrentUser() {
         String username = SecurityContextHolder.getContext()
                 .getAuthentication().getName();
         return userRepository.findByUsername(username)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        messageService.get("error.user.not.found")));
     }
 }
