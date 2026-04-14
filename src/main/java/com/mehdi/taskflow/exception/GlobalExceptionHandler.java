@@ -11,7 +11,9 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -35,7 +37,7 @@ import java.util.Map;
  *   "timestamp": "2026-04-08T10:00:00",
  *   "status": 400,
  *   "errors": {
- *     "name": "Project name is required"
+ *     "name": ["Project name is required"]
  *   }
  * }
  * }</pre>
@@ -102,11 +104,11 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<Map<String, Object>> handleValidation(
             MethodArgumentNotValidException ex) {
-        Map<String, String> errors = new HashMap<>();
+        Map<String, List<String>> errors = new HashMap<>();
         ex.getBindingResult().getAllErrors().forEach(error -> {
             String field = ((FieldError) error).getField();
             String message = error.getDefaultMessage();
-            errors.put(field, message);
+            errors.computeIfAbsent(field, k -> new ArrayList<>()).add(message);
         });
         Map<String, Object> body = new HashMap<>();
         body.put("timestamp", LocalDateTime.now());
