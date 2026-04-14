@@ -19,24 +19,24 @@ public class RegisterRequest {
      * Unique username for the new account.
      * Must be between 3 and 50 characters and must not be blank.
      */
-    @NotBlank(message = "Le nom d'utilisateur est obligatoire")
-    @Size(min = 3, max = 50)
+    @NotBlank(message = "{validation.username.required}")
+    @Size(min = 3, max = 50, message = "{validation.username.size}")
     private String username;
 
     /**
      * Email address for the new account.
      * Must be a valid email format and must not be blank.
      */
-    @Email(message = "Email invalide")
-    @NotBlank(message = "L'email est obligatoire")
+    @Email(message = "{validation.email.invalid}")
+    @NotBlank(message = "{validation.email.required}")
     private String email;
 
     /**
      * Plain-text password for the new account.
      * Must be at least 8 characters. Encoded with BCrypt before persistence.
      */
-    @NotBlank(message = "Le mot de passe est obligatoire")
-    @Size(min = 8, message = "Le mot de passe doit faire au moins 8 caractères")
+    @NotBlank(message = "{validation.password.required}")
+    @Size(min = 8, message = "{validation.password.size}")
     private String password;
 
     /**

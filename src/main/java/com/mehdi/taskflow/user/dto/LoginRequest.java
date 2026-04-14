@@ -18,14 +18,14 @@ public class LoginRequest {
      * Username or email address used to identify the user.
      * Must not be blank.
      */
-    @NotBlank(message = "Username or email is required")
+    @NotBlank(message = "{validation.identifier.required}")
     private String identifier;
 
     /**
      * Plain-text password to verify against the stored BCrypt hash.
      * Must not be blank.
      */
-    @NotBlank(message = "Password is required")
+    @NotBlank(message = "{validation.password.required}")
     private String password;
 
     /**

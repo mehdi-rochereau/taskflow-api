@@ -26,28 +26,28 @@ public class TaskRequest {
     /**
      * Task title. Required, 200 characters maximum.
      */
-    @NotBlank(message = "Le titre est obligatoire")
-    @Size(max = 200)
+    @NotBlank(message = "{validation.task.title.required}")
+    @Size(max = 200, message = "{validation.task.title.size}")
     private String title;
 
     /**
      * Optional task description. 1000 characters maximum.
      */
-    @Size(max = 1000)
+    @Size(max = 1000, message = "{validation.task.description.size}")
     private String description;
 
     /**
      * Task status. Required — must be one of {@link TaskStatus#TODO},
      * {@link TaskStatus#IN_PROGRESS}, or {@link TaskStatus#DONE}.
      */
-    @NotNull(message = "Le statut est obligatoire")
+    @NotNull(message = "{validation.task.status.required}")
     private TaskStatus status;
 
     /**
      * Task priority. Required — must be one of {@link TaskPriority#LOW},
      * {@link TaskPriority#MEDIUM}, or {@link TaskPriority#HIGH}.
      */
-    @NotNull(message = "La priorité est obligatoire")
+    @NotNull(message = "{validation.task.priority.required}")
     private TaskPriority priority;
 
     /**

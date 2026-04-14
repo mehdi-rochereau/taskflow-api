@@ -21,14 +21,14 @@ public class ProjectRequest {
     /**
      * Project name. Required, 100 characters maximum.
      */
-    @NotBlank(message = "Le nom du projet est obligatoire")
-    @Size(max = 100)
+    @NotBlank(message = "{validation.project.name.required}")
+    @Size(max = 100, message = "{validation.project.name.size}")
     private String name;
 
     /**
      * Optional project description. 500 characters maximum.
      */
-    @Size(max = 500)
+    @Size(max = 500, message = "{validation.project.description.size}")
     private String description;
 
     /**
