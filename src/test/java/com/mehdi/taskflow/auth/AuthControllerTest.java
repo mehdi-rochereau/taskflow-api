@@ -63,15 +63,14 @@ class AuthControllerTest {
 
     @BeforeEach
     void setUp() throws ServletException, IOException {
+
         Locale.setDefault(java.util.Locale.ENGLISH);
+
         doAnswer(invocation -> {
             FilterChain chain = invocation.getArgument(2);
             chain.doFilter(invocation.getArgument(0), invocation.getArgument(1));
             return null;
         }).when(jwtFilter).doFilter(any(), any(), any());
-
-        when(messageService.get("error.unexpected")).thenReturn("An unexpected error occurred");
-        when(messageService.get("error.access.denied")).thenReturn("Access denied");
     }
 
     @Test
@@ -266,7 +265,7 @@ class AuthControllerTest {
         request.setUsername("mehdi");
         request.setEmail("mehdi@test.com");
         request.setPassword("password123");
-
+        when(messageService.get("error.unexpected")).thenReturn("An unexpected error occurred");
         when(userService.register(any(RegisterRequest.class)))
                 .thenThrow(new RuntimeException("unexpected"));
 
