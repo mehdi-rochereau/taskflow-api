@@ -2,6 +2,7 @@ package com.mehdi.taskflow.config;
 
 import com.mehdi.taskflow.security.JwtFilter;
 import com.mehdi.taskflow.security.UserDetailsServiceImpl;
+import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -47,16 +48,19 @@ public class SecurityConfig {
 
     private final JwtFilter jwtFilter;
     private final UserDetailsServiceImpl userDetailsService;
+    private final MessageService messageService;
 
     /**
      * Constructs a new {@code SecurityConfig} with its required dependencies.
      *
      * @param jwtFilter          filter responsible for JWT token validation on each request
      * @param userDetailsService service for loading user details during authentication
+     * @param messageService     utility component for resolving i18n messages based on the current request locale
      */
-    public SecurityConfig(JwtFilter jwtFilter, UserDetailsServiceImpl userDetailsService) {
+    public SecurityConfig(JwtFilter jwtFilter, UserDetailsServiceImpl userDetailsService, MessageService messageService) {
         this.jwtFilter = jwtFilter;
         this.userDetailsService = userDetailsService;
+        this.messageService = messageService;
     }
 
     /**
@@ -89,6 +93,17 @@ public class SecurityConfig {
                 )
                 .sessionManagement(session -> session
                         .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
+                )
+                .exceptionHandling(ex -> ex
+                        .authenticationEntryPoint((request, response, authException) -> {
+                            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                            response.setContentType("application/json");
+                            response.getWriter().write(
+                                    "{\"status\":401,\"message\":\""
+                                            + messageService.get("error.authentication.required")
+                                            + "\"}"
+                            );
+                        })
                 )
                 .authenticationProvider(authenticationProvider())
                 .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
