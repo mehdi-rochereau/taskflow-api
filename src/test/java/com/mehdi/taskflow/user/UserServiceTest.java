@@ -1,5 +1,6 @@
 package com.mehdi.taskflow.user;
 
+import com.mehdi.taskflow.config.MessageService;
 import com.mehdi.taskflow.security.JwtService;
 import com.mehdi.taskflow.user.dto.AuthResponse;
 import com.mehdi.taskflow.user.dto.LoginRequest;
@@ -11,6 +12,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
@@ -33,6 +35,9 @@ class UserServiceTest {
 
     @Mock
     private AuthenticationManager authenticationManager;
+
+    @Mock
+    private MessageService messageService;
 
     @InjectMocks
     private UserService userService;
@@ -76,17 +81,32 @@ class UserServiceTest {
         assertNotNull(response);
         assertEquals("fake-jwt-token", response.getToken());
         assertEquals("mehdi", response.getUsername());
-        verify(userRepository, times(1)).save(any(User.class));
+        assertEquals("mehdi@test.com", response.getEmail());
+        verify(userRepository).existsByUsername("mehdi");
+        verify(userRepository).existsByEmail("mehdi@test.com");
+        verify(passwordEncoder).encode("password123");
+        verify(userRepository).save(argThat(u ->
+                u.getUsername().equals("mehdi")
+                        && u.getEmail().equals("mehdi@test.com")
+                        && u.getPassword().equals("hashedPassword")
+                        && u.getRole().equals("ROLE_USER")
+        ));
+        verify(jwtService).generateToken(argThat(u ->
+                u.getUsername().equals("mehdi")
+                        && u.getPassword().equals("hashedPassword")));
     }
 
     @Test
     void register_shouldThrowException_whenUsernameAlreadyExists() {
         // GIVEN
         when(userRepository.existsByUsername("mehdi")).thenReturn(true);
+        when(messageService.get("error.username.taken")).thenReturn("This username is already taken");
 
         // WHEN & THEN
-        assertThrows(IllegalArgumentException.class,
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
                 () -> userService.register(registerRequest));
+        assertEquals("This username is already taken", ex.getMessage());
+        verify(messageService).get("error.username.taken");
         verify(userRepository, never()).save(any(User.class));
     }
 
@@ -95,32 +115,33 @@ class UserServiceTest {
         // GIVEN
         when(userRepository.existsByUsername("mehdi")).thenReturn(false);
         when(userRepository.existsByEmail("mehdi@test.com")).thenReturn(true);
+        when(messageService.get("error.email.taken")).thenReturn("This email is already in use");
+
 
         // WHEN & THEN
-        assertThrows(IllegalArgumentException.class,
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
                 () -> userService.register(registerRequest));
+        assertEquals("This email is already in use", ex.getMessage());
+        verify(messageService).get("error.email.taken");
         verify(userRepository, never()).save(any(User.class));
     }
 
     @Test
-    void register_shouldEncodePassword() {
+    void register_shouldNotCheckEmailUniqueness_whenUsernameAlreadyExists() {
         // GIVEN
-        when(userRepository.existsByUsername("mehdi")).thenReturn(false);
-        when(userRepository.existsByEmail("mehdi@test.com")).thenReturn(false);
-        when(passwordEncoder.encode("password123")).thenReturn("hashedPassword");
-        when(userRepository.save(any(User.class))).thenReturn(user);
-        when(jwtService.generateToken(any(User.class))).thenReturn("fake-jwt-token");
+        when(userRepository.existsByUsername("mehdi")).thenReturn(true);
+        when(messageService.get("error.username.taken")).thenReturn("This username is already taken");
 
         // WHEN
-        userService.register(registerRequest);
+        assertThrows(IllegalArgumentException.class,
+                () -> userService.register(registerRequest));
 
-        // THEN
-        verify(passwordEncoder, times(1)).encode("password123");
-        verify(userRepository).save(argThat(u -> u.getPassword().equals("hashedPassword")));
+        // THEN — email check should never be called if username is already taken
+        verify(userRepository, never()).existsByEmail(anyString());
     }
 
     @Test
-    void login_shouldReturnToken_whenCredentialsAreValid() {
+    void login_shouldReturnToken_whenLoginWithUsername() {
         // GIVEN
         when(authenticationManager.authenticate(any(UsernamePasswordAuthenticationToken.class)))
                 .thenReturn(null);
@@ -134,6 +155,33 @@ class UserServiceTest {
         assertNotNull(response);
         assertEquals("fake-jwt-token", response.getToken());
         assertEquals("mehdi", response.getUsername());
+        assertEquals("mehdi@test.com", response.getEmail());
+        verify(userRepository).findByUsername("mehdi");
+        verify(userRepository, never()).findByEmail("mehdi");
+        verify(jwtService).generateToken(user);
+    }
+
+    @Test
+    void login_shouldReturnToken_whenLoginWithEmail() {
+        // GIVEN
+        loginRequest.setIdentifier("mehdi@test.com");
+        when(authenticationManager.authenticate(any(UsernamePasswordAuthenticationToken.class)))
+                .thenReturn(null);
+        when(userRepository.findByUsername("mehdi@test.com")).thenReturn(java.util.Optional.empty());
+        when(userRepository.findByEmail("mehdi@test.com")).thenReturn(java.util.Optional.of(user));
+        when(jwtService.generateToken(any(User.class))).thenReturn("fake-jwt-token");
+
+        // WHEN
+        AuthResponse response = userService.login(loginRequest);
+
+        // THEN
+        assertNotNull(response);
+        assertEquals("fake-jwt-token", response.getToken());
+        assertEquals("mehdi", response.getUsername());
+        assertEquals("mehdi@test.com", response.getEmail());
+        verify(userRepository).findByUsername("mehdi@test.com");
+        verify(userRepository).findByEmail("mehdi@test.com");
+        verify(jwtService).generateToken(user);
     }
 
     @Test
@@ -142,21 +190,31 @@ class UserServiceTest {
         when(authenticationManager.authenticate(any(UsernamePasswordAuthenticationToken.class)))
                 .thenReturn(null);
         when(userRepository.findByUsername("mehdi")).thenReturn(java.util.Optional.empty());
+        when(userRepository.findByEmail("mehdi")).thenReturn(java.util.Optional.empty());
+        when(messageService.get("error.user.not.found")).thenReturn("User not found");
 
         // WHEN & THEN
-        assertThrows(IllegalArgumentException.class,
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
                 () -> userService.login(loginRequest));
+        assertEquals("User not found", ex.getMessage());
+        verify(messageService).get("error.user.not.found");
+        verify(userRepository).findByUsername("mehdi");
+        verify(userRepository).findByEmail("mehdi");
+        verify(jwtService, never()).generateToken(any());
     }
 
     @Test
     void login_shouldThrow_whenBadCredentials() {
         // GIVEN
         when(authenticationManager.authenticate(any(UsernamePasswordAuthenticationToken.class)))
-                .thenThrow(new org.springframework.security.authentication.BadCredentialsException("Bad credentials"));
+                .thenThrow(new BadCredentialsException("Bad credentials"));
 
         // WHEN & THEN
-        assertThrows(org.springframework.security.authentication.BadCredentialsException.class,
+        BadCredentialsException ex = assertThrows(BadCredentialsException.class,
                 () -> userService.login(loginRequest));
+
+        assertEquals("Bad credentials", ex.getMessage());
         verify(userRepository, never()).findByUsername(anyString());
+        verify(userRepository, never()).findByEmail(anyString());
     }
 }
