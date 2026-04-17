@@ -1,5 +1,6 @@
 package com.mehdi.taskflow.project;
 
+import com.mehdi.taskflow.config.MessageService;
 import com.mehdi.taskflow.exception.ResourceNotFoundException;
 import com.mehdi.taskflow.project.dto.ProjectRequest;
 import com.mehdi.taskflow.security.SecurityUtils;
@@ -28,12 +29,16 @@ class ProjectServiceTest {
     @Mock
     private SecurityUtils securityUtils;
 
+    @Mock
+    private MessageService messageService;
+
     @InjectMocks
     private ProjectService projectService;
 
     private User currentUser;
     private Project project;
-    private ProjectRequest projectRequest;
+    private ProjectRequest createRequest;
+    private ProjectRequest updateRequest;
 
     @BeforeEach
     void setUp() {
@@ -44,12 +49,17 @@ class ProjectServiceTest {
 
         project = new Project();
         project.setId(1L);
-        project.setName("Mon projet");
+        project.setName("Existing project");
+        project.setDescription("Existing description");
         project.setOwner(currentUser);
 
-        projectRequest = new ProjectRequest();
-        projectRequest.setName("Nouveau nom");
-        projectRequest.setDescription("Description");
+        createRequest = new ProjectRequest();
+        createRequest.setName("New project");
+        createRequest.setDescription("New description");
+
+        updateRequest = new ProjectRequest();
+        updateRequest.setName("Updated project");
+        updateRequest.setDescription("Updated description");
 
         when(securityUtils.getCurrentUser()).thenReturn(currentUser);
     }
@@ -64,117 +74,25 @@ class ProjectServiceTest {
 
         // THEN
         assertEquals(1, projects.size());
-        assertEquals("Mon projet", projects.get(0).getName());
+        assertEquals("Existing project", projects.getFirst().getName());
+        assertEquals("Existing description", projects.getFirst().getDescription());
+        verify(securityUtils).getCurrentUser();
+        verify(projectRepository).findByOwnerId(1L);
     }
 
     @Test
-    void createProject_shouldCreateAndReturnProject() {
+    void getMyProjects_shouldReturnEmptyList_whenNoProjects() {
         // GIVEN
-        when(projectRepository.save(any(Project.class))).thenReturn(project);
+        when(projectRepository.findByOwnerId(1L)).thenReturn(List.of());
 
         // WHEN
-        Project result = projectService.createProject(projectRequest);
+        List<Project> projects = projectService.getMyProjects();
 
         // THEN
-        assertNotNull(result);
-        verify(projectRepository, times(1)).save(any(Project.class));
-    }
-
-    @Test
-    void updateProject_shouldThrow_whenNotOwner() {
-        // GIVEN
-        when(projectRepository.existsByIdAndOwnerId(1L, 1L)).thenReturn(false);
-
-        // WHEN & THEN
-        assertThrows(AccessDeniedException.class,
-                () -> projectService.updateProject(1L, projectRequest));
-        verify(projectRepository, never()).findById(any());
-    }
-
-    @Test
-    void updateProject_shouldThrow_whenProjectNotFound() {
-        // GIVEN
-        when(projectRepository.existsByIdAndOwnerId(1L, 1L)).thenReturn(true);
-        when(projectRepository.findById(1L)).thenReturn(Optional.empty());
-
-        // WHEN & THEN
-        assertThrows(ResourceNotFoundException.class,
-                () -> projectService.updateProject(1L, projectRequest));
-    }
-
-    @Test
-    void updateProject_shouldUpdateAndReturnProject() {
-        // GIVEN
-        when(projectRepository.existsByIdAndOwnerId(1L, 1L)).thenReturn(true);
-        when(projectRepository.findById(1L)).thenReturn(Optional.of(project));
-        when(projectRepository.save(any(Project.class))).thenReturn(project);
-
-        // WHEN
-        Project result = projectService.updateProject(1L, projectRequest);
-
-        // THEN
-        assertNotNull(result);
-        verify(projectRepository, times(1)).save(any(Project.class));
-    }
-
-    @Test
-    void deleteProject_shouldThrow_whenNotOwner() {
-        // GIVEN
-        when(projectRepository.existsByIdAndOwnerId(1L, 1L)).thenReturn(false);
-
-        // WHEN & THEN
-        assertThrows(AccessDeniedException.class,
-                () -> projectService.deleteProject(1L));
-        verify(projectRepository, never()).findById(any());
-        verify(projectRepository, never()).delete(any());
-    }
-
-    @Test
-    void deleteProject_shouldThrow_whenProjectNotFound() {
-        // GIVEN
-        when(projectRepository.existsByIdAndOwnerId(1L, 1L)).thenReturn(true);
-        when(projectRepository.findById(1L)).thenReturn(Optional.empty());
-
-        // WHEN & THEN
-        assertThrows(ResourceNotFoundException.class,
-                () -> projectService.deleteProject(1L));
-        verify(projectRepository, never()).delete(any());
-    }
-
-    @Test
-    void deleteProject_shouldDelete_whenOwner() {
-        // GIVEN
-        when(projectRepository.existsByIdAndOwnerId(1L, 1L)).thenReturn(true);
-        when(projectRepository.findById(1L)).thenReturn(Optional.of(project));
-
-        // WHEN
-        projectService.deleteProject(1L);
-
-        // THEN
-        verify(projectRepository, times(1)).delete(project);
-    }
-
-    @Test
-    void getProjectById_shouldThrow_whenNotOwner() {
-        // GIVEN
-        User otherUser = new User();
-        otherUser.setId(2L);
-        project.setOwner(otherUser);
-        when(projectRepository.findById(1L)).thenReturn(Optional.of(project));
-
-        // WHEN & THEN
-        assertThrows(AccessDeniedException.class,
-                () -> projectService.getProjectById(1L));
-    }
-
-    @Test
-    void getProjectById_shouldThrow_whenNotFound() {
-        // GIVEN
-        when(projectRepository.findById(999L)).thenReturn(Optional.empty());
-
-        // WHEN & THEN
-        assertThrows(ResourceNotFoundException.class,
-                () -> projectService.getProjectById(999L));
+        assertNotNull(projects);
+        assertTrue(projects.isEmpty());
+        verify(securityUtils).getCurrentUser();
+        verify(projectRepository).findByOwnerId(1L);
     }
 
     @Test
@@ -187,6 +105,201 @@ class ProjectServiceTest {
 
         // THEN
         assertNotNull(result);
-        assertEquals("Mon projet", result.getName());
+        assertEquals(project, result);
+        verify(securityUtils).getCurrentUser();
+        verify(projectRepository).findById(1L);
+        verify(messageService, never()).get(anyString());
+    }
+
+    @Test
+    void getProjectById_shouldThrow_whenNotFound() {
+        // GIVEN
+        when(projectRepository.findById(999L)).thenReturn(Optional.empty());
+        when(messageService.get("error.project.not.found")).thenReturn("Project not found");
+
+        // WHEN
+        ResourceNotFoundException ex = assertThrows(ResourceNotFoundException.class,
+                () -> projectService.getProjectById(999L));
+
+        assertEquals("Project not found", ex.getMessage());
+        verify(securityUtils).getCurrentUser();
+        verify(projectRepository).findById(999L);
+        verify(messageService).get("error.project.not.found");
+        verify(messageService, never()).get("error.access.denied");
+    }
+
+    @Test
+    void getProjectById_shouldThrow_whenNotOwner() {
+        // GIVEN
+        User otherUser = new User();
+        otherUser.setId(2L);
+        project.setOwner(otherUser);
+        when(projectRepository.findById(1L)).thenReturn(Optional.of(project));
+        when(messageService.get("error.access.denied")).thenReturn("Access denied");
+
+        // WHEN
+        AccessDeniedException ex = assertThrows(AccessDeniedException.class,
+                () -> projectService.getProjectById(1L));
+
+        // THEN
+        assertEquals("Access denied", ex.getMessage());
+        verify(securityUtils).getCurrentUser();
+        verify(projectRepository).findById(1L);
+        verify(messageService, never()).get("error.project.not.found");
+        verify(messageService).get("error.access.denied");
+    }
+
+    @Test
+    void createProject_shouldCreateAndReturnProject() {
+        // GIVEN
+        when(projectRepository.save(any(Project.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        // WHEN
+        Project result = projectService.createProject(createRequest);
+
+        // THEN
+        assertNotNull(result);
+        assertEquals("New project", result.getName());
+        assertEquals("New description", result.getDescription());
+        assertEquals(currentUser, result.getOwner());
+        assertNull(result.getId());
+        assertNull(result.getCreatedAt());
+        verify(securityUtils).getCurrentUser();
+        verify(projectRepository).save(argThat(p ->
+                p.getId() == null
+                        && p.getCreatedAt() == null
+                        && p.getName().equals("New project")
+                        && p.getDescription().equals("New description")
+                        && p.getOwner().equals(currentUser)
+        ));
+    }
+
+    @Test
+    void updateProject_shouldUpdateAndReturnProject() {
+        // GIVEN
+        when(projectRepository.existsByIdAndOwnerId(1L, 1L)).thenReturn(true);
+        when(projectRepository.findById(1L)).thenReturn(Optional.of(project));
+        when(projectRepository.save(any(Project.class))).thenReturn(project);
+
+        // WHEN
+        Project result = projectService.updateProject(1L, updateRequest);
+
+        // THEN
+        assertNotNull(result);
+        assertEquals(1L, result.getId());
+        assertEquals("Updated project", result.getName());
+        assertEquals("Updated description", result.getDescription());
+        assertEquals(currentUser, result.getOwner());
+        verify(securityUtils).getCurrentUser();
+        verify(projectRepository).existsByIdAndOwnerId(1L, 1L);
+        verify(projectRepository).findById(1L);
+        verify(projectRepository).save(argThat(p ->
+                p.getId().equals(1L)
+                        && p.getName().equals("Updated project")
+                        && p.getDescription().equals("Updated description")
+                        && p.getOwner().equals(currentUser)
+                        && p.getCreatedAt() == null
+        ));
+    }
+
+    @Test
+    void updateProject_shouldThrow_whenNotOwner() {
+        // GIVEN
+        when(projectRepository.existsByIdAndOwnerId(1L, 1L)).thenReturn(false);
+        when(messageService.get("error.access.denied")).thenReturn("Access denied");
+
+        // WHEN
+        AccessDeniedException ex = assertThrows(AccessDeniedException.class,
+                () -> projectService.updateProject(1L, updateRequest));
+
+        // THEN
+        assertEquals("Access denied", ex.getMessage());
+        verify(securityUtils).getCurrentUser();
+        verify(projectRepository).existsByIdAndOwnerId(1L, 1L);
+        verify(messageService).get("error.access.denied");
+        verify(projectRepository, never()).findById(any());
+        verify(messageService, never()).get("error.project.not.found");
+        verify(projectRepository, never()).save(any());
+    }
+
+    @Test
+    void updateProject_shouldThrow_whenProjectNotFound() {
+        // GIVEN
+        when(projectRepository.existsByIdAndOwnerId(1L, 1L)).thenReturn(true);
+        when(projectRepository.findById(1L)).thenReturn(Optional.empty());
+        when(messageService.get("error.project.not.found")).thenReturn("Project not found");
+
+        // WHEN
+        ResourceNotFoundException ex = assertThrows(ResourceNotFoundException.class,
+                () -> projectService.updateProject(1L, updateRequest));
+
+        // THEN
+        assertEquals("Project not found", ex.getMessage());
+        verify(securityUtils).getCurrentUser();
+        verify(projectRepository).existsByIdAndOwnerId(1L, 1L);
+        verify(messageService, never()).get("error.access.denied");
+        verify(projectRepository).findById(1L);
+        verify(messageService).get("error.project.not.found");
+        verify(projectRepository, never()).save(any());
+    }
+
+    @Test
+    void deleteProject_shouldDelete_whenOwner() {
+        // GIVEN
+        when(projectRepository.existsByIdAndOwnerId(1L, 1L)).thenReturn(true);
+        when(projectRepository.findById(1L)).thenReturn(Optional.of(project));
+
+        // WHEN
+        projectService.deleteProject(1L);
+
+        // THEN
+        verify(securityUtils).getCurrentUser();
+        verify(projectRepository).existsByIdAndOwnerId(1L, 1L);
+        verify(messageService, never()).get("error.access.denied");
+        verify(projectRepository).findById(1L);
+        verify(messageService, never()).get("error.project.not.found");
+        verify(projectRepository, times(1)).delete(project);
+    }
+
+    @Test
+    void deleteProject_shouldThrow_whenNotOwner() {
+        // GIVEN
+        when(projectRepository.existsByIdAndOwnerId(1L, 1L)).thenReturn(false);
+        when(messageService.get("error.access.denied")).thenReturn("Access denied");
+
+        // WHEN
+        AccessDeniedException ex = assertThrows(AccessDeniedException.class,
+                () -> projectService.deleteProject(1L));
+
+        // THEN
+        assertEquals("Access denied", ex.getMessage());
+        verify(securityUtils).getCurrentUser();
+        verify(projectRepository).existsByIdAndOwnerId(1L, 1L);
+        verify(messageService).get("error.access.denied");
+        verify(projectRepository, never()).findById(any());
+        verify(messageService, never()).get("error.project.not.found");
+        verify(projectRepository, never()).delete(any());
+    }
+
+    @Test
+    void deleteProject_shouldThrow_whenProjectNotFound() {
+        // GIVEN
+        when(projectRepository.existsByIdAndOwnerId(1L, 1L)).thenReturn(true);
+        when(projectRepository.findById(1L)).thenReturn(Optional.empty());
+        when(messageService.get("error.project.not.found")).thenReturn("Project not found");
+
+        // WHEN
+        ResourceNotFoundException ex = assertThrows(ResourceNotFoundException.class,
+                () -> projectService.deleteProject(1L));
+
+        // THEN
+        assertEquals("Project not found", ex.getMessage());
+        verify(securityUtils).getCurrentUser();
+        verify(projectRepository).existsByIdAndOwnerId(1L, 1L);
+        verify(messageService, never()).get("error.access.denied");
+        verify(projectRepository).findById(1L);
+        verify(messageService).get("error.project.not.found");
+        verify(projectRepository, never()).delete(any());
     }
 }
