@@ -1,5 +1,6 @@
 package com.mehdi.taskflow.task;
 
+import com.mehdi.taskflow.config.MessageService;
 import com.mehdi.taskflow.exception.ResourceNotFoundException;
 import com.mehdi.taskflow.project.Project;
 import com.mehdi.taskflow.project.ProjectRepository;
@@ -15,6 +16,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.access.AccessDeniedException;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 
@@ -25,25 +27,29 @@ import static org.mockito.Mockito.*;
 public class TaskServiceTest {
 
     @Mock
-    TaskRepository taskRepository;
+    private TaskRepository taskRepository;
 
     @Mock
-    ProjectRepository projectRepository;
+    private ProjectRepository projectRepository;
 
     @Mock
-    UserRepository userRepository;
+    private UserRepository userRepository;
 
     @Mock
-    SecurityUtils securityUtils;
+    private SecurityUtils securityUtils;
+
+    @Mock
+    private MessageService messageService;
 
     @InjectMocks
-    TaskService taskService;
+    private TaskService taskService;
 
     private User currentUser;
     private User otherUser;
     private Project project;
     private Task task;
-    private TaskRequest taskRequest;
+    private TaskRequest createRequest;
+    private TaskRequest updateRequest;
 
     @BeforeEach
     void setUp() {
@@ -60,16 +66,29 @@ public class TaskServiceTest {
 
         task = new Task();
         task.setId(1L);
-        task.setTitle("Ma tâche");
+        task.setTitle("Existing task");
+        task.setDescription("Existing description");
         task.setStatus(TaskStatus.TODO);
         task.setPriority(TaskPriority.MEDIUM);
+        task.setDueDate(LocalDate.of(2026, 12, 31));
         task.setProject(project);
+        task.setAssignee(otherUser);
 
-        taskRequest = new TaskRequest();
-        taskRequest.setTitle("Ma tâche");
-        taskRequest.setStatus(TaskStatus.TODO);
-        taskRequest.setPriority(TaskPriority.MEDIUM);
-        taskRequest.setAssigneeId(2L);
+        createRequest = new TaskRequest();
+        createRequest.setTitle("New task");
+        createRequest.setDescription("New description");
+        createRequest.setStatus(TaskStatus.TODO);
+        createRequest.setPriority(TaskPriority.MEDIUM);
+        createRequest.setDueDate(LocalDate.of(2026, 12, 31));
+        createRequest.setAssigneeId(2L);
+
+        updateRequest = new TaskRequest();
+        updateRequest.setTitle("Updated task");
+        updateRequest.setDescription("Updated description");
+        updateRequest.setStatus(TaskStatus.TODO);
+        updateRequest.setPriority(TaskPriority.MEDIUM);
+        updateRequest.setDueDate(LocalDate.of(2026, 12, 31));
+        updateRequest.setAssigneeId(2L);
     }
 
     private void givenAuthenticatedUser() {
@@ -78,27 +97,115 @@ public class TaskServiceTest {
 
     @Test
     void getTasksByProject_shouldReturnAllTasks_whenNoFilter() {
+        // GIVEN
         when(taskRepository.findByProjectId(1L)).thenReturn(List.of(task));
+
+        // WHEN
         List<Task> result = taskService.getTasksByProject(1L, null, null);
+
+        // THEN
         assertEquals(1, result.size());
-        assertEquals("Ma tâche", result.getFirst().getTitle());
+        assertEquals("Existing task", result.getFirst().getTitle());
+        assertEquals("Existing description", result.getFirst().getDescription());
+        assertEquals(TaskStatus.TODO, result.getFirst().getStatus());
+        assertEquals(TaskPriority.MEDIUM, result.getFirst().getPriority());
+        assertEquals(LocalDate.of(2026, 12, 31), result.getFirst().getDueDate());
+        assertEquals(otherUser, result.getFirst().getAssignee());
+        assertEquals(project, result.getFirst().getProject());
+        assertEquals(currentUser, result.getFirst().getProject().getOwner());
+        verify(taskRepository, never()).findByProjectIdAndStatus(eq(1L), any());
+        verify(taskRepository, never()).findByProjectIdAndPriority(eq(1L), any());
         verify(taskRepository).findByProjectId(1L);
+        verify(securityUtils, never()).getCurrentUser();
+    }
+
+    @Test
+    void getTasksByProject_shouldReturnEmptyList_whenNoTasks() {
+        // GIVEN
+        when(taskRepository.findByProjectId(1L)).thenReturn(List.of());
+
+        // WHEN
+        List<Task> result = taskService.getTasksByProject(1L, null, null);
+
+        // THEN
+        assertNotNull(result);
+        assertTrue(result.isEmpty());
+        verify(taskRepository, never()).findByProjectIdAndStatus(eq(1L), any());
+        verify(taskRepository, never()).findByProjectIdAndPriority(eq(1L), any());
+        verify(taskRepository).findByProjectId(1L);
+        verify(securityUtils, never()).getCurrentUser();
     }
 
     @Test
     void getTasksByProject_shouldFilterByStatus() {
+        // GIVEN
         when(taskRepository.findByProjectIdAndStatus(1L, TaskStatus.TODO)).thenReturn(List.of(task));
+
+        // WHEN
         List<Task> result = taskService.getTasksByProject(1L, TaskStatus.TODO, null);
+
+        // THEN
         assertEquals(1, result.size());
+        assertEquals("Existing task", result.getFirst().getTitle());
+        assertEquals("Existing description", result.getFirst().getDescription());
+        assertEquals(TaskStatus.TODO, result.getFirst().getStatus());
+        assertEquals(TaskPriority.MEDIUM, result.getFirst().getPriority());
+        assertEquals(LocalDate.of(2026, 12, 31), result.getFirst().getDueDate());
+        assertEquals(otherUser, result.getFirst().getAssignee());
+        assertEquals(project, result.getFirst().getProject());
+        assertEquals(currentUser, result.getFirst().getProject().getOwner());
         verify(taskRepository).findByProjectIdAndStatus(1L, TaskStatus.TODO);
+        verify(taskRepository, never()).findByProjectIdAndPriority(eq(1L), any());
+        verify(taskRepository, never()).findByProjectId(1L);
+        verify(securityUtils, never()).getCurrentUser();
     }
 
     @Test
     void getTasksByProject_shouldFilterByPriority() {
+        // GIVEN
         when(taskRepository.findByProjectIdAndPriority(1L, TaskPriority.MEDIUM)).thenReturn(List.of(task));
-        List<Task> tasks = taskService.getTasksByProject(1L, null, TaskPriority.MEDIUM);
-        assertEquals(1, tasks.size());
+
+        // WHEN
+        List<Task> result = taskService.getTasksByProject(1L, null, TaskPriority.MEDIUM);
+
+        // THEN
+        assertEquals(1, result.size());
+        assertEquals("Existing task", result.getFirst().getTitle());
+        assertEquals("Existing description", result.getFirst().getDescription());
+        assertEquals(TaskStatus.TODO, result.getFirst().getStatus());
+        assertEquals(TaskPriority.MEDIUM, result.getFirst().getPriority());
+        assertEquals(LocalDate.of(2026, 12, 31), result.getFirst().getDueDate());
+        assertEquals(otherUser, result.getFirst().getAssignee());
+        assertEquals(project, result.getFirst().getProject());
+        assertEquals(currentUser, result.getFirst().getProject().getOwner());
+        verify(taskRepository, never()).findByProjectIdAndStatus(eq(1L), any());
         verify(taskRepository).findByProjectIdAndPriority(1L, TaskPriority.MEDIUM);
+        verify(taskRepository, never()).findByProjectId(1L);
+        verify(securityUtils, never()).getCurrentUser();
+    }
+
+    @Test
+    void getTasksByProject_shouldPrioritizeStatusFilter_whenBothProvided() {
+        // GIVEN
+        when(taskRepository.findByProjectIdAndStatus(1L, TaskStatus.TODO)).thenReturn(List.of(task));
+
+        // WHEN
+        List<Task> result = taskService.getTasksByProject(1L, TaskStatus.TODO, TaskPriority.MEDIUM);
+
+        // THEN
+        assertEquals(1, result.size());
+        assertEquals("Existing task", result.getFirst().getTitle());
+        assertEquals("Existing description", result.getFirst().getDescription());
+        assertEquals(TaskStatus.TODO, result.getFirst().getStatus());
+        assertEquals(TaskPriority.MEDIUM, result.getFirst().getPriority());
+        assertEquals(LocalDate.of(2026, 12, 31), result.getFirst().getDueDate());
+        assertEquals(otherUser, result.getFirst().getAssignee());
+        assertEquals(project, result.getFirst().getProject());
+        assertEquals(currentUser, result.getFirst().getProject().getOwner());
+        verify(taskRepository).findByProjectIdAndStatus(1L, TaskStatus.TODO);
+        verify(taskRepository, never()).findByProjectIdAndPriority(eq(1L), any());
+        verify(taskRepository, never()).findByProjectId(eq(1L));
+        verify(securityUtils, never()).getCurrentUser();
     }
 
     @Test
@@ -112,8 +219,18 @@ public class TaskServiceTest {
         Task result = taskService.getTaskById(1L);
 
         // THEN
-        assertNotNull(result);
-        assertEquals("Ma tâche", result.getTitle());
+        assertEquals("Existing task", result.getTitle());
+        assertEquals("Existing description", result.getDescription());
+        assertEquals(TaskStatus.TODO, result.getStatus());
+        assertEquals(TaskPriority.MEDIUM, result.getPriority());
+        assertEquals(LocalDate.of(2026, 12, 31), result.getDueDate());
+        assertEquals(otherUser, result.getAssignee());
+        assertEquals(project, result.getProject());
+        assertEquals(currentUser, result.getProject().getOwner());
+        verify(securityUtils).getCurrentUser();
+        verify(taskRepository).findById(1L);
+        verify(taskRepository).existsByIdAndProjectOwnerId(1L, 1L);
+        verify(messageService, never()).get(any());
     }
 
     @Test
@@ -121,8 +238,19 @@ public class TaskServiceTest {
         // GIVEN
         givenAuthenticatedUser();
         when(taskRepository.findById(999L)).thenReturn(Optional.empty());
-        assertThrows(ResourceNotFoundException.class,
+        when(messageService.get("error.task.not.found")).thenReturn("Task not found");
+
+        // WHEN
+        ResourceNotFoundException ex = assertThrows(ResourceNotFoundException.class,
                 () -> taskService.getTaskById(999L));
+
+        // THEN
+        assertEquals("Task not found", ex.getMessage());
+        verify(securityUtils).getCurrentUser();
+        verify(taskRepository).findById(999L);
+        verify(messageService).get("error.task.not.found");
+        verify(taskRepository, never()).existsByIdAndProjectOwnerId(999L, 1L);
+        verify(messageService, never()).get("error.access.denied");
     }
 
     @Test
@@ -131,8 +259,19 @@ public class TaskServiceTest {
         givenAuthenticatedUser();
         when(taskRepository.findById(1L)).thenReturn(Optional.of(task));
         when(taskRepository.existsByIdAndProjectOwnerId(1L, 1L)).thenReturn(false);
-        assertThrows(AccessDeniedException.class,
+        when(messageService.get("error.access.denied")).thenReturn("Access denied");
+
+        // WHEN
+        AccessDeniedException ex = assertThrows(AccessDeniedException.class,
                 () -> taskService.getTaskById(1L));
+
+        // THEN
+        assertEquals("Access denied", ex.getMessage());
+        verify(securityUtils).getCurrentUser();
+        verify(taskRepository).findById(1L);
+        verify(messageService, never()).get("error.task.not.found");
+        verify(taskRepository).existsByIdAndProjectOwnerId(1L, 1L);
+        verify(messageService).get("error.access.denied");
     }
 
     @Test
@@ -141,32 +280,74 @@ public class TaskServiceTest {
         givenAuthenticatedUser();
         when(projectRepository.findById(1L)).thenReturn(Optional.of(project));
         when(userRepository.findById(2L)).thenReturn(Optional.of(otherUser));
-        when(taskRepository.save(any(Task.class))).thenReturn(task);
+        when(taskRepository.save(any(Task.class))).thenAnswer(
+                invocation -> invocation.getArgument(0));
 
         // WHEN
-        Task result = taskService.createTask(1L, taskRequest);
+        Task result = taskService.createTask(1L, createRequest);
 
         // THEN
-        assertNotNull(result);
-        assertEquals("Ma tâche", result.getTitle());
-        verify(taskRepository, times(1)).save(any(Task.class));
+        assertEquals("New task", result.getTitle());
+        assertEquals("New description", result.getDescription());
+        assertEquals(TaskStatus.TODO, result.getStatus());
+        assertEquals(TaskPriority.MEDIUM, result.getPriority());
+        assertEquals(LocalDate.of(2026, 12, 31), result.getDueDate());
+        assertEquals(otherUser, result.getAssignee());
+        assertEquals(project, result.getProject());
+        assertEquals(currentUser, result.getProject().getOwner());
+        verify(securityUtils).getCurrentUser();
+        verify(projectRepository).findById(1L);
+        verify(messageService, never()).get(any());
+        verify(userRepository).findById(2L);
+        verify(taskRepository, times(1)).save(argThat(t ->
+                t.getId() == null
+                        && t.getTitle().equals("New task")
+                        && t.getDescription().equals("New description")
+                        && t.getStatus().equals(TaskStatus.TODO)
+                        && t.getPriority().equals(TaskPriority.MEDIUM)
+                        && t.getDueDate().equals(LocalDate.of(2026, 12, 31))
+                        && t.getAssignee().equals(otherUser)
+                        && t.getProject().equals(project)
+                        && t.getProject().getOwner().equals(currentUser)
+        ));
     }
 
     @Test
     void createTask_shouldCreateAndReturnTask_whenOwnerAndNoAssignee() {
         // GIVEN
         givenAuthenticatedUser();
-        taskRequest.setAssigneeId(null);
+        createRequest.setAssigneeId(null);
         when(projectRepository.findById(1L)).thenReturn(Optional.of(project));
-        when(taskRepository.save(any(Task.class))).thenReturn(task);
+        when(taskRepository.save(any(Task.class))).thenAnswer(
+                invocation -> invocation.getArgument(0));
 
         // WHEN
-        Task result = taskService.createTask(1L, taskRequest);
+        Task result = taskService.createTask(1L, createRequest);
 
         // THEN
-        assertNotNull(result);
+        assertEquals("New task", result.getTitle());
+        assertEquals("New description", result.getDescription());
+        assertEquals(TaskStatus.TODO, result.getStatus());
+        assertEquals(TaskPriority.MEDIUM, result.getPriority());
+        assertEquals(LocalDate.of(2026, 12, 31), result.getDueDate());
+        assertNull(result.getAssignee());
+        assertEquals(project, result.getProject());
+        assertEquals(currentUser, result.getProject().getOwner());
+        verify(securityUtils).getCurrentUser();
+        verify(projectRepository).findById(1L);
+        verify(messageService, never()).get(any());
         verify(userRepository, never()).findById(any());
-        verify(taskRepository, times(1)).save(any(Task.class));
+        verify(taskRepository, times(1)).save(argThat(t ->
+                t.getId() == null
+                        && t.getTitle().equals("New task")
+                        && t.getDescription().equals("New description")
+                        && t.getStatus().equals(TaskStatus.TODO)
+                        && t.getPriority().equals(TaskPriority.MEDIUM)
+                        && t.getDueDate().equals(LocalDate.of(2026, 12, 31))
+                        && t.getAssignee() == null
+                        && t.getProject().equals(project)
+                        && t.getProject().getOwner().equals(currentUser)
+        ));
     }
 
     @Test
@@ -174,38 +355,67 @@ public class TaskServiceTest {
         // GIVEN
         givenAuthenticatedUser();
         when(projectRepository.findById(999L)).thenReturn(Optional.empty());
-        assertThrows(ResourceNotFoundException.class,
-                () -> taskService.createTask(999L, taskRequest));
-        verify(taskRepository, never()).save(any(Task.class));
+        when(messageService.get("error.project.not.found")).thenReturn("Project not found");
+
+        // WHEN
+        ResourceNotFoundException ex = assertThrows(ResourceNotFoundException.class,
+                () -> taskService.createTask(999L, createRequest));
+
+        // THEN
+        assertEquals("Project not found", ex.getMessage());
+        verify(securityUtils).getCurrentUser();
+        verify(projectRepository).findById(999L);
+        verify(messageService).get("error.project.not.found");
+        verify(messageService, never()).get("error.access.denied");
+        verify(userRepository, never()).findById(any());
+        verify(messageService, never()).get("error.assignee.not.found");
+        verify(taskRepository, never()).save(any());
     }
 
     @Test
     void createTask_shouldThrow_whenNotProjectOwner() {
         // GIVEN
         givenAuthenticatedUser();
-        User otherOwner = new User();
-        otherOwner.setId(2L);
-        project.setOwner(otherOwner);
+        project.setOwner(otherUser);
         when(projectRepository.findById(1L)).thenReturn(Optional.of(project));
+        when(messageService.get("error.access.denied")).thenReturn("Access denied");
 
-        // WHEN & THEN
-        assertThrows(AccessDeniedException.class,
-                () -> taskService.createTask(1L, taskRequest));
-        verify(taskRepository, never()).save(any(Task.class));
+        // WHEN
+        AccessDeniedException ex = assertThrows(AccessDeniedException.class,
+                () -> taskService.createTask(1L, createRequest));
+        // THEN
+        assertEquals("Access denied", ex.getMessage());
+        verify(securityUtils).getCurrentUser();
+        verify(projectRepository).findById(1L);
+        verify(messageService, never()).get("error.project.not.found");
+        verify(messageService).get("error.access.denied");
+        verify(userRepository, never()).findById(any());
+        verify(messageService, never()).get("error.assignee.not.found");
+        verify(taskRepository, never()).save(any());
     }
 
     @Test
     void createTask_shouldThrow_whenUserAssignedNotFound() {
         // GIVEN
         givenAuthenticatedUser();
-        taskRequest.setAssigneeId(99L);
+        createRequest.setAssigneeId(99L);
         when(projectRepository.findById(1L)).thenReturn(Optional.of(project));
         when(userRepository.findById(99L)).thenReturn(Optional.empty());
+        when(messageService.get("error.assignee.not.found")).thenReturn("Assignee not found");
 
-        // WHEN & THEN
-        assertThrows(ResourceNotFoundException.class,
-                () -> taskService.createTask(1L, taskRequest));
-        verify(taskRepository, never()).save(any(Task.class));
+        // WHEN
+        ResourceNotFoundException ex = assertThrows(ResourceNotFoundException.class,
+                () -> taskService.createTask(1L, createRequest));
+
+        // THEN
+        assertEquals("Assignee not found", ex.getMessage());
+        verify(securityUtils).getCurrentUser();
+        verify(projectRepository).findById(1L);
+        verify(messageService, never()).get("error.project.not.found");
+        verify(messageService, never()).get("error.access.denied");
+        verify(userRepository).findById(99L);
+        verify(messageService).get("error.assignee.not.found");
+        verify(taskRepository, never()).save(any());
     }
 
     @Test
@@ -218,29 +428,75 @@ public class TaskServiceTest {
         when(taskRepository.save(any(Task.class))).thenReturn(task);
 
         // WHEN
-        Task result = taskService.updateTask(1L, taskRequest);
+        Task result = taskService.updateTask(1L, updateRequest);
 
         // THEN
-        assertNotNull(result);
-        verify(taskRepository, times(1)).save(any(Task.class));
+        assertEquals("Updated task", result.getTitle());
+        assertEquals("Updated description", result.getDescription());
+        assertEquals(TaskStatus.TODO, result.getStatus());
+        assertEquals(TaskPriority.MEDIUM, result.getPriority());
+        assertEquals(LocalDate.of(2026, 12, 31), result.getDueDate());
+        assertEquals(otherUser, result.getAssignee());
+        assertEquals(project, result.getProject());
+        assertEquals(currentUser, result.getProject().getOwner());
+        verify(securityUtils).getCurrentUser();
+        verify(taskRepository).existsByIdAndProjectOwnerId(1L, 1L);
+        verify(taskRepository).findById(1L);
+        verify(userRepository).findById(2L);
+        verify(messageService, never()).get(any());
+        verify(taskRepository).save(argThat(t ->
+                t.getId().equals(1L)
+                        && t.getTitle().equals("Updated task")
+                        && t.getDescription().equals("Updated description")
+                        && t.getStatus().equals(TaskStatus.TODO)
+                        && t.getPriority().equals(TaskPriority.MEDIUM)
+                        && t.getDueDate().equals(LocalDate.of(2026, 12, 31))
+                        && t.getAssignee().equals(otherUser)
+                        && t.getProject().equals(project)
+                        && t.getProject().getOwner().equals(currentUser)
+                        && t.getCreatedAt() == null
+        ));
     }
 
     @Test
     void updateTask_shouldUpdateAndReturnTask_whenOwnerAndNoAssignee() {
         // GIVEN
         givenAuthenticatedUser();
-        taskRequest.setAssigneeId(null);
+        updateRequest.setAssigneeId(null);
+        task.setAssignee(null);
         when(taskRepository.existsByIdAndProjectOwnerId(1L, 1L)).thenReturn(true);
         when(taskRepository.findById(1L)).thenReturn(Optional.of(task));
         when(taskRepository.save(any(Task.class))).thenReturn(task);
 
         // WHEN
-        Task result = taskService.updateTask(1L, taskRequest);
+        Task result = taskService.updateTask(1L, updateRequest);
 
         // THEN
-        assertNotNull(result);
-        verify(userRepository, never()).findById(any());
-        verify(taskRepository, times(1)).save(any(Task.class));
+        assertEquals("Updated task", result.getTitle());
+        assertEquals("Updated description", result.getDescription());
+        assertEquals(TaskStatus.TODO, result.getStatus());
+        assertEquals(TaskPriority.MEDIUM, result.getPriority());
+        assertEquals(LocalDate.of(2026, 12, 31), result.getDueDate());
+        assertNull(result.getAssignee());
+        assertEquals(project, result.getProject());
+        assertEquals(currentUser, result.getProject().getOwner());
+        verify(securityUtils).getCurrentUser();
+        verify(taskRepository).existsByIdAndProjectOwnerId(1L, 1L);
+        verify(taskRepository).findById(1L);
+        verify(userRepository, never()).findById(2L);
+        verify(messageService, never()).get(any());
+        verify(taskRepository).save(argThat(t ->
+                t.getId().equals(1L)
+                        && t.getTitle().equals("Updated task")
+                        && t.getDescription().equals("Updated description")
+                        && t.getStatus().equals(TaskStatus.TODO)
+                        && t.getPriority().equals(TaskPriority.MEDIUM)
+                        && t.getDueDate().equals(LocalDate.of(2026, 12, 31))
+                        && t.getAssignee() == null
+                        && t.getProject().equals(project)
+                        && t.getProject().getOwner().equals(currentUser)
+                        && t.getCreatedAt() == null
+        ));
     }
 
     @Test
@@ -248,9 +504,22 @@ public class TaskServiceTest {
         // GIVEN
         givenAuthenticatedUser();
         when(taskRepository.existsByIdAndProjectOwnerId(1L, 1L)).thenReturn(false);
-        assertThrows(AccessDeniedException.class,
-                () -> taskService.updateTask(1L, taskRequest));
-        verify(taskRepository, never()).findById(any());
+        when(messageService.get("error.access.denied")).thenReturn("Access denied");
+
+        // WHEN
+        AccessDeniedException ex = assertThrows(AccessDeniedException.class,
+                () -> taskService.updateTask(1L, updateRequest));
+
+        // THEN
+        assertEquals("Access denied", ex.getMessage());
+        verify(securityUtils).getCurrentUser();
+        verify(taskRepository).existsByIdAndProjectOwnerId(1L, 1L);
+        verify(messageService).get("error.access.denied");
+        verify(taskRepository, never()).findById(1L);
+        verify(messageService, never()).get("error.task.not.found");
+        verify(userRepository, never()).findById(2L);
+        verify(messageService, never()).get("error.assignee.not.found");
+        verify(taskRepository, never()).save(any());
     }
 
     @Test
@@ -259,46 +528,48 @@ public class TaskServiceTest {
         givenAuthenticatedUser();
         when(taskRepository.existsByIdAndProjectOwnerId(1L, 1L)).thenReturn(true);
         when(taskRepository.findById(1L)).thenReturn(Optional.empty());
-        assertThrows(ResourceNotFoundException.class,
-                () -> taskService.updateTask(1L, taskRequest));
-        verify(taskRepository, never()).save(any(Task.class));
+        when(messageService.get("error.task.not.found")).thenReturn("Task not found");
+
+        // WHEN
+        ResourceNotFoundException ex = assertThrows(ResourceNotFoundException.class,
+                () -> taskService.updateTask(1L, updateRequest));
+
+        // THEN
+        assertEquals("Task not found", ex.getMessage());
+        verify(securityUtils).getCurrentUser();
+        verify(taskRepository).existsByIdAndProjectOwnerId(1L, 1L);
+        verify(messageService, never()).get("error.access.denied");
+        verify(taskRepository).findById(1L);
+        verify(messageService).get("error.task.not.found");
+        verify(userRepository, never()).findById(2L);
+        verify(messageService, never()).get("error.assignee.not.found");
+        verify(taskRepository, never()).save(any());
     }
 
     @Test
     void updateTask_shouldThrow_whenUserAssignedNotFound() {
         // GIVEN
         givenAuthenticatedUser();
-        taskRequest.setAssigneeId(99L);
+        updateRequest.setAssigneeId(99L);
         when(taskRepository.existsByIdAndProjectOwnerId(1L, 1L)).thenReturn(true);
         when(taskRepository.findById(1L)).thenReturn(Optional.of(task));
         when(userRepository.findById(99L)).thenReturn(Optional.empty());
+        when(messageService.get("error.assignee.not.found")).thenReturn("Assignee not found");
 
-        // WHEN & THEN
-        assertThrows(ResourceNotFoundException.class,
-                () -> taskService.updateTask(1L, taskRequest));
-        verify(taskRepository, never()).save(any(Task.class));
-    }
+        // WHEN
+        ResourceNotFoundException ex = assertThrows(ResourceNotFoundException.class,
+                () -> taskService.updateTask(1L, updateRequest));
 
-    @Test
-    void deleteTask_shouldThrow_whenNotOwner() {
-        // GIVEN
-        givenAuthenticatedUser();
-        when(taskRepository.existsByIdAndProjectOwnerId(1L, 1L)).thenReturn(false);
-        assertThrows(AccessDeniedException.class,
-                () -> taskService.deleteTask(1L));
-        verify(taskRepository, never()).findById(any());
-        verify(taskRepository, never()).delete(any());
-    }
-
-    @Test
-    void deleteTask_shouldThrow_whenTaskNotFound() {
-        // GIVEN
-        givenAuthenticatedUser();
-        when(taskRepository.existsByIdAndProjectOwnerId(1L, 1L)).thenReturn(true);
-        when(taskRepository.findById(1L)).thenReturn(Optional.empty());
-        assertThrows(ResourceNotFoundException.class,
-                () -> taskService.deleteTask(1L));
-        verify(taskRepository, never()).delete(any());
+        // THEN
+        assertEquals("Assignee not found", ex.getMessage());
+        verify(securityUtils).getCurrentUser();
+        verify(taskRepository).existsByIdAndProjectOwnerId(1L, 1L);
+        verify(messageService, never()).get("error.access.denied");
+        verify(taskRepository).findById(1L);
+        verify(messageService, never()).get("error.task.not.found");
+        verify(userRepository).findById(99L);
+        verify(messageService).get("error.assignee.not.found");
+        verify(taskRepository, never()).save(any());
     }
 
     @Test
@@ -307,7 +578,58 @@ public class TaskServiceTest {
         givenAuthenticatedUser();
         when(taskRepository.existsByIdAndProjectOwnerId(1L, 1L)).thenReturn(true);
         when(taskRepository.findById(1L)).thenReturn(Optional.of(task));
+
+        // WHEN
         taskService.deleteTask(1L);
-        verify(taskRepository, times(1)).delete(task);
+
+        // THEN
+        verify(securityUtils).getCurrentUser();
+        verify(taskRepository).existsByIdAndProjectOwnerId(1L, 1L);
+        verify(taskRepository).findById(1L);
+        verify(messageService, never()).get(any());
+        verify(taskRepository).delete(task);
+    }
+
+    @Test
+    void deleteTask_shouldThrow_whenNotOwner() {
+        // GIVEN
+        givenAuthenticatedUser();
+        when(taskRepository.existsByIdAndProjectOwnerId(1L, 1L)).thenReturn(false);
+        when(messageService.get("error.access.denied")).thenReturn("Access denied");
+
+        // WHEN
+        AccessDeniedException ex = assertThrows(AccessDeniedException.class,
+                () -> taskService.deleteTask(1L));
+
+        // THEN
+        assertEquals("Access denied", ex.getMessage());
+        verify(securityUtils).getCurrentUser();
+        verify(taskRepository).existsByIdAndProjectOwnerId(1L, 1L);
+        verify(messageService).get("error.access.denied");
+        verify(taskRepository, never()).findById(1L);
+        verify(messageService, never()).get("error.task.not.found");
+        verify(taskRepository, never()).delete(task);
+    }
+
+    @Test
+    void deleteTask_shouldThrow_whenTaskNotFound() {
+        // GIVEN
+        givenAuthenticatedUser();
+        when(taskRepository.existsByIdAndProjectOwnerId(1L, 1L)).thenReturn(true);
+        when(taskRepository.findById(1L)).thenReturn(Optional.empty());
+        when(messageService.get("error.task.not.found")).thenReturn("Task not found");
+
+        // WHEN
+        ResourceNotFoundException ex = assertThrows(ResourceNotFoundException.class,
+                () -> taskService.deleteTask(1L));
+
+        // THEN
+        assertEquals("Task not found", ex.getMessage());
+        verify(securityUtils).getCurrentUser();
+        verify(taskRepository).existsByIdAndProjectOwnerId(1L, 1L);
+        verify(messageService, never()).get("error.access.denied");
+        verify(taskRepository).findById(1L);
+        verify(messageService).get("error.task.not.found");
+        verify(taskRepository, never()).delete(task);
     }
 }
