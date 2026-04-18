@@ -17,6 +17,16 @@ import org.springframework.web.bind.annotation.RequestBody;
 
 import java.util.List;
 
+/**
+ * OpenAPI documentation interface for {@link ProjectController}.
+ *
+ * <p>Declares all Swagger/OpenAPI annotations for project endpoints,
+ * keeping {@link ProjectController} clean and focused on business logic.</p>
+ *
+ * <p>All endpoints require a valid JWT Bearer token.</p>
+ *
+ * @see ProjectController
+ */
 @Tag(
         name = "Projects",
         description = "Project management endpoints. All operations are scoped to the authenticated user."

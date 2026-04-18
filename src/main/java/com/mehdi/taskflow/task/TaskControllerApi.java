@@ -18,6 +18,16 @@ import org.springframework.web.bind.annotation.RequestParam;
 
 import java.util.List;
 
+/**
+ * OpenAPI documentation interface for {@link TaskController}.
+ *
+ * <p>Declares all Swagger/OpenAPI annotations for task endpoints,
+ * keeping {@link TaskController} clean and focused on business logic.</p>
+ *
+ * <p>All endpoints require a valid JWT Bearer token.</p>
+ *
+ * @see TaskController
+ */
 @Tag(
         name = "Tasks",
         description = "Task management endpoints within projects. All operations require project ownership."

@@ -14,6 +14,16 @@ import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.RequestBody;
 
+/**
+ * OpenAPI documentation interface for {@link AuthController}.
+ *
+ * <p>Declares all Swagger/OpenAPI annotations for authentication endpoints,
+ * keeping {@link AuthController} clean and focused on business logic.</p>
+ *
+ * <p>All endpoints defined here are public — no JWT token required.</p>
+ *
+ * @see AuthController
+ */
 @Tag(
         name = "Authentication",
         description = "Public endpoints for account registration and login. No JWT token required."
