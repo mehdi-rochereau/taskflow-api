@@ -1,5 +1,6 @@
 package com.mehdi.taskflow.security;
 
+import com.mehdi.taskflow.config.MessageService;
 import io.jsonwebtoken.ExpiredJwtException;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.http.HttpServletRequest;
@@ -17,6 +18,7 @@ import org.springframework.security.core.userdetails.UserDetails;
 
 import java.io.PrintWriter;
 import java.io.StringWriter;
+import java.util.ArrayList;
 import java.util.Collections;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -40,6 +42,9 @@ class JwtFilterTest {
     @Mock
     private FilterChain filterChain;
 
+    @Mock
+    private MessageService messageService;
+
     @InjectMocks
     private JwtFilter jwtFilter;
 
@@ -61,8 +66,14 @@ class JwtFilterTest {
         jwtFilter.doFilterInternal(request, response, filterChain);
 
         // THEN
-        verify(filterChain).doFilter(request, response);
+        assertNull(SecurityContextHolder.getContext().getAuthentication());
         verify(jwtService, never()).extractUsername(any());
+        verify(userDetailsService, never()).loadUserByUsername(any());
+        verify(jwtService, never()).isTokenValid(any(), any());
+        verify(messageService, never()).get(any());
+        verify(response, never()).setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+        verify(response, never()).setContentType("application/json");
+        verify(filterChain).doFilter(request, response);
     }
 
     @Test
@@ -74,8 +85,14 @@ class JwtFilterTest {
         jwtFilter.doFilterInternal(request, response, filterChain);
 
         // THEN
-        verify(filterChain).doFilter(request, response);
+        assertNull(SecurityContextHolder.getContext().getAuthentication());
         verify(jwtService, never()).extractUsername(any());
+        verify(userDetailsService, never()).loadUserByUsername(any());
+        verify(jwtService, never()).isTokenValid(any(), any());
+        verify(messageService, never()).get(any());
+        verify(response, never()).setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+        verify(response, never()).setContentType("application/json");
+        verify(filterChain).doFilter(request, response);
     }
 
     @Test
@@ -89,7 +106,12 @@ class JwtFilterTest {
 
         // THEN
         assertNull(SecurityContextHolder.getContext().getAuthentication());
+        verify(jwtService).extractUsername("some-token");
         verify(userDetailsService, never()).loadUserByUsername(any());
+        verify(jwtService, never()).isTokenValid(any(), any());
+        verify(messageService, never()).get(any());
+        verify(response, never()).setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+        verify(response, never()).setContentType("application/json");
         verify(filterChain).doFilter(request, response);
     }
 
@@ -108,7 +130,18 @@ class JwtFilterTest {
         jwtFilter.doFilterInternal(request, response, filterChain);
 
         // THEN
+        assertNotNull(SecurityContextHolder.getContext().getAuthentication());
+        assertTrue(SecurityContextHolder.getContext().getAuthentication().isAuthenticated());
+        assertEquals(userDetails, SecurityContextHolder.getContext().getAuthentication().getPrincipal());
+        assertEquals("mehdi", SecurityContextHolder.getContext().getAuthentication().getName());
+        assertEquals(new ArrayList<>(userDetails.getAuthorities()),
+                new ArrayList<>(SecurityContextHolder.getContext().getAuthentication().getAuthorities()));
+        verify(jwtService).extractUsername("valid-token");
         verify(userDetailsService, never()).loadUserByUsername(any());
+        verify(jwtService, never()).isTokenValid(any(), any());
+        verify(messageService, never()).get(any());
+        verify(response, never()).setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+        verify(response, never()).setContentType("application/json");
         verify(filterChain).doFilter(request, response);
     }
 
@@ -125,7 +158,17 @@ class JwtFilterTest {
 
         // THEN
         assertNotNull(SecurityContextHolder.getContext().getAuthentication());
+        assertTrue(SecurityContextHolder.getContext().getAuthentication().isAuthenticated());
+        assertEquals(userDetails, SecurityContextHolder.getContext().getAuthentication().getPrincipal());
         assertEquals("mehdi", SecurityContextHolder.getContext().getAuthentication().getName());
+        assertEquals(new ArrayList<>(userDetails.getAuthorities()),
+                new ArrayList<>(SecurityContextHolder.getContext().getAuthentication().getAuthorities()));
+        verify(jwtService).extractUsername("valid-token");
+        verify(userDetailsService).loadUserByUsername("mehdi");
+        verify(jwtService).isTokenValid("valid-token", userDetails);
+        verify(messageService, never()).get(any());
+        verify(response, never()).setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+        verify(response, never()).setContentType("application/json");
         verify(filterChain).doFilter(request, response);
     }
 
@@ -142,6 +185,12 @@ class JwtFilterTest {
 
         // THEN
         assertNull(SecurityContextHolder.getContext().getAuthentication());
+        verify(jwtService).extractUsername("invalid-token");
+        verify(userDetailsService).loadUserByUsername("mehdi");
+        verify(jwtService).isTokenValid("invalid-token", userDetails);
+        verify(messageService, never()).get(any());
+        verify(response, never()).setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+        verify(response, never()).setContentType("application/json");
         verify(filterChain).doFilter(request, response);
     }
 
@@ -152,15 +201,23 @@ class JwtFilterTest {
         when(response.getWriter()).thenReturn(new PrintWriter(responseWriter));
         when(request.getHeader("Authorization")).thenReturn("Bearer expired-token");
         when(jwtService.extractUsername("expired-token"))
-                .thenThrow(new ExpiredJwtException(null, null, "Token expiré"));
+                .thenThrow(new ExpiredJwtException(null, null, "Token expired"));
+        when(messageService.get("error.jwt.expired")).thenReturn("Token expired");
 
         // WHEN
         jwtFilter.doFilterInternal(request, response, filterChain);
 
         // THEN
+        assertNull(SecurityContextHolder.getContext().getAuthentication());
+        assertEquals("{\"status\":401,\"message\":\"Token expired\"}",
+                responseWriter.toString());
+        verify(jwtService).extractUsername("expired-token");
+        verify(userDetailsService, never()).loadUserByUsername(any());
+        verify(jwtService, never()).isTokenValid(anyString(), any());
+        verify(messageService).get("error.jwt.expired");
         verify(response).setStatus(HttpServletResponse.SC_UNAUTHORIZED);
         verify(response).setContentType("application/json");
-        assertTrue(responseWriter.toString().contains("Token expiré"));
+        verify(messageService, never()).get("error.jwt.invalid");
         verify(filterChain, never()).doFilter(any(), any());
     }
 
@@ -171,15 +228,23 @@ class JwtFilterTest {
         when(response.getWriter()).thenReturn(new PrintWriter(responseWriter));
         when(request.getHeader("Authorization")).thenReturn("Bearer bad-format-token");
         when(jwtService.extractUsername("bad-format-token"))
-                .thenThrow(new RuntimeException("Token invalide"));
+                .thenThrow(new RuntimeException("Invalid token"));
+        when(messageService.get("error.jwt.invalid")).thenReturn("Invalid token");
 
         // WHEN
         jwtFilter.doFilterInternal(request, response, filterChain);
 
         // THEN
+        assertNull(SecurityContextHolder.getContext().getAuthentication());
+        assertEquals("{\"status\":401,\"message\":\"Invalid token\"}",
+                responseWriter.toString());
+        verify(jwtService).extractUsername("bad-format-token");
+        verify(userDetailsService, never()).loadUserByUsername(any());
+        verify(jwtService, never()).isTokenValid(anyString(), any());
+        verify(messageService).get("error.jwt.invalid");
         verify(response).setStatus(HttpServletResponse.SC_UNAUTHORIZED);
         verify(response).setContentType("application/json");
-        assertTrue(responseWriter.toString().contains("Token invalide"));
+        verify(messageService, never()).get("error.jwt.expired");
         verify(filterChain, never()).doFilter(any(), any());
     }
 }
