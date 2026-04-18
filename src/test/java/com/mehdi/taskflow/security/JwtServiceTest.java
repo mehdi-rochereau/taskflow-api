@@ -204,7 +204,7 @@ class JwtServiceTest {
         // GIVEN
         JwtService otherService = new JwtService();
         ReflectionTestUtils.setField(otherService, "secret",
-                "autre-secret-completement-different-doit-faire-32-caracteres");
+                "other-secret-completely-different-must-be-32-characters");
         ReflectionTestUtils.setField(otherService, "expiration", 86400000L);
         String tokenFromOtherService = otherService.generateToken(userDetails);
 
