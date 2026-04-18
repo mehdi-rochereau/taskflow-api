@@ -217,4 +217,18 @@ class JwtServiceTest {
                         "JWT validity cannot be asserted and should not be trusted.",
                 ex.getMessage());
     }
+
+    @Test
+    void user_shouldImplementUserDetailsCorrectly() {
+        com.mehdi.taskflow.user.User user = new com.mehdi.taskflow.user.User();
+        user.setUsername("mehdi");
+        user.setPassword("password");
+        user.setRole("ROLE_USER");
+
+        assertTrue(user.isAccountNonExpired());
+        assertTrue(user.isAccountNonLocked());
+        assertTrue(user.isCredentialsNonExpired());
+        assertTrue(user.isEnabled());
+        assertNotNull(user.getAuthorities());
+    }
 }

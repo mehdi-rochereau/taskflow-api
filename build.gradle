@@ -9,32 +9,31 @@ jacoco {
 	toolVersion = "0.8.11"
 }
 
-tasks.test {
-	useJUnitPlatform()
-	finalizedBy jacocoTestReport  // génère le rapport après les tests
-}
-
 tasks.jacocoTestReport {
 	dependsOn test  // s'assure que les tests tournent avant
 	reports {
 		html.required = true
 		html.outputLocation = layout.buildDirectory.dir("reports/jacoco/html")
 		xml.required = true   // utile pour les outils CI/CD
-		csv.required = false
+		csv.required = true
 	}
 	// Exclure les classes qui n'ont pas besoin d'être couvertes
 	afterEvaluate {
 		classDirectories.setFrom(files(classDirectories.files.collect {
 			fileTree(dir: it, exclude: [
-					'**/dto/**',           // DTOs — getters/setters inutiles à tester
-					'**/*Application*',    // classe main Spring Boot
-					'**/config/**',        // configuration Spring
-					'**/*Exception*'       // exceptions simples
+//					'**/dto/**',           // DTOs — getters/setters inutiles à tester
+//					'**/*Application*',    // classe main Spring Boot
+//					'**/config/**',        // configuration Spring
+//					'**/*Exception*'       // exceptions simples
 			])
 		}))
 	}
 }
 
+tasks.test {
+	useJUnitPlatform()
+	finalizedBy jacocoTestReport  // génère le rapport après les tests
+}
 
 group = 'com.mehdi.taskflow'
 version = '0.0.1-SNAPSHOT'
@@ -47,6 +46,11 @@ java {
 
 repositories {
 	mavenCentral()
+}
+
+ext {
+	set('tomcat.version', '10.1.54')
+	set('commons-lang3.version', '3.18.0')
 }
 
 dependencies {
@@ -73,8 +77,4 @@ dependencies {
 	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 	testImplementation 'org.springframework.boot:spring-boot-starter-test'
 	testImplementation 'org.springframework.security:spring-security-test'
-}
-
-tasks.named('test') {
-	useJUnitPlatform()
 }
