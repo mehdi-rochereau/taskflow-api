@@ -33,3 +33,9 @@ application:
   jwt:
     secret: ${JWT_SECRET:ce-secret-doit-faire-au-moins-256-bits-soit-32-caracteres-minimum}
     expiration: 86400000
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui/index.html
