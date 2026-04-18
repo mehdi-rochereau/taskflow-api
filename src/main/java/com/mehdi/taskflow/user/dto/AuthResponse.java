@@ -1,5 +1,7 @@
 package com.mehdi.taskflow.user.dto;
 
+import io.swagger.v3.oas.annotations.media.Schema;
+
 /**
  * DTO returned after successful authentication (register or login).
  *
@@ -10,21 +12,28 @@ package com.mehdi.taskflow.user.dto;
  * @see com.mehdi.taskflow.auth.AuthController
  * @see com.mehdi.taskflow.user.UserService
  */
+@Schema(
+        name = "AuthResponse",
+        description = "Response returned after successful registration or login"
+)
 public class AuthResponse {
 
-    /**
-     * Signed JWT token valid for 24 hours.
-     */
+    @Schema(
+            description = "Signed JWT token valid for 24 hours. Pass as Authorization: Bearer <token> on all protected endpoints.",
+            example = "eyJhbGciOiJIUzUxMiJ9.eyJzdWIiOiJtZWhkaSIsImlhdCI6MTcx..."
+    )
     private String token;
 
-    /**
-     * Username of the authenticated user.
-     */
+    @Schema(
+            description = "Username of the authenticated user.",
+            example = "mehdi"
+    )
     private String username;
 
-    /**
-     * Email address of the authenticated user.
-     */
+    @Schema(
+            description = "Email address of the authenticated user.",
+            example = "mehdi@example.com"
+    )
     private String email;
 
     /**

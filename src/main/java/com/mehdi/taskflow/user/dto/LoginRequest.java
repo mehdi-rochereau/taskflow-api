@@ -1,5 +1,6 @@
 package com.mehdi.taskflow.user.dto;
 
+import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
 
 /**
@@ -12,19 +13,25 @@ import jakarta.validation.constraints.NotBlank;
  * @see com.mehdi.taskflow.auth.AuthController#login(LoginRequest)
  * @see com.mehdi.taskflow.user.UserService#login(LoginRequest)
  */
+@Schema(
+        name = "LoginRequest",
+        description = "Request body for authenticating an existing user"
+)
 public class LoginRequest {
 
-    /**
-     * Username or email address used to identify the user.
-     * Must not be blank.
-     */
+    @Schema(
+            description = "Username or email address. Both are accepted as valid identifiers.",
+            example = "mehdi",
+            requiredMode = Schema.RequiredMode.REQUIRED
+    )
     @NotBlank(message = "{validation.identifier.required}")
     private String identifier;
 
-    /**
-     * Plain-text password to verify against the stored BCrypt hash.
-     * Must not be blank.
-     */
+    @Schema(
+            description = "Plain-text password to verify against the stored BCrypt hash.",
+            example = "password123",
+            requiredMode = Schema.RequiredMode.REQUIRED
+    )
     @NotBlank(message = "{validation.password.required}")
     private String password;
 
