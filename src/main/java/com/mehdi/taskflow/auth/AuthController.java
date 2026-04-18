@@ -4,11 +4,6 @@ import com.mehdi.taskflow.user.UserService;
 import com.mehdi.taskflow.user.dto.AuthResponse;
 import com.mehdi.taskflow.user.dto.LoginRequest;
 import com.mehdi.taskflow.user.dto.RegisterRequest;
-import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.media.Content;
-import io.swagger.v3.oas.annotations.media.Schema;
-import io.swagger.v3.oas.annotations.responses.ApiResponse;
-import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -29,10 +24,9 @@ import org.springframework.web.bind.annotation.RestController;
  *
  * @see UserService
  */
-@Tag(name = "Authentification", description = "Création de compte et connexion")
 @RestController
 @RequestMapping(value = "/api/auth", produces = "application/json")
-public class AuthController {
+public class AuthController implements AuthControllerApi {
 
     private final UserService userService;
 
@@ -53,24 +47,9 @@ public class AuthController {
      *
      * @param request the registration data — username, email and password
      * @return {@code 201 Created} with the JWT token and user details,
-     *         or {@code 400 Bad Request} if validation fails or the username/email is already taken
+     * or {@code 400 Bad Request} if validation fails or the username/email is already taken
      */
-    @Operation(
-            summary = "Créer un compte utilisateur",
-            description = "Crée un nouveau compte et retourne un token JWT valide 24h",
-            responses = {
-                    @ApiResponse(
-                            responseCode = "201",
-                            description = "Compte créé avec succès",
-                            content = @Content(schema = @Schema(implementation = AuthResponse.class))
-                    ),
-                    @ApiResponse(
-                            responseCode = "400",
-                            description = "Données invalides ou username/email déjà pris",
-                            content = @Content
-                    )
-            }
-    )
+    @Override
     @PostMapping("/register")
     public ResponseEntity<AuthResponse> register(@Valid @RequestBody RegisterRequest request) {
         AuthResponse response = userService.register(request);
@@ -86,30 +65,10 @@ public class AuthController {
      *
      * @param request the login data — identifier (username or email) and password
      * @return {@code 200 OK} with the JWT token and user details,
-     *         {@code 400 Bad Request} if required fields are missing or blank,
-     *         or {@code 401 Unauthorized} if the credentials are invalid
+     * {@code 400 Bad Request} if required fields are missing or blank,
+     * or {@code 401 Unauthorized} if the credentials are invalid
      */
-    @Operation(
-            summary = "Se connecter",
-            description = "Authentifie un utilisateur et retourne un token JWT valide 24h",
-            responses = {
-                    @ApiResponse(
-                            responseCode = "200",
-                            description = "Connexion réussie",
-                            content = @Content(schema = @Schema(implementation = AuthResponse.class))
-                    ),
-                    @ApiResponse(
-                            responseCode = "400",
-                            description = "Champs manquants ou invalides",
-                            content = @Content
-                    ),
-                    @ApiResponse(
-                            responseCode = "401",
-                            description = "Identifiants incorrects",
-                            content = @Content
-                    )
-            }
-    )
+    @Override
     @PostMapping("/login")
     public ResponseEntity<AuthResponse> login(@Valid @RequestBody LoginRequest request) {
         AuthResponse response = userService.login(request);

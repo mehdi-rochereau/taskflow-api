@@ -2,13 +2,6 @@ package com.mehdi.taskflow.project;
 
 import com.mehdi.taskflow.project.dto.ProjectRequest;
 import com.mehdi.taskflow.project.dto.ProjectResponse;
-import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.Parameter;
-import io.swagger.v3.oas.annotations.media.Content;
-import io.swagger.v3.oas.annotations.media.Schema;
-import io.swagger.v3.oas.annotations.responses.ApiResponse;
-import io.swagger.v3.oas.annotations.security.SecurityRequirement;
-import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -28,11 +21,9 @@ import java.util.List;
  *
  * @see ProjectService
  */
-@Tag(name = "Projets", description = "Gestion des projets de l'utilisateur connecté")
-@SecurityRequirement(name = "bearerAuth")
 @RestController
 @RequestMapping(value = "/api/projects", produces = "application/json")
-public class ProjectController {
+public class ProjectController implements ProjectControllerApi {
 
     private final ProjectService projectService;
 
@@ -49,20 +40,9 @@ public class ProjectController {
      * Returns all projects owned by the authenticated user.
      *
      * @return {@code 200 OK} with the list of projects, empty array if none exist,
-     *         or {@code 401 Unauthorized} if the JWT token is missing or invalid
+     * or {@code 401 Unauthorized} if the JWT token is missing or invalid
      */
-    @Operation(
-            summary = "Lister mes projets",
-            description = "Retourne tous les projets appartenant à l'utilisateur connecté",
-            responses = {
-                    @ApiResponse(
-                            responseCode = "200",
-                            description = "Liste des projets retournée avec succès",
-                            content = @Content(schema = @Schema(implementation = ProjectResponse.class))
-                    ),
-                    @ApiResponse(responseCode = "401", description = "Token JWT manquant ou invalide", content = @Content)
-            }
-    )
+    @Override
     @GetMapping
     public ResponseEntity<List<ProjectResponse>> getMyProjects() {
         return ResponseEntity.ok(
@@ -79,25 +59,11 @@ public class ProjectController {
      *
      * @param id the project identifier
      * @return {@code 200 OK} with the project details,
-     *         {@code 401 Unauthorized} if the JWT token is missing or invalid,
-     *         {@code 403 Forbidden} if the project belongs to another user,
-     *         or {@code 404 Not Found} if no project exists with the given id
+     * {@code 401 Unauthorized} if the JWT token is missing or invalid,
+     * {@code 403 Forbidden} if the project belongs to another user,
+     * or {@code 404 Not Found} if no project exists with the given id
      */
-    @Operation(
-            summary = "Récupérer un projet par ID",
-            description = "Retourne le détail d'un projet si l'utilisateur en est le propriétaire",
-            parameters = @Parameter(name = "id", description = "ID du projet", required = true),
-            responses = {
-                    @ApiResponse(
-                            responseCode = "200",
-                            description = "Projet trouvé",
-                            content = @Content(schema = @Schema(implementation = ProjectResponse.class))
-                    ),
-                    @ApiResponse(responseCode = "401", description = "Token JWT manquant ou invalide", content = @Content),
-                    @ApiResponse(responseCode = "403", description = "Accès refusé — projet appartenant à un autre utilisateur", content = @Content),
-                    @ApiResponse(responseCode = "404", description = "Projet introuvable", content = @Content)
-            }
-    )
+    @Override
     @GetMapping("/{id}")
     public ResponseEntity<ProjectResponse> getProjectById(@PathVariable Long id) {
         return ResponseEntity.ok(new ProjectResponse(projectService.getProjectById(id)));
@@ -108,22 +74,10 @@ public class ProjectController {
      *
      * @param request the project data — name and optional description
      * @return {@code 201 Created} with the created project,
-     *         {@code 400 Bad Request} if validation fails,
-     *         or {@code 401 Unauthorized} if the JWT token is missing or invalid
+     * {@code 400 Bad Request} if validation fails,
+     * or {@code 401 Unauthorized} if the JWT token is missing or invalid
      */
-    @Operation(
-            summary = "Créer un projet",
-            description = "Crée un nouveau projet associé à l'utilisateur connecté",
-            responses = {
-                    @ApiResponse(
-                            responseCode = "201",
-                            description = "Projet créé avec succès",
-                            content = @Content(schema = @Schema(implementation = ProjectResponse.class))
-                    ),
-                    @ApiResponse(responseCode = "400", description = "Données invalides — nom manquant ou trop long", content = @Content),
-                    @ApiResponse(responseCode = "401", description = "Token JWT manquant ou invalide", content = @Content)
-            }
-    )
+    @Override
     @PostMapping
     public ResponseEntity<ProjectResponse> createProject(@Valid @RequestBody ProjectRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED)
@@ -138,27 +92,12 @@ public class ProjectController {
      * @param id      the identifier of the project to update
      * @param request the updated project data — name and optional description
      * @return {@code 200 OK} with the updated project,
-     *         {@code 400 Bad Request} if validation fails,
-     *         {@code 401 Unauthorized} if the JWT token is missing or invalid,
-     *         {@code 403 Forbidden} if the project belongs to another user,
-     *         or {@code 404 Not Found} if no project exists with the given id
+     * {@code 400 Bad Request} if validation fails,
+     * {@code 401 Unauthorized} if the JWT token is missing or invalid,
+     * {@code 403 Forbidden} if the project belongs to another user,
+     * or {@code 404 Not Found} if no project exists with the given id
      */
-    @Operation(
-            summary = "Modifier un projet",
-            description = "Met à jour le nom et la description d'un projet dont l'utilisateur est propriétaire",
-            parameters = @Parameter(name = "id", description = "ID du projet à modifier", required = true),
-            responses = {
-                    @ApiResponse(
-                            responseCode = "200",
-                            description = "Projet modifié avec succès",
-                            content = @Content(schema = @Schema(implementation = ProjectResponse.class))
-                    ),
-                    @ApiResponse(responseCode = "400", description = "Données invalides", content = @Content),
-                    @ApiResponse(responseCode = "401", description = "Token JWT manquant ou invalide", content = @Content),
-                    @ApiResponse(responseCode = "403", description = "Accès refusé — projet appartenant à un autre utilisateur", content = @Content),
-                    @ApiResponse(responseCode = "404", description = "Projet introuvable", content = @Content)
-            }
-    )
+    @Override
     @PutMapping("/{id}")
     public ResponseEntity<ProjectResponse> updateProject(@PathVariable Long id,
                                                          @Valid @RequestBody ProjectRequest request) {
@@ -172,21 +111,11 @@ public class ProjectController {
      *
      * @param id the identifier of the project to delete
      * @return {@code 204 No Content} on success,
-     *         {@code 401 Unauthorized} if the JWT token is missing or invalid,
-     *         {@code 403 Forbidden} if the project belongs to another user,
-     *         or {@code 404 Not Found} if no project exists with the given id
+     * {@code 401 Unauthorized} if the JWT token is missing or invalid,
+     * {@code 403 Forbidden} if the project belongs to another user,
+     * or {@code 404 Not Found} if no project exists with the given id
      */
-    @Operation(
-            summary = "Supprimer un projet",
-            description = "Supprime définitivement un projet dont l'utilisateur est propriétaire",
-            parameters = @Parameter(name = "id", description = "ID du projet à supprimer", required = true),
-            responses = {
-                    @ApiResponse(responseCode = "204", description = "Projet supprimé avec succès", content = @Content),
-                    @ApiResponse(responseCode = "401", description = "Token JWT manquant ou invalide", content = @Content),
-                    @ApiResponse(responseCode = "403", description = "Accès refusé — projet appartenant à un autre utilisateur", content = @Content),
-                    @ApiResponse(responseCode = "404", description = "Projet introuvable", content = @Content)
-            }
-    )
+    @Override
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteProject(@PathVariable Long id) {
         projectService.deleteProject(id);
