@@ -7,6 +7,11 @@ import io.swagger.v3.oas.annotations.info.Info;
 import io.swagger.v3.oas.annotations.info.License;
 import io.swagger.v3.oas.annotations.security.SecurityScheme;
 import io.swagger.v3.oas.annotations.servers.Server;
+import io.swagger.v3.oas.models.Components;
+import io.swagger.v3.oas.models.OpenAPI;
+import io.swagger.v3.oas.models.media.StringSchema;
+import io.swagger.v3.oas.models.parameters.Parameter;
+import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 /**
@@ -50,6 +55,14 @@ import org.springframework.context.annotation.Configuration;
                         2. Or login via `POST /api/auth/login`
                         3. Copy the `token` from the response
                         4. Click the **Authorize** button above and paste the token
+                        
+                        ### Internationalization (i18n)
+                        
+                        All error messages support English and French. Use the `Accept-Language` header to select the language:
+                        ```
+                        Accept-Language: en
+                        Accept-Language: fr
+                        ```
                         
                         ### Error responses
                         
@@ -98,4 +111,21 @@ import org.springframework.context.annotation.Configuration;
         description = "JWT Bearer token obtained from POST /api/auth/login or POST /api/auth/register"
 )
 public class OpenApiConfig {
+
+    @Bean
+    public OpenAPI customOpenAPI() {
+        return new OpenAPI()
+                .components(new Components()
+                        .addParameters("Accept-Language", new Parameter()
+                                .in("header")
+                                .name("Accept-Language")
+                                .description("Language for error messages. Supported values: `en` (default), `fr`")
+                                .required(false)
+                                .schema(new StringSchema()
+                                        .addEnumItem("en")
+                                        .addEnumItem("fr")
+                                        ._default("en"))
+                        )
+                );
+    }
 }
