@@ -19,6 +19,10 @@ import jakarta.validation.constraints.NotBlank;
 )
 public class LoginRequest {
 
+    /**
+     * Username or email address used to identify the user.
+     * Must not be blank.
+     */
     @Schema(
             description = "Username or email address. Both are accepted as valid identifiers.",
             example = "mehdi",
@@ -27,6 +31,10 @@ public class LoginRequest {
     @NotBlank(message = "{validation.identifier.required}")
     private String identifier;
 
+    /**
+     * Plain-text password to verify against the stored BCrypt hash.
+     * Must not be blank.
+     */
     @Schema(
             description = "Plain-text password to verify against the stored BCrypt hash.",
             example = "password123",

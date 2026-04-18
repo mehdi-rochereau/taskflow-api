@@ -18,18 +18,27 @@ import io.swagger.v3.oas.annotations.media.Schema;
 )
 public class AuthResponse {
 
+    /**
+     * Signed JWT token valid for 24 hours.
+     */
     @Schema(
             description = "Signed JWT token valid for 24 hours. Pass as Authorization: Bearer <token> on all protected endpoints.",
             example = "eyJhbGciOiJIUzUxMiJ9.eyJzdWIiOiJtZWhkaSIsImlhdCI6MTcx..."
     )
     private String token;
 
+    /**
+     * Username of the authenticated user.
+     */
     @Schema(
             description = "Username of the authenticated user.",
             example = "mehdi"
     )
     private String username;
 
+    /**
+     * Email address of the authenticated user.
+     */
     @Schema(
             description = "Email address of the authenticated user.",
             example = "mehdi@example.com"

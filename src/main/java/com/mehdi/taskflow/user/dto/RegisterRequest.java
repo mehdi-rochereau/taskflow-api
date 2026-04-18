@@ -20,6 +20,10 @@ import jakarta.validation.constraints.Size;
 )
 public class RegisterRequest {
 
+    /**
+     * Unique username for the new account.
+     * Must be between 3 and 50 characters and must not be blank.
+     */
     @Schema(
             description = "Unique username for the new account. Must be between 3 and 50 characters.",
             example = "mehdi",
@@ -31,6 +35,10 @@ public class RegisterRequest {
     @Size(min = 3, max = 50, message = "{validation.username.size}")
     private String username;
 
+    /**
+     * Email address for the new account.
+     * Must be a valid email format and must not be blank.
+     */
     @Schema(
             description = "Valid email address for the new account. Must be unique.",
             example = "mehdi@example.com",
@@ -40,6 +48,10 @@ public class RegisterRequest {
     @NotBlank(message = "{validation.email.required}")
     private String email;
 
+    /**
+     * Plain-text password for the new account.
+     * Must be at least 8 characters. Encoded with BCrypt before persistence.
+     */
     @Schema(
             description = "Plain-text password. Minimum 8 characters. Stored as BCrypt hash.",
             example = "password123",

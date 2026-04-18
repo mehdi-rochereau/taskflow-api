@@ -2,6 +2,7 @@ package com.mehdi.taskflow.task.dto;
 
 import com.mehdi.taskflow.task.TaskPriority;
 import com.mehdi.taskflow.task.TaskStatus;
+import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
@@ -21,11 +22,22 @@ import java.time.LocalDate;
  * @see com.mehdi.taskflow.task.TaskController
  * @see com.mehdi.taskflow.task.TaskService
  */
+@Schema(
+        name = "TaskRequest",
+        description = "Request body for creating or updating a task"
+)
 public class TaskRequest {
 
     /**
      * Task title. Required, 200 characters maximum.
      */
+    @Schema(
+            description = "Task title. Maximum 200 characters.",
+            example = "Implement JWT authentication",
+            minLength = 1,
+            maxLength = 200,
+            requiredMode = Schema.RequiredMode.REQUIRED
+    )
     @NotBlank(message = "{validation.task.title.required}")
     @Size(max = 200, message = "{validation.task.title.size}")
     private String title;
@@ -33,6 +45,12 @@ public class TaskRequest {
     /**
      * Optional task description. 1000 characters maximum.
      */
+    @Schema(
+            description = "Optional task description. Maximum 1000 characters.",
+            example = "Add Spring Security with JWT filter and token validation",
+            maxLength = 1000,
+            requiredMode = Schema.RequiredMode.NOT_REQUIRED
+    )
     @Size(max = 1000, message = "{validation.task.description.size}")
     private String description;
 
@@ -40,6 +58,11 @@ public class TaskRequest {
      * Task status. Required — must be one of {@link TaskStatus#TODO},
      * {@link TaskStatus#IN_PROGRESS}, or {@link TaskStatus#DONE}.
      */
+    @Schema(
+            description = "Current task status.",
+            example = "TODO",
+            requiredMode = Schema.RequiredMode.REQUIRED
+    )
     @NotNull(message = "{validation.task.status.required}")
     private TaskStatus status;
 
@@ -47,12 +70,22 @@ public class TaskRequest {
      * Task priority. Required — must be one of {@link TaskPriority#LOW},
      * {@link TaskPriority#MEDIUM}, or {@link TaskPriority#HIGH}.
      */
+    @Schema(
+            description = "Task priority level.",
+            example = "MEDIUM",
+            requiredMode = Schema.RequiredMode.REQUIRED
+    )
     @NotNull(message = "{validation.task.priority.required}")
     private TaskPriority priority;
 
     /**
      * Optional due date for the task.
      */
+    @Schema(
+            description = "Optional due date for the task (ISO 8601 date format).",
+            example = "2026-12-31",
+            requiredMode = Schema.RequiredMode.NOT_REQUIRED
+    )
     private LocalDate dueDate;
 
     /**
@@ -60,6 +93,11 @@ public class TaskRequest {
      * If {@code null}, the task remains unassigned.
      * Must reference an existing user — validated by the service layer.
      */
+    @Schema(
+            description = "Optional ID of the user to assign this task to. Must reference an existing user. If null, the task remains unassigned.",
+            example = "2",
+            requiredMode = Schema.RequiredMode.NOT_REQUIRED
+    )
     private Long assigneeId;
 
     /**

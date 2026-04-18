@@ -1,6 +1,7 @@
 package com.mehdi.taskflow.project.dto;
 
 import com.mehdi.taskflow.project.Project;
+import io.swagger.v3.oas.annotations.media.Schema;
 
 import java.time.LocalDateTime;
 import java.util.Objects;
@@ -20,21 +21,55 @@ import java.util.Objects;
  * @see com.mehdi.taskflow.project.ProjectController
  * @see Project
  */
+@Schema(
+        name = "ProjectResponse",
+        description = "Read-only representation of a project returned in API responses"
+)
 public class ProjectResponse {
 
-    /** Unique project identifier. */
+    /**
+     * Unique project identifier.
+     */
+    @Schema(
+            description = "Unique project identifier.",
+            example = "1"
+    )
     private final Long id;
 
-    /** Project name. */
+    /**
+     * Project name.
+     */
+    @Schema(
+            description = "Project name.",
+            example = "TaskFlow Backend"
+    )
     private final String name;
 
-    /** Optional project description. */
+    /**
+     * Optional project description.
+     */
+    @Schema(
+            description = "Optional project description.",
+            example = "REST API built with Spring Boot 3.5, JWT and MySQL"
+    )
     private final String description;
 
-    /** Username of the project owner. */
+    /**
+     * Username of the project owner.
+     */
+    @Schema(
+            description = "Username of the project owner.",
+            example = "mehdi"
+    )
     private final String ownerUsername;
 
-    /** Timestamp of project creation. */
+    /**
+     * Timestamp of project creation.
+     */
+    @Schema(
+            description = "Timestamp of project creation (ISO 8601).",
+            example = "2026-04-18T10:00:00"
+    )
     private final LocalDateTime createdAt;
 
     /**
