@@ -13,7 +13,8 @@ CREATE TABLE IF NOT EXISTS projects (
     name        VARCHAR(100) NOT NULL,
     description VARCHAR(500),
     created_at  DATETIME     NOT NULL,
-    CONSTRAINT fk_project_owner FOREIGN KEY (owner_id) REFERENCES users (id)
+    CONSTRAINT fk_projects_owner FOREIGN KEY (owner_id) REFERENCES users (id)
+
     );
 
 CREATE TABLE IF NOT EXISTS tasks (
@@ -26,6 +27,6 @@ CREATE TABLE IF NOT EXISTS tasks (
     priority    VARCHAR(20)  NOT NULL DEFAULT 'MEDIUM',
     due_date    DATE,
     created_at  DATETIME     NOT NULL,
-    CONSTRAINT fk_task_project  FOREIGN KEY (project_id)  REFERENCES projects (id),
-    CONSTRAINT fk_task_assignee FOREIGN KEY (assignee_id) REFERENCES users (id)
+    CONSTRAINT fk_tasks_project  FOREIGN KEY (project_id) REFERENCES projects (id),
+    CONSTRAINT fk_tasks_assignee FOREIGN KEY (assignee_id) REFERENCES users (id)
     );

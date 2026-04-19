@@ -1,8 +1,6 @@
--- Add provider column to users table
 ALTER TABLE users
     ADD COLUMN provider VARCHAR(20) NOT NULL DEFAULT 'LOCAL';
 
--- Create user_providers table for multi-provider support
 CREATE TABLE user_providers (
                                 id            BIGINT AUTO_INCREMENT PRIMARY KEY,
                                 user_id       BIGINT       NOT NULL,
