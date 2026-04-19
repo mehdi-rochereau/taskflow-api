@@ -4,6 +4,7 @@ import com.mehdi.taskflow.config.MessageService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -83,6 +84,19 @@ public class GlobalExceptionHandler {
     }
 
     /**
+     * Handles invalid credentials during authentication.
+     *
+     * @param ex bad credentials exception
+     * @return {@code 401 Unauthorized} response
+     */
+    @ExceptionHandler(BadCredentialsException.class)
+    public ResponseEntity<Map<String, Object>> handleBadCredentials(
+            BadCredentialsException ex) {
+        return buildResponse(HttpStatus.UNAUTHORIZED,
+                messageService.get("error.bad.credentials"));
+    }
+
+    /**
      * Handles business logic violations such as duplicate username or email.
      *
      * @param ex exception carrying the business error message
@@ -118,19 +132,6 @@ public class GlobalExceptionHandler {
     }
 
     /**
-     * Fallback handler for any unexpected exception not covered by other handlers.
-     * Prevents internal error details from being exposed to the client.
-     *
-     * @param ex unexpected exception
-     * @return {@code 500 Internal Server Error} response with a generic message
-     */
-    @ExceptionHandler(Exception.class)
-    public ResponseEntity<Map<String, Object>> handleGeneric(Exception ex) {
-        return buildResponse(HttpStatus.INTERNAL_SERVER_ERROR,
-                messageService.get("error.unexpected"));
-    }
-
-    /**
      * Handles type mismatch errors in path variables or request parameters.
      * For example, passing a non-numeric value where a {@code Long} is expected.
      *
@@ -146,6 +147,19 @@ public class GlobalExceptionHandler {
                 ex.getRequiredType() != null ? ex.getRequiredType().getSimpleName() : "unknown"
         );
         return buildResponse(HttpStatus.BAD_REQUEST, message);
+    }
+
+    /**
+     * Fallback handler for any unexpected exception not covered by other handlers.
+     * Prevents internal error details from being exposed to the client.
+     *
+     * @param ex unexpected exception
+     * @return {@code 500 Internal Server Error} response with a generic message
+     */
+    @ExceptionHandler(Exception.class)
+    public ResponseEntity<Map<String, Object>> handleGeneric(Exception ex) {
+        return buildResponse(HttpStatus.INTERNAL_SERVER_ERROR,
+                messageService.get("error.unexpected"));
     }
 
     /**
