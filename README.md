@@ -7,7 +7,7 @@ A RESTful task management API built with Java 21 and Spring Boot 3.5, featuring 
 [![Java](https://img.shields.io/badge/Java-21-ED8B00?style=flat&logo=openjdk&logoColor=white)](https://openjdk.org/)
 [![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.5-6DB33F?style=flat&logo=springboot&logoColor=white)](https://spring.io/projects/spring-boot)
 [![MySQL](https://img.shields.io/badge/MySQL-8.4-4479A1?style=flat&logo=mysql&logoColor=white)](https://www.mysql.com/)
-[![Coverage](https://img.shields.io/badge/Coverage-93%25-brightgreen?style=flat)]
+[![Coverage](https://img.shields.io/badge/Coverage-93%25-brightgreen?style=flat)]()
 
 ---
 
