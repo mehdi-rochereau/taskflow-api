@@ -11,6 +11,7 @@ import com.mehdi.taskflow.user.UserRepository;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
@@ -72,6 +73,7 @@ public class TaskService {
      * @return list of matching tasks, empty if none found
      */
     @PreAuthorize("isAuthenticated()")
+    @Transactional(readOnly = true)
     public List<Task> getTasksByProject(Long projectId, TaskStatus status, TaskPriority priority) {
         if (status != null) {
             return taskRepository.findByProjectIdAndStatus(projectId, status);
@@ -93,6 +95,7 @@ public class TaskService {
      * @throws AccessDeniedException     if the current user is not the project owner
      */
     @PreAuthorize("isAuthenticated()")
+    @Transactional(readOnly = true)
     public Task getTaskById(Long id) {
         User currentUser = securityUtils.getCurrentUser();
         Task task = taskRepository.findById(id)
@@ -117,6 +120,7 @@ public class TaskService {
      * @throws AccessDeniedException     if the current user is not the project owner
      */
     @PreAuthorize("isAuthenticated()")
+    @Transactional
     public Task createTask(Long projectId, TaskRequest request) {
         User currentUser = securityUtils.getCurrentUser();
         Project project = projectRepository.findById(projectId)
@@ -154,6 +158,7 @@ public class TaskService {
      * @throws ResourceNotFoundException if the task or the assignee does not exist
      */
     @PreAuthorize("isAuthenticated()")
+    @Transactional
     public Task updateTask(Long id, TaskRequest request) {
         User currentUser = securityUtils.getCurrentUser();
         if (!taskRepository.existsByIdAndProjectOwnerId(id, currentUser.getId())) {
@@ -187,6 +192,7 @@ public class TaskService {
      * @throws ResourceNotFoundException if no task exists with the given id
      */
     @PreAuthorize("isAuthenticated()")
+    @Transactional
     public void deleteTask(Long id) {
         User currentUser = securityUtils.getCurrentUser();
         if (!taskRepository.existsByIdAndProjectOwnerId(id, currentUser.getId())) {

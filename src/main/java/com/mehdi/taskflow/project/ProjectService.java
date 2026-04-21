@@ -5,10 +5,10 @@ import com.mehdi.taskflow.exception.ResourceNotFoundException;
 import com.mehdi.taskflow.project.dto.ProjectRequest;
 import com.mehdi.taskflow.security.SecurityUtils;
 import com.mehdi.taskflow.user.User;
-import org.hibernate.validator.internal.engine.messageinterpolation.parser.MessageDescriptorFormatException;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
@@ -51,6 +51,7 @@ public class ProjectService {
      * @return list of projects belonging to the current user, empty if none exist
      */
     @PreAuthorize("isAuthenticated()")
+    @Transactional(readOnly = true)
     public List<Project> getMyProjects() {
         User currentUser = securityUtils.getCurrentUser();
         return projectRepository.findByOwnerId(currentUser.getId());
@@ -68,6 +69,7 @@ public class ProjectService {
      * @throws AccessDeniedException     if the current user is not the project owner
      */
     @PreAuthorize("isAuthenticated()")
+    @Transactional(readOnly = true)
     public Project getProjectById(Long id) {
         User currentUser = securityUtils.getCurrentUser();
         Project project = projectRepository.findById(id)
@@ -86,6 +88,7 @@ public class ProjectService {
      * @return the persisted project with its generated identifier
      */
     @PreAuthorize("isAuthenticated()")
+    @Transactional
     public Project createProject(ProjectRequest request) {
         User currentUser = securityUtils.getCurrentUser();
         Project project = new Project();
@@ -108,6 +111,7 @@ public class ProjectService {
      * @throws ResourceNotFoundException if no project exists with the given id
      */
     @PreAuthorize("isAuthenticated()")
+    @Transactional
     public Project updateProject(Long id, ProjectRequest request) {
         User currentUser = securityUtils.getCurrentUser();
         if (!projectRepository.existsByIdAndOwnerId(id, currentUser.getId())) {
@@ -132,6 +136,7 @@ public class ProjectService {
      * @throws ResourceNotFoundException if no project exists with the given id
      */
     @PreAuthorize("isAuthenticated()")
+    @Transactional
     public void deleteProject(Long id) {
         User currentUser = securityUtils.getCurrentUser();
         if (!projectRepository.existsByIdAndOwnerId(id, currentUser.getId())) {
