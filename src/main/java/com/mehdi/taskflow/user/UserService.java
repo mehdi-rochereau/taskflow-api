@@ -9,6 +9,7 @@ import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 /**
  * Service handling user authentication operations.
@@ -64,6 +65,7 @@ public class UserService {
      * @return an {@link AuthResponse} containing the JWT token and user details
      * @throws IllegalArgumentException if the username or email is already in use
      */
+    @Transactional
     public AuthResponse register(RegisterRequest request) {
         if (userRepository.existsByUsername(request.getUsername())) {
             throw new IllegalArgumentException(messageService.get("error.username.taken"));
@@ -97,6 +99,7 @@ public class UserService {
      * @throws org.springframework.security.authentication.BadCredentialsException if the credentials are invalid
      * @throws IllegalArgumentException                                            if no user matches the provided identifier
      */
+    @Transactional(readOnly = true)
     public AuthResponse login(LoginRequest request) {
         authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(
