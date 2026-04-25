@@ -81,4 +81,10 @@ dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-oauth2-client'
 	// Rate Limiting
 	implementation 'com.bucket4j:bucket4j-core:8.10.1'
+	// OWASP Java HTML Sanitizer
+	implementation('com.googlecode.owasp-java-html-sanitizer:owasp-java-html-sanitizer:20220608.1') {
+		exclude group: 'com.google.guava', module: 'guava'
+	}
+	implementation 'com.google.guava:guava:33.2.1-jre'
 }
+
