@@ -1,5 +1,6 @@
 package com.mehdi.taskflow.security;
 
+import com.mehdi.taskflow.config.AuditService;
 import com.mehdi.taskflow.config.MessageService;
 import io.github.bucket4j.Bandwidth;
 import io.github.bucket4j.Bucket;
@@ -7,6 +8,7 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.jspecify.annotations.NonNull;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
@@ -42,6 +44,7 @@ import java.util.concurrent.ConcurrentHashMap;
 public class RateLimitFilter extends OncePerRequestFilter {
 
     private final MessageService messageService;
+    private final AuditService auditService;
 
     /**
      * Buckets for login attempts — 5 requests per minute per IP.
@@ -57,9 +60,11 @@ public class RateLimitFilter extends OncePerRequestFilter {
      * Constructs a new {@code RateLimitFilter} with its required dependency.
      *
      * @param messageService utility component for resolving i18n messages
+     * @param auditService   service for logging security audit events
      */
-    public RateLimitFilter(MessageService messageService) {
+    public RateLimitFilter(MessageService messageService, AuditService auditService) {
         this.messageService = messageService;
+        this.auditService = auditService;
     }
 
     /**
@@ -75,8 +80,8 @@ public class RateLimitFilter extends OncePerRequestFilter {
      */
     @Override
     protected void doFilterInternal(HttpServletRequest request,
-                                    HttpServletResponse response,
-                                    FilterChain filterChain)
+                                    @NonNull HttpServletResponse response,
+                                    @NonNull FilterChain filterChain)
             throws ServletException, IOException {
 
         String path = request.getRequestURI();
@@ -86,13 +91,13 @@ public class RateLimitFilter extends OncePerRequestFilter {
         if ("POST".equals(method) && "/api/auth/login".equals(path)) {
             Bucket bucket = loginBuckets.computeIfAbsent(ip, k -> createLoginBucket());
             if (!bucket.tryConsume(1)) {
-                rejectRequest(response);
+                rejectRequest(response, request);
                 return;
             }
         } else if ("POST".equals(method) && "/api/auth/register".equals(path)) {
             Bucket bucket = registerBuckets.computeIfAbsent(ip, k -> createRegisterBucket());
             if (!bucket.tryConsume(1)) {
-                rejectRequest(response);
+                rejectRequest(response, request);
                 return;
             }
         }
@@ -149,12 +154,14 @@ public class RateLimitFilter extends OncePerRequestFilter {
     }
 
     /**
-     * Writes a {@code 429 Too Many Requests} JSON response.
+     * Writes a {@code 429 Too Many Requests} JSON response and logs the rate limit violation.
      *
      * @param response the HTTP response to write to
+     * @param request  the HTTP request used to extract the client IP for audit logging
      * @throws IOException if an I/O error occurs while writing the response
      */
-    private void rejectRequest(HttpServletResponse response) throws IOException {
+    private void rejectRequest(HttpServletResponse response, HttpServletRequest request) throws IOException {
+        auditService.logLoginFailure(extractIp(request));
         response.setStatus(HttpStatus.TOO_MANY_REQUESTS.value());
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);
         response.setCharacterEncoding("UTF-8");

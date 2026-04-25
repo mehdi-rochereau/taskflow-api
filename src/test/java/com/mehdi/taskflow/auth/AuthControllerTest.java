@@ -1,10 +1,12 @@
 package com.mehdi.taskflow.auth;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.mehdi.taskflow.config.AuditService;
 import com.mehdi.taskflow.config.MessageService;
 import com.mehdi.taskflow.config.SecurityConfig;
 import com.mehdi.taskflow.security.JwtFilter;
 import com.mehdi.taskflow.security.JwtService;
+import com.mehdi.taskflow.security.RateLimitFilter;
 import com.mehdi.taskflow.security.UserDetailsServiceImpl;
 import com.mehdi.taskflow.user.UserService;
 import com.mehdi.taskflow.user.dto.AuthResponse;
@@ -60,7 +62,13 @@ class AuthControllerTest {
     private JwtFilter jwtFilter;
 
     @MockitoBean
+    private RateLimitFilter rateLimitFilter;
+
+    @MockitoBean
     private MessageService messageService;
+
+    @MockitoBean
+    private AuditService auditService;
 
     @BeforeEach
     void setUp() throws ServletException, IOException {
@@ -72,6 +80,12 @@ class AuthControllerTest {
             chain.doFilter(invocation.getArgument(0), invocation.getArgument(1));
             return null;
         }).when(jwtFilter).doFilter(any(), any(), any());
+
+        doAnswer(invocation -> {
+            FilterChain chain = invocation.getArgument(2);
+            chain.doFilter(invocation.getArgument(0), invocation.getArgument(1));
+            return null;
+        }).when(rateLimitFilter).doFilter(any(), any(), any());
     }
 
     @Test

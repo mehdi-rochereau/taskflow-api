@@ -1,6 +1,7 @@
 package com.mehdi.taskflow.project;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.mehdi.taskflow.config.AuditService;
 import com.mehdi.taskflow.config.MessageService;
 import com.mehdi.taskflow.config.SecurityConfig;
 import com.mehdi.taskflow.exception.ResourceNotFoundException;
@@ -62,6 +63,9 @@ public class ProjectControllerTest {
 
     @MockitoBean
     private MessageService messageService;
+
+    @MockitoBean
+    private AuditService auditService;
 
     private Project project;
     private ProjectRequest projectRequest;

@@ -1,5 +1,6 @@
 package com.mehdi.taskflow.project;
 
+import com.mehdi.taskflow.config.AuditService;
 import com.mehdi.taskflow.config.MessageService;
 import com.mehdi.taskflow.exception.ResourceNotFoundException;
 import com.mehdi.taskflow.project.dto.ProjectRequest;
@@ -31,6 +32,8 @@ public class ProjectService {
     private final ProjectRepository projectRepository;
     private final SecurityUtils securityUtils;
     private final MessageService messageService;
+    private final AuditService auditService;
+
 
     /**
      * Constructs a new {@code ProjectService} with its required dependencies.
@@ -38,11 +41,16 @@ public class ProjectService {
      * @param projectRepository repository for project persistence
      * @param securityUtils     utility for resolving the currently authenticated user
      * @param messageService utility component for resolving i18n messages based on the current request locale
+     * @param auditService   service for logging security audit events
      */
-    public ProjectService(ProjectRepository projectRepository, SecurityUtils securityUtils, MessageService messageService) {
+    public ProjectService(ProjectRepository projectRepository,
+                          SecurityUtils securityUtils,
+                          MessageService messageService,
+                          AuditService auditService) {
         this.projectRepository = projectRepository;
         this.securityUtils = securityUtils;
         this.messageService = messageService;
+        this.auditService = auditService;
     }
 
     /**
@@ -145,6 +153,7 @@ public class ProjectService {
         Project project = projectRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException(
                         messageService.get("error.project.not.found")));
+        auditService.logProjectDeletion(id, currentUser.getUsername());
         projectRepository.delete(project);
     }
 }

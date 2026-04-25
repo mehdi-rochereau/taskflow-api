@@ -1,5 +1,6 @@
 package com.mehdi.taskflow.user;
 
+import com.mehdi.taskflow.config.AuditService;
 import com.mehdi.taskflow.config.MessageService;
 import com.mehdi.taskflow.security.JwtService;
 import com.mehdi.taskflow.user.dto.AuthResponse;
@@ -38,6 +39,9 @@ class UserServiceTest {
 
     @Mock
     private MessageService messageService;
+
+    @Mock
+    private AuditService auditService;
 
     @InjectMocks
     private UserService userService;

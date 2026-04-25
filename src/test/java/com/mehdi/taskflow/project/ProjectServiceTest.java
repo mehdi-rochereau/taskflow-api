@@ -1,5 +1,6 @@
 package com.mehdi.taskflow.project;
 
+import com.mehdi.taskflow.config.AuditService;
 import com.mehdi.taskflow.config.MessageService;
 import com.mehdi.taskflow.exception.ResourceNotFoundException;
 import com.mehdi.taskflow.project.dto.ProjectRequest;
@@ -31,6 +32,9 @@ class ProjectServiceTest {
 
     @Mock
     private MessageService messageService;
+
+    @Mock
+    private AuditService auditService;
 
     @InjectMocks
     private ProjectService projectService;
@@ -259,6 +263,7 @@ class ProjectServiceTest {
         verify(messageService, never()).get("error.access.denied");
         verify(projectRepository).findById(1L);
         verify(messageService, never()).get("error.project.not.found");
+        verify(auditService).logProjectDeletion(1L, "mehdi");
         verify(projectRepository, times(1)).delete(project);
     }
 

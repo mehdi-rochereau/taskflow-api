@@ -1,5 +1,6 @@
 package com.mehdi.taskflow.task;
 
+import com.mehdi.taskflow.config.AuditService;
 import com.mehdi.taskflow.config.MessageService;
 import com.mehdi.taskflow.exception.ResourceNotFoundException;
 import com.mehdi.taskflow.project.Project;
@@ -39,6 +40,7 @@ public class TaskService {
     private final UserRepository userRepository;
     private final SecurityUtils securityUtils;
     private final MessageService messageService;
+    private final AuditService auditService;
 
     /**
      * Constructs a new {@code TaskService} with its required dependencies.
@@ -48,17 +50,20 @@ public class TaskService {
      * @param userRepository    repository for assignee lookups
      * @param securityUtils     utility for resolving the currently authenticated user
      * @param messageService utility component for resolving i18n messages based on the current request locale
+     * @param auditService   service for logging security audit events
      */
     public TaskService(TaskRepository taskRepository,
                        ProjectRepository projectRepository,
                        UserRepository userRepository,
                        SecurityUtils securityUtils,
-                       MessageService messageService) {
+                       MessageService messageService,
+                       AuditService auditService) {
         this.taskRepository = taskRepository;
         this.projectRepository = projectRepository;
         this.userRepository = userRepository;
         this.securityUtils = securityUtils;
         this.messageService = messageService;
+        this.auditService = auditService;
     }
 
     /**
@@ -201,6 +206,7 @@ public class TaskService {
         Task task = taskRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException(
                         messageService.get("error.task.not.found")));
+        auditService.logTaskDeletion(id, currentUser.getUsername());
         taskRepository.delete(task);
     }
 }

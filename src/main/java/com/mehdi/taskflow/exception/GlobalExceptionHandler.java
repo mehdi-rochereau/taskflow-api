@@ -1,5 +1,6 @@
 package com.mehdi.taskflow.exception;
 
+import com.mehdi.taskflow.config.AuditService;
 import com.mehdi.taskflow.config.MessageService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -49,14 +50,17 @@ import java.util.Map;
 public class GlobalExceptionHandler {
 
     private final MessageService messageService;
+    private final AuditService auditService;
 
     /**
      * Constructs a new {@code GlobalExceptionHandler} with its required dependencies.
      *
      * @param messageService utility component for resolving i18n messages based on the current request locale
+     * @param auditService   service for logging security audit events on authentication failures
      */
-    public GlobalExceptionHandler(MessageService messageService) {
+    public GlobalExceptionHandler(MessageService messageService, AuditService auditService) {
         this.messageService = messageService;
+        this.auditService = auditService;
     }
 
     /**
@@ -74,24 +78,21 @@ public class GlobalExceptionHandler {
     /**
      * Handles unauthorized access to a protected resource.
      *
-     * @param ex access denied exception
      * @return {@code 403 Forbidden} response
      */
     @ExceptionHandler(AccessDeniedException.class)
-    public ResponseEntity<Map<String, Object>> handleAccessDenied(
-            AccessDeniedException ex) {
+    public ResponseEntity<Map<String, Object>> handleAccessDenied() {
         return buildResponse(HttpStatus.FORBIDDEN, messageService.get("error.access.denied"));
     }
 
     /**
      * Handles invalid credentials during authentication.
      *
-     * @param ex bad credentials exception
      * @return {@code 401 Unauthorized} response
      */
     @ExceptionHandler(BadCredentialsException.class)
-    public ResponseEntity<Map<String, Object>> handleBadCredentials(
-            BadCredentialsException ex) {
+    public ResponseEntity<Map<String, Object>> handleBadCredentials() {
+        auditService.logLoginFailure("credentials-invalid");
         return buildResponse(HttpStatus.UNAUTHORIZED,
                 messageService.get("error.bad.credentials"));
     }
@@ -153,11 +154,12 @@ public class GlobalExceptionHandler {
      * Fallback handler for any unexpected exception not covered by other handlers.
      * Prevents internal error details from being exposed to the client.
      *
-     * @param ex unexpected exception
+     * @param ex unexpected exception — logged internally for debugging
      * @return {@code 500 Internal Server Error} response with a generic message
      */
     @ExceptionHandler(Exception.class)
     public ResponseEntity<Map<String, Object>> handleGeneric(Exception ex) {
+        auditService.logUnexpectedError(ex);
         return buildResponse(HttpStatus.INTERNAL_SERVER_ERROR,
                 messageService.get("error.unexpected"));
     }

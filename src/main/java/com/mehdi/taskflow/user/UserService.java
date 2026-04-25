@@ -1,5 +1,6 @@
 package com.mehdi.taskflow.user;
 
+import com.mehdi.taskflow.config.AuditService;
 import com.mehdi.taskflow.config.MessageService;
 import com.mehdi.taskflow.security.JwtService;
 import com.mehdi.taskflow.user.dto.AuthResponse;
@@ -32,6 +33,7 @@ public class UserService {
     private final JwtService jwtService;
     private final AuthenticationManager authenticationManager;
     private final MessageService messageService;
+    private final AuditService auditService;
 
     /**
      * Constructs a new {@code UserService} with its required dependencies.
@@ -41,17 +43,20 @@ public class UserService {
      * @param jwtService            service for JWT token generation
      * @param authenticationManager Spring Security authentication manager
      * @param messageService utility component for resolving i18n messages based on the current request locale
+     * @param auditService   service for logging security audit events
      */
     public UserService(UserRepository userRepository,
                        PasswordEncoder passwordEncoder,
                        JwtService jwtService,
                        AuthenticationManager authenticationManager,
-                       MessageService messageService) {
+                       MessageService messageService,
+                       AuditService auditService) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtService = jwtService;
         this.authenticationManager = authenticationManager;
         this.messageService = messageService;
+        this.auditService = auditService;
     }
 
     /**
@@ -81,6 +86,7 @@ public class UserService {
         user.setRole("ROLE_USER");
 
         userRepository.save(user);
+        auditService.logRegisterSuccess(user.getUsername());
 
         String token = jwtService.generateToken(user);
         return new AuthResponse(token, user.getUsername(), user.getEmail());
@@ -114,6 +120,9 @@ public class UserService {
                         messageService.get("error.user.not.found")));
 
         String token = jwtService.generateToken(user);
-        return new AuthResponse(token, user.getUsername(), user.getEmail());
+        AuthResponse response = new AuthResponse(token, user.getUsername(), user.getEmail());
+        auditService.logLoginSuccess(user.getUsername());
+
+        return response;
     }
 }

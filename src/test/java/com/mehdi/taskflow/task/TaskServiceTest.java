@@ -1,5 +1,6 @@
 package com.mehdi.taskflow.task;
 
+import com.mehdi.taskflow.config.AuditService;
 import com.mehdi.taskflow.config.MessageService;
 import com.mehdi.taskflow.exception.ResourceNotFoundException;
 import com.mehdi.taskflow.project.Project;
@@ -40,6 +41,9 @@ public class TaskServiceTest {
 
     @Mock
     private MessageService messageService;
+
+    @Mock
+    private AuditService auditService;
 
     @InjectMocks
     private TaskService taskService;
@@ -587,6 +591,7 @@ public class TaskServiceTest {
         verify(taskRepository).existsByIdAndProjectOwnerId(1L, 1L);
         verify(taskRepository).findById(1L);
         verify(messageService, never()).get(any());
+        verify(auditService).logTaskDeletion(1L, "mehdi");
         verify(taskRepository).delete(task);
     }
 
