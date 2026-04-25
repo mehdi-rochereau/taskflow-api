@@ -20,13 +20,13 @@ import org.springframework.stereotype.Service;
  * <ul>
  *   <li>{@code Project.name} and {@code Project.description}</li>
  *   <li>{@code Task.title} and {@code Task.description}</li>
+ *   <li>{@code User.username}</li>
  * </ul>
  *
  * <p>Fields explicitly excluded from sanitization:</p>
  * <ul>
  *   <li>Passwords — handled by BCrypt</li>
  *   <li>Emails — validated by {@code @Email}</li>
- *   <li>Usernames — validated by {@code @Size} and {@code @NotBlank}</li>
  * </ul>
  *
  * @see AuditService#logSanitizationAttempt(String, String, String)

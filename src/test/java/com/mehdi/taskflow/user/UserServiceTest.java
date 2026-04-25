@@ -4,6 +4,7 @@ import com.mehdi.taskflow.auth.RefreshToken;
 import com.mehdi.taskflow.auth.RefreshTokenService;
 import com.mehdi.taskflow.config.AuditService;
 import com.mehdi.taskflow.config.MessageService;
+import com.mehdi.taskflow.config.SanitizationService;
 import com.mehdi.taskflow.security.JwtService;
 import com.mehdi.taskflow.user.dto.AuthResponse;
 import com.mehdi.taskflow.user.dto.LoginRequest;
@@ -52,6 +53,9 @@ class UserServiceTest {
     @Mock
     private RefreshTokenService refreshTokenService;
 
+    @Mock
+    private SanitizationService sanitizationService;
+
     @InjectMocks
     private UserService userService;
 
@@ -86,6 +90,8 @@ class UserServiceTest {
         when(refreshTokenService.generateRefreshToken(any(User.class))).thenReturn(mockRefreshToken);
         when(userRepository.existsByUsername("mehdi")).thenReturn(false);
         when(userRepository.existsByEmail("mehdi@test.com")).thenReturn(false);
+        when(sanitizationService.sanitizeAndLog(any(), any(), any()))
+                .thenAnswer(invocation -> invocation.getArgument(0));
         when(passwordEncoder.encode("password123")).thenReturn("hashedPassword");
         when(userRepository.save(any(User.class))).thenReturn(user);
         when(jwtService.generateToken(any(User.class))).thenReturn("fake-jwt-token");

@@ -5,6 +5,7 @@ import com.mehdi.taskflow.auth.RefreshTokenService;
 import com.mehdi.taskflow.config.AuditService;
 import com.mehdi.taskflow.config.CookieUtils;
 import com.mehdi.taskflow.config.MessageService;
+import com.mehdi.taskflow.config.SanitizationService;
 import com.mehdi.taskflow.security.JwtService;
 import com.mehdi.taskflow.user.dto.AuthResponse;
 import com.mehdi.taskflow.user.dto.LoginRequest;
@@ -40,6 +41,7 @@ public class UserService {
     private final MessageService messageService;
     private final AuditService auditService;
     private final RefreshTokenService refreshTokenService;
+    private final SanitizationService sanitizationService;
 
     @Value("${application.jwt.expiration}")
     private long jwtExpiration;
@@ -57,6 +59,7 @@ public class UserService {
      * @param messageService utility component for resolving i18n messages based on the current request locale
      * @param auditService   service for logging security audit events
      * @param refreshTokenService service for refresh token generation and management
+     * @param sanitizationService service for sanitizing user-provided text input
      */
     public UserService(UserRepository userRepository,
                        PasswordEncoder passwordEncoder,
@@ -64,7 +67,8 @@ public class UserService {
                        AuthenticationManager authenticationManager,
                        MessageService messageService,
                        AuditService auditService,
-                       RefreshTokenService refreshTokenService) {
+                       RefreshTokenService refreshTokenService,
+                       SanitizationService sanitizationService) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtService = jwtService;
@@ -72,6 +76,7 @@ public class UserService {
         this.messageService = messageService;
         this.auditService = auditService;
         this.refreshTokenService = refreshTokenService;
+        this.sanitizationService = sanitizationService;
     }
 
     /**
@@ -83,6 +88,8 @@ public class UserService {
      * <p>Validates that the username and email are not already taken,
      * encodes the password with BCrypt, persists the user,
      * and returns a JWT token valid for 24 hours.</p>
+     *
+     * <p>The username is sanitized before persistence to prevent XSS attacks.</p>
      *
      * @param request registration data containing username, email and password
      * @param response HTTP response used to write the JWT HttpOnly cookie
@@ -99,8 +106,7 @@ public class UserService {
         }
 
         User user = new User();
-        user.setUsername(request.getUsername());
-        user.setEmail(request.getEmail());
+        user.setUsername(sanitizationService.sanitizeAndLog(request.getUsername(), "username", auditService));        user.setEmail(request.getEmail());
         user.setPassword(passwordEncoder.encode(request.getPassword()));
         user.setRole("ROLE_USER");
 
