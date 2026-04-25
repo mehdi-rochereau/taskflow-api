@@ -1,5 +1,7 @@
 package com.mehdi.taskflow.user;
 
+import com.mehdi.taskflow.auth.RefreshToken;
+import com.mehdi.taskflow.auth.RefreshTokenService;
 import com.mehdi.taskflow.config.AuditService;
 import com.mehdi.taskflow.config.MessageService;
 import com.mehdi.taskflow.security.JwtService;
@@ -47,6 +49,9 @@ class UserServiceTest {
     @Mock
     private AuditService auditService;
 
+    @Mock
+    private RefreshTokenService refreshTokenService;
+
     @InjectMocks
     private UserService userService;
 
@@ -76,6 +81,9 @@ class UserServiceTest {
     @Test
     void register_shouldCreateUserAndReturnToken() {
         // GIVEN
+        RefreshToken mockRefreshToken = new RefreshToken();
+        mockRefreshToken.setToken("fake-refresh-token");
+        when(refreshTokenService.generateRefreshToken(any(User.class))).thenReturn(mockRefreshToken);
         when(userRepository.existsByUsername("mehdi")).thenReturn(false);
         when(userRepository.existsByEmail("mehdi@test.com")).thenReturn(false);
         when(passwordEncoder.encode("password123")).thenReturn("hashedPassword");
@@ -151,6 +159,9 @@ class UserServiceTest {
     @Test
     void login_shouldReturnToken_whenLoginWithUsername() {
         // GIVEN
+        RefreshToken mockRefreshToken = new RefreshToken();
+        mockRefreshToken.setToken("fake-refresh-token");
+        when(refreshTokenService.generateRefreshToken(any(User.class))).thenReturn(mockRefreshToken);
         when(authenticationManager.authenticate(any(UsernamePasswordAuthenticationToken.class)))
                 .thenReturn(null);
         when(userRepository.findByUsername("mehdi")).thenReturn(java.util.Optional.of(user));
@@ -173,6 +184,9 @@ class UserServiceTest {
     void login_shouldReturnToken_whenLoginWithEmail() {
         // GIVEN
         loginRequest.setIdentifier("mehdi@test.com");
+        RefreshToken mockRefreshToken = new RefreshToken();
+        mockRefreshToken.setToken("fake-refresh-token");
+        when(refreshTokenService.generateRefreshToken(any(User.class))).thenReturn(mockRefreshToken);
         when(authenticationManager.authenticate(any(UsernamePasswordAuthenticationToken.class)))
                 .thenReturn(null);
         when(userRepository.findByUsername("mehdi@test.com")).thenReturn(java.util.Optional.empty());

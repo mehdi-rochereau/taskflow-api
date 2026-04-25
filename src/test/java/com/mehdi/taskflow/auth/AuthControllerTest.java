@@ -71,6 +71,9 @@ class AuthControllerTest {
     @MockitoBean
     private AuditService auditService;
 
+    @MockitoBean
+    private RefreshTokenService refreshTokenService;
+
     @BeforeEach
     void setUp() throws ServletException, IOException {
 

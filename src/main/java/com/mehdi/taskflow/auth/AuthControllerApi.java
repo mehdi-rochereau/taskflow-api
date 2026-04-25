@@ -10,6 +10,7 @@ import io.swagger.v3.oas.annotations.media.ExampleObject;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
@@ -250,4 +251,106 @@ public interface AuthControllerApi {
             }
     )
     ResponseEntity<AuthResponse> login(@Valid @RequestBody LoginRequest request,
-                                       HttpServletResponse response);}
+                                       HttpServletResponse response);
+
+    @Operation(
+            summary = "Refresh JWT token",
+            description = """
+                Generates a new JWT access token using the `refreshToken` HttpOnly cookie.
+                
+                The old refresh token is revoked and a new one is issued (rotation strategy).
+                Both the new `jwt` and `refreshToken` cookies are set in the response.
+                """,
+            parameters = {
+                    @Parameter(ref = "#/components/parameters/Accept-Language")
+            },
+            responses = {
+                    @ApiResponse(
+                            responseCode = "200",
+                            description = "Token successfully refreshed",
+                            content = @Content(
+                                    mediaType = "application/json",
+                                    schema = @Schema(implementation = AuthResponse.class),
+                                    examples = @ExampleObject(
+                                            value = """
+                                                {
+                                                  "token": "eyJhbGciOiJIUzUxMiJ9.eyJzdWIiOiJtZWhkaSIsImlhdCI6MTc...",
+                                                  "username": "mehdi",
+                                                  "email": "mehdi@example.com"
+                                                }
+                                                """
+                                    )
+                            )
+                    ),
+                    @ApiResponse(
+                            responseCode = "401",
+                            description = "Refresh token missing, revoked or expired",
+                            content = @Content(
+                                    mediaType = "application/json",
+                                    examples = @ExampleObject(
+                                            value = """
+                                                {
+                                                  "timestamp": "2026-04-18T10:00:00",
+                                                  "status": 401,
+                                                  "message": "Refresh token has expired"
+                                                }
+                                                """
+                                    )
+                            )
+                    ),
+                    @ApiResponse(
+                            responseCode = "500",
+                            description = "Unexpected server error",
+                            content = @Content(
+                                    mediaType = "application/json",
+                                    examples = @ExampleObject(
+                                            value = """
+                                                {
+                                                  "timestamp": "2026-04-18T10:00:00",
+                                                  "status": 500,
+                                                  "message": "An unexpected error occurred"
+                                                }
+                                                """
+                                    )
+                            )
+                    )
+            }
+    )
+    ResponseEntity<AuthResponse> refresh(HttpServletRequest request, HttpServletResponse response);
+
+    @Operation(
+            summary = "Logout",
+            description = """
+                Logs out the authenticated user by revoking all active refresh tokens.
+                
+                Clears the `jwt` and `refreshToken` HttpOnly cookies from the browser.
+                """,
+            parameters = {
+                    @Parameter(ref = "#/components/parameters/Accept-Language")
+            },
+            responses = {
+                    @ApiResponse(
+                            responseCode = "204",
+                            description = "Successfully logged out",
+                            content = @Content
+                    ),
+                    @ApiResponse(
+                            responseCode = "500",
+                            description = "Unexpected server error",
+                            content = @Content(
+                                    mediaType = "application/json",
+                                    examples = @ExampleObject(
+                                            value = """
+                                                {
+                                                  "timestamp": "2026-04-18T10:00:00",
+                                                  "status": 500,
+                                                  "message": "An unexpected error occurred"
+                                                }
+                                                """
+                                    )
+                            )
+                    )
+            }
+    )
+    ResponseEntity<Void> logout(HttpServletRequest request, HttpServletResponse response);
+}

@@ -1,6 +1,9 @@
 package com.mehdi.taskflow.user;
 
+import com.mehdi.taskflow.auth.RefreshToken;
+import com.mehdi.taskflow.auth.RefreshTokenService;
 import com.mehdi.taskflow.config.AuditService;
+import com.mehdi.taskflow.config.CookieUtils;
 import com.mehdi.taskflow.config.MessageService;
 import com.mehdi.taskflow.security.JwtService;
 import com.mehdi.taskflow.user.dto.AuthResponse;
@@ -36,6 +39,7 @@ public class UserService {
     private final AuthenticationManager authenticationManager;
     private final MessageService messageService;
     private final AuditService auditService;
+    private final RefreshTokenService refreshTokenService;
 
     @Value("${application.jwt.expiration}")
     private long jwtExpiration;
@@ -52,23 +56,29 @@ public class UserService {
      * @param authenticationManager Spring Security authentication manager
      * @param messageService utility component for resolving i18n messages based on the current request locale
      * @param auditService   service for logging security audit events
+     * @param refreshTokenService service for refresh token generation and management
      */
     public UserService(UserRepository userRepository,
                        PasswordEncoder passwordEncoder,
                        JwtService jwtService,
                        AuthenticationManager authenticationManager,
                        MessageService messageService,
-                       AuditService auditService) {
+                       AuditService auditService,
+                       RefreshTokenService refreshTokenService) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtService = jwtService;
         this.authenticationManager = authenticationManager;
         this.messageService = messageService;
         this.auditService = auditService;
+        this.refreshTokenService = refreshTokenService;
     }
 
     /**
      * Registers a new user account.
+     *
+     * <p>A refresh token valid for the configured expiration period is also issued and stored
+     * as an HttpOnly cookie named {@code refreshToken}.</p>
      *
      * <p>Validates that the username and email are not already taken,
      * encodes the password with BCrypt, persists the user,
@@ -95,15 +105,26 @@ public class UserService {
         user.setRole("ROLE_USER");
 
         userRepository.save(user);
+
         auditService.logRegisterSuccess(user.getUsername());
 
         String token = jwtService.generateToken(user);
-        addJwtCookie(response, token);
+        CookieUtils.addCookie(response, "jwt", token, "/api", (int) (jwtExpiration / 1000), cookieSecure);
+
+        RefreshToken refreshToken = refreshTokenService.generateRefreshToken(user);
+        refreshTokenService.addRefreshTokenCookie(response, refreshToken.getToken());
+
         return new AuthResponse(token, user.getUsername(), user.getEmail());
     }
 
     /**
      * Authenticates a user and returns a JWT token.
+     *
+     * <p>This method is annotated with {@code @Transactional} (not read-only)
+     * because it generates and persists a refresh token in the database.</p>
+     *
+     * <p>A refresh token valid for the configured expiration period is also issued and stored
+     * as an HttpOnly cookie named {@code refreshToken}.</p>
      *
      * <p>Accepts either a username or an email address as identifier.
      * Delegates credential verification to {@link AuthenticationManager} —
@@ -116,7 +137,7 @@ public class UserService {
      * @throws org.springframework.security.authentication.BadCredentialsException if the credentials are invalid
      * @throws IllegalArgumentException                                            if no user matches the provided identifier
      */
-    @Transactional(readOnly = true)
+    @Transactional
     public AuthResponse login(LoginRequest request, HttpServletResponse response) {
         authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(
@@ -132,37 +153,15 @@ public class UserService {
 
         String token = jwtService.generateToken(user);
         AuthResponse authResponse = new AuthResponse(token, user.getUsername(), user.getEmail());
-        addJwtCookie(response, token);
+
+        CookieUtils.addCookie(response, "jwt", token, "/api", (int) (jwtExpiration / 1000), cookieSecure);
+
+        RefreshToken refreshToken = refreshTokenService.generateRefreshToken(user);
+        refreshTokenService.addRefreshTokenCookie(response, refreshToken.getToken());
+
         auditService.logLoginSuccess(user.getUsername());
+
         return authResponse;
     }
 
-    /**
-     * Writes the JWT token as an HttpOnly cookie in the HTTP response.
-     *
-     * <p>The cookie is configured with the following security attributes:</p>
-     * <ul>
-     *   <li>{@code HttpOnly} — inaccessible to JavaScript, prevents XSS token theft</li>
-     *   <li>{@code Secure} — must be set to {@code true} in production (HTTPS)</li>
-     *   <li>{@code SameSite=Strict} — prevents CSRF attacks by blocking cross-site requests</li>
-     *   <li>{@code Path=/api} — scoped to API endpoints only</li>
-     *   <li>{@code Max-Age} — matches JWT expiration configured via {@code application.jwt.expiration}</li>
-     * </ul>
-     *
-     * <p>Note: {@code SameSite} is not natively supported by the Jakarta Cookie API
-     * and is therefore added manually via the {@code Set-Cookie} response header.</p>
-     *
-     * @param response the HTTP response to write the cookie to
-     * @param token    the signed JWT token to store in the cookie
-     */
-    private void addJwtCookie(HttpServletResponse response, String token) {
-        int maxAge = (int) (jwtExpiration / 1000);
-        String cookieValue = "jwt=" + token
-                + "; HttpOnly"
-                + "; Path=/api"
-                + "; Max-Age=" + maxAge
-                + "; SameSite=Strict"
-                + (cookieSecure ? "; Secure" : "");
-        response.addHeader("Set-Cookie", cookieValue);
-    }
 }

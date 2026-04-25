@@ -94,6 +94,12 @@ public class RateLimitFilter extends OncePerRequestFilter {
                 rejectRequest(response, request);
                 return;
             }
+        } else if ("POST".equals(method) && "/api/auth/refresh".equals(path)) {
+            Bucket bucket = loginBuckets.computeIfAbsent(ip, k -> createLoginBucket());
+            if (!bucket.tryConsume(1)) {
+                rejectRequest(response, request);
+                return;
+            }
         } else if ("POST".equals(method) && "/api/auth/register".equals(path)) {
             Bucket bucket = registerBuckets.computeIfAbsent(ip, k -> createRegisterBucket());
             if (!bucket.tryConsume(1)) {

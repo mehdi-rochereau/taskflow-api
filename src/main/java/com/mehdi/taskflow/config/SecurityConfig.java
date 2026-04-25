@@ -41,6 +41,8 @@ import java.util.List;
  * <ul>
  *   <li>{@code POST /api/auth/register}</li>
  *   <li>{@code POST /api/auth/login}</li>
+ *   <li>{@code POST /api/auth/refresh}</li>
+ *   <li>{@code POST /api/auth/logout}</li>
  *   <li>{@code /swagger-ui/**}</li>
  *   <li>{@code /v3/api-docs/**}</li>
  *   <li>{@code /redoc.html}</li>
