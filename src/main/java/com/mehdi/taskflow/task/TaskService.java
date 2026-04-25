@@ -142,8 +142,8 @@ public class TaskService {
             throw new AccessDeniedException(messageService.get("error.access.denied"));
         }
         Task task = new Task();
-        task.setTitle(sanitizationService.sanitize(request.getTitle()));
-        task.setDescription(sanitizationService.sanitize(request.getDescription()));
+        task.setTitle(sanitizationService.sanitizeAndLog(request.getTitle(), "title", auditService));
+        task.setDescription(sanitizationService.sanitizeAndLog(request.getDescription(), "description", auditService));
         task.setStatus(request.getStatus());
         task.setPriority(request.getPriority());
         task.setDueDate(request.getDueDate());
@@ -181,8 +181,8 @@ public class TaskService {
         Task task = taskRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException(
                         messageService.get("error.task.not.found")));
-        task.setTitle(sanitizationService.sanitize(request.getTitle()));
-        task.setDescription(sanitizationService.sanitize(request.getDescription()));
+        task.setTitle(sanitizationService.sanitizeAndLog(request.getTitle(), "title", auditService));
+        task.setDescription(sanitizationService.sanitizeAndLog(request.getDescription(), "description", auditService));
         task.setStatus(request.getStatus());
         task.setPriority(request.getPriority());
         task.setDueDate(request.getDueDate());

@@ -160,7 +160,8 @@ class ProjectServiceTest {
     @Test
     void createProject_shouldCreateAndReturnProject() {
         // GIVEN
-        when(sanitizationService.sanitize(any())).thenAnswer(invocation -> invocation.getArgument(0));
+        when(sanitizationService.sanitizeAndLog(any(), any(), any()))
+                .thenAnswer(invocation -> invocation.getArgument(0));
         when(projectRepository.save(any(Project.class)))
                 .thenAnswer(invocation -> invocation.getArgument(0));
 
@@ -189,7 +190,8 @@ class ProjectServiceTest {
         // GIVEN
         when(projectRepository.existsByIdAndOwnerId(1L, 1L)).thenReturn(true);
         when(projectRepository.findById(1L)).thenReturn(Optional.of(project));
-        when(sanitizationService.sanitize(any())).thenAnswer(invocation -> invocation.getArgument(0));
+        when(sanitizationService.sanitizeAndLog(any(), any(), any()))
+                .thenAnswer(invocation -> invocation.getArgument(0));
         when(projectRepository.save(any(Project.class))).thenReturn(project);
 
         // WHEN

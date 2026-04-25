@@ -97,6 +97,21 @@ public class AuditService {
     }
 
     /**
+     * Logs a sanitization attempt when user-provided input contained HTML content.
+     *
+     * <p>Called when the sanitized output differs from the original input,
+     * indicating a potential XSS attempt or accidental HTML input.</p>
+     *
+     * @param field     the name of the field that was sanitized (e.g. "name", "title")
+     * @param original  the original input before sanitization
+     * @param sanitized the sanitized output after sanitization
+     */
+    public void logSanitizationAttempt(String field, String original, String sanitized) {
+        AUDIT.warn("[SANITIZATION] field={} ip={} original={} sanitized={}",
+                field, extractIp(), original, sanitized);
+    }
+
+    /**
      * Extracts the client IP address from the current HTTP request context.
      *
      * <p>Checks the {@code X-Forwarded-For} header first to handle

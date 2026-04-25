@@ -45,6 +45,25 @@ public class SanitizationService {
             .and(Sanitizers.TABLES);
 
     /**
+     * Sanitizes a user-provided text input and logs a warning if HTML content was detected.
+     *
+     * <p>Combines sanitization and audit logging in a single call to avoid
+     * duplication across service classes.</p>
+     *
+     * @param input       the raw user input to sanitize
+     * @param field       the name of the field being sanitized — used in the audit log
+     * @param auditService the audit service used to log sanitization attempts
+     * @return the sanitized plain text, or {@code null} if input is {@code null}
+     */
+    public String sanitizeAndLog(String input, String field, AuditService auditService) {
+        String sanitized = sanitize(input);
+        if (wasSanitized(input, sanitized)) {
+            auditService.logSanitizationAttempt(field, input, sanitized);
+        }
+        return sanitized;
+    }
+
+    /**
      * Sanitizes a user-provided text input by stripping all HTML content.
      *
      * <p>Returns {@code null} if the input is {@code null} — allowing

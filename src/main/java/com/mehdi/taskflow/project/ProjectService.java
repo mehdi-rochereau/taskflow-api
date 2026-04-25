@@ -107,8 +107,8 @@ public class ProjectService {
     public Project createProject(ProjectRequest request) {
         User currentUser = securityUtils.getCurrentUser();
         Project project = new Project();
-        project.setName(sanitizationService.sanitize(request.getName()));
-        project.setDescription(sanitizationService.sanitize(request.getDescription()));
+        project.setName(sanitizationService.sanitizeAndLog(request.getName(), "name", auditService));
+        project.setDescription(sanitizationService.sanitizeAndLog(request.getDescription(), "description", auditService));
         project.setOwner(currentUser);
         return projectRepository.save(project);
     }
@@ -137,8 +137,8 @@ public class ProjectService {
         Project project = projectRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException(
                         messageService.get("error.project.not.found")));
-        project.setName(sanitizationService.sanitize(request.getName()));
-        project.setDescription(sanitizationService.sanitize(request.getDescription()));
+        project.setName(sanitizationService.sanitizeAndLog(request.getName(), "name", auditService));
+        project.setDescription(sanitizationService.sanitizeAndLog(request.getDescription(), "description", auditService));
         return projectRepository.save(project);
     }
 
