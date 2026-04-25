@@ -1,7 +1,7 @@
 package com.mehdi.taskflow.config;
 
+import org.owasp.html.HtmlPolicyBuilder;
 import org.owasp.html.PolicyFactory;
-import org.owasp.html.Sanitizers;
 import org.springframework.stereotype.Service;
 
 /**
@@ -38,11 +38,8 @@ public class SanitizationService {
      * Strict policy that strips all HTML tags and attributes.
      * No formatting, no links, no images — plain text only.
      */
-    private static final PolicyFactory POLICY = Sanitizers.FORMATTING
-            .and(Sanitizers.LINKS)
-            .and(Sanitizers.IMAGES)
-            .and(Sanitizers.BLOCKS)
-            .and(Sanitizers.TABLES);
+    private static final PolicyFactory POLICY = new HtmlPolicyBuilder().toFactory();
+
 
     /**
      * Sanitizes a user-provided text input and logs a warning if HTML content was detected.
@@ -50,8 +47,8 @@ public class SanitizationService {
      * <p>Combines sanitization and audit logging in a single call to avoid
      * duplication across service classes.</p>
      *
-     * @param input       the raw user input to sanitize
-     * @param field       the name of the field being sanitized — used in the audit log
+     * @param input        the raw user input to sanitize
+     * @param field        the name of the field being sanitized — used in the audit log
      * @param auditService the audit service used to log sanitization attempts
      * @return the sanitized plain text, or {@code null} if input is {@code null}
      */
