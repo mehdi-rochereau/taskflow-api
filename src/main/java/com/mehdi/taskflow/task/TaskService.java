@@ -2,6 +2,7 @@ package com.mehdi.taskflow.task;
 
 import com.mehdi.taskflow.config.AuditService;
 import com.mehdi.taskflow.config.MessageService;
+import com.mehdi.taskflow.config.SanitizationService;
 import com.mehdi.taskflow.exception.ResourceNotFoundException;
 import com.mehdi.taskflow.project.Project;
 import com.mehdi.taskflow.project.ProjectRepository;
@@ -41,6 +42,7 @@ public class TaskService {
     private final SecurityUtils securityUtils;
     private final MessageService messageService;
     private final AuditService auditService;
+    private final SanitizationService sanitizationService;
 
     /**
      * Constructs a new {@code TaskService} with its required dependencies.
@@ -51,19 +53,22 @@ public class TaskService {
      * @param securityUtils     utility for resolving the currently authenticated user
      * @param messageService utility component for resolving i18n messages based on the current request locale
      * @param auditService   service for logging security audit events
+     * @param sanitizationService service for sanitizing user-provided text input
      */
     public TaskService(TaskRepository taskRepository,
                        ProjectRepository projectRepository,
                        UserRepository userRepository,
                        SecurityUtils securityUtils,
                        MessageService messageService,
-                       AuditService auditService) {
+                       AuditService auditService,
+                       SanitizationService sanitizationService) {
         this.taskRepository = taskRepository;
         this.projectRepository = projectRepository;
         this.userRepository = userRepository;
         this.securityUtils = securityUtils;
         this.messageService = messageService;
         this.auditService = auditService;
+        this.sanitizationService = sanitizationService;
     }
 
     /**
@@ -118,6 +123,8 @@ public class TaskService {
      * <p>Only the project owner can create tasks.
      * If an {@code assigneeId} is provided, the assignee must exist in the database.</p>
      *
+     * <p>Input fields are sanitized before persistence to prevent XSS attacks.</p>
+     *
      * @param projectId the identifier of the project to add the task to
      * @param request   data for the task to create
      * @return the persisted task with its generated identifier
@@ -135,8 +142,8 @@ public class TaskService {
             throw new AccessDeniedException(messageService.get("error.access.denied"));
         }
         Task task = new Task();
-        task.setTitle(request.getTitle());
-        task.setDescription(request.getDescription());
+        task.setTitle(sanitizationService.sanitize(request.getTitle()));
+        task.setDescription(sanitizationService.sanitize(request.getDescription()));
         task.setStatus(request.getStatus());
         task.setPriority(request.getPriority());
         task.setDueDate(request.getDueDate());
@@ -156,6 +163,8 @@ public class TaskService {
      * <p>Ownership is verified before loading the task —
      * if the current user is not the project owner, the task is never fetched.</p>
      *
+     * <p>Input fields are sanitized before persistence to prevent XSS attacks.</p>
+     *
      * @param id      the identifier of the task to update
      * @param request updated task data
      * @return the updated task
@@ -172,8 +181,8 @@ public class TaskService {
         Task task = taskRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException(
                         messageService.get("error.task.not.found")));
-        task.setTitle(request.getTitle());
-        task.setDescription(request.getDescription());
+        task.setTitle(sanitizationService.sanitize(request.getTitle()));
+        task.setDescription(sanitizationService.sanitize(request.getDescription()));
         task.setStatus(request.getStatus());
         task.setPriority(request.getPriority());
         task.setDueDate(request.getDueDate());

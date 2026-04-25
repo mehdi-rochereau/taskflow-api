@@ -2,6 +2,7 @@ package com.mehdi.taskflow.task;
 
 import com.mehdi.taskflow.config.AuditService;
 import com.mehdi.taskflow.config.MessageService;
+import com.mehdi.taskflow.config.SanitizationService;
 import com.mehdi.taskflow.exception.ResourceNotFoundException;
 import com.mehdi.taskflow.project.Project;
 import com.mehdi.taskflow.project.ProjectRepository;
@@ -44,6 +45,9 @@ public class TaskServiceTest {
 
     @Mock
     private AuditService auditService;
+
+    @Mock
+    private SanitizationService sanitizationService;
 
     @InjectMocks
     private TaskService taskService;
@@ -284,6 +288,7 @@ public class TaskServiceTest {
         givenAuthenticatedUser();
         when(projectRepository.findById(1L)).thenReturn(Optional.of(project));
         when(userRepository.findById(2L)).thenReturn(Optional.of(otherUser));
+        when(sanitizationService.sanitize(any())).thenAnswer(invocation -> invocation.getArgument(0));
         when(taskRepository.save(any(Task.class))).thenAnswer(
                 invocation -> invocation.getArgument(0));
 
@@ -322,6 +327,7 @@ public class TaskServiceTest {
         givenAuthenticatedUser();
         createRequest.setAssigneeId(null);
         when(projectRepository.findById(1L)).thenReturn(Optional.of(project));
+        when(sanitizationService.sanitize(any())).thenAnswer(invocation -> invocation.getArgument(0));
         when(taskRepository.save(any(Task.class))).thenAnswer(
                 invocation -> invocation.getArgument(0));
 
@@ -429,6 +435,7 @@ public class TaskServiceTest {
         when(taskRepository.existsByIdAndProjectOwnerId(1L, 1L)).thenReturn(true);
         when(taskRepository.findById(1L)).thenReturn(Optional.of(task));
         when(userRepository.findById(2L)).thenReturn(Optional.of(otherUser));
+        when(sanitizationService.sanitize(any())).thenAnswer(invocation -> invocation.getArgument(0));
         when(taskRepository.save(any(Task.class))).thenReturn(task);
 
         // WHEN
@@ -470,6 +477,7 @@ public class TaskServiceTest {
         task.setAssignee(null);
         when(taskRepository.existsByIdAndProjectOwnerId(1L, 1L)).thenReturn(true);
         when(taskRepository.findById(1L)).thenReturn(Optional.of(task));
+        when(sanitizationService.sanitize(any())).thenAnswer(invocation -> invocation.getArgument(0));;
         when(taskRepository.save(any(Task.class))).thenReturn(task);
 
         // WHEN
