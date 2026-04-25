@@ -108,6 +108,21 @@ public interface AuthControllerApi {
                             )
                     ),
                     @ApiResponse(
+                            responseCode = "429",
+                            description = "Too many requests — rate limit exceeded",
+                            content = @Content(
+                                    mediaType = "application/json",
+                                    examples = @ExampleObject(
+                                            value = """
+                                {
+                                  "status": 429,
+                                  "message": "Too many requests. Please try again later."
+                                }
+                                """
+                                    )
+                            )
+                    ),
+                    @ApiResponse(
                             responseCode = "500",
                             description = "Unexpected server error",
                             content = @Content(
@@ -193,6 +208,21 @@ public interface AuthControllerApi {
                                                       "message": "Bad credentials"
                                                     }
                                                     """
+                                    )
+                            )
+                    ),
+                    @ApiResponse(
+                            responseCode = "429",
+                            description = "Too many requests — rate limit exceeded",
+                            content = @Content(
+                                    mediaType = "application/json",
+                                    examples = @ExampleObject(
+                                            value = """
+                                {
+                                  "status": 429,
+                                  "message": "Too many requests. Please try again later."
+                                }
+                                """
                                     )
                             )
                     ),

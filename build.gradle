@@ -77,7 +77,8 @@ dependencies {
 	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 	testImplementation 'org.springframework.boot:spring-boot-starter-test'
 	testImplementation 'org.springframework.security:spring-security-test'
-
 	// OAuth2
 	implementation 'org.springframework.boot:spring-boot-starter-oauth2-client'
+	// Rate Limiting
+	implementation 'com.bucket4j:bucket4j-core:8.10.1'
 }

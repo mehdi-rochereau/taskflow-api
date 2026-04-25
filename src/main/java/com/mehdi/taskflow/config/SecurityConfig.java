@@ -1,6 +1,7 @@
 package com.mehdi.taskflow.config;
 
 import com.mehdi.taskflow.security.JwtFilter;
+import com.mehdi.taskflow.security.RateLimitFilter;
 import com.mehdi.taskflow.security.UserDetailsServiceImpl;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.context.annotation.Bean;
@@ -30,7 +31,8 @@ import java.util.List;
 /**
  * Spring Security configuration for the TaskFlow API.
  *
- * <p>Configures a stateless JWT-based authentication mechanism.
+ * <p>Configures a stateless JWT-based authentication mechanism with rate limiting
+ * on authentication endpoints to prevent brute force attacks.
  * CSRF protection is disabled as the API is stateless and does not use session cookies.
  * Method-level security is enabled via {@link EnableMethodSecurity} to support
  * {@code @PreAuthorize} annotations on service methods.</p>
@@ -41,12 +43,14 @@ import java.util.List;
  *   <li>{@code POST /api/auth/login}</li>
  *   <li>{@code /swagger-ui/**}</li>
  *   <li>{@code /v3/api-docs/**}</li>
+ *   <li>{@code /redoc.html}</li>
  * </ul>
  *
  * <p>All other endpoints require a valid JWT token passed as a
  * {@code Authorization: Bearer <token>} header, validated by {@link JwtFilter}.</p>
  *
  * @see JwtFilter
+ * @see RateLimitFilter
  * @see UserDetailsServiceImpl
  */
 @Configuration
@@ -57,6 +61,7 @@ public class SecurityConfig {
     private final JwtFilter jwtFilter;
     private final UserDetailsServiceImpl userDetailsService;
     private final MessageService messageService;
+    private final RateLimitFilter rateLimitFilter;
 
     /**
      * Constructs a new {@code SecurityConfig} with its required dependencies.
@@ -64,11 +69,17 @@ public class SecurityConfig {
      * @param jwtFilter          filter responsible for JWT token validation on each request
      * @param userDetailsService service for loading user details during authentication
      * @param messageService     utility component for resolving i18n messages based on the current request locale
+     * @param rateLimitFilter    filter responsible for rate limiting on authentication endpoints
      */
-    public SecurityConfig(JwtFilter jwtFilter, UserDetailsServiceImpl userDetailsService, MessageService messageService) {
+    public SecurityConfig(JwtFilter jwtFilter,
+                          UserDetailsServiceImpl userDetailsService,
+                          MessageService messageService,
+                          RateLimitFilter rateLimitFilter) {
         this.jwtFilter = jwtFilter;
         this.userDetailsService = userDetailsService;
         this.messageService = messageService;
+        this.rateLimitFilter = rateLimitFilter;
+
     }
 
     /**
@@ -76,17 +87,22 @@ public class SecurityConfig {
      *
      * <p>Applies the following configuration:</p>
      * <ul>
+     *   <li>CORS — allows requests from the Angular frontend on {@code localhost:4200}</li>
+     *   <li>Security headers — {@code X-Frame-Options: DENY}, {@code X-Content-Type-Options: nosniff},
+     *       {@code Strict-Transport-Security}, {@code Content-Security-Policy: default-src 'self'},
+     *       {@code Referrer-Policy: no-referrer}</li>
      *   <li>CSRF disabled — not needed for stateless REST APIs</li>
-     *   <li>Public routes: {@code /api/auth/**}, {@code /swagger-ui/**}, {@code /v3/api-docs/**}</li>
+     *   <li>Public routes: {@code /api/auth/**}, {@code /swagger-ui/**},
+     *       {@code /v3/api-docs/**}, {@code /redoc.html}</li>
      *   <li>All other routes require authentication</li>
      *   <li>Session management: {@link SessionCreationPolicy#STATELESS} — no HTTP session created</li>
      *   <li>Custom {@link org.springframework.security.web.AuthenticationEntryPoint} — returns a
      *       structured {@code 401 Unauthorized} JSON response instead of the default HTML error page
      *       when an unauthenticated request reaches a protected endpoint</li>
-     *   <li>{@link JwtFilter} inserted before {@link UsernamePasswordAuthenticationFilter}</li>
-     *   <li>Security headers — {@code X-Frame-Options: DENY}, {@code X-Content-Type-Options: nosniff},
-     *      {@code Strict-Transport-Security}, {@code Content-Security-Policy},
-     *     {@code Referrer-Policy: no-referrer}</li>
+     *   <li>{@link RateLimitFilter} inserted before {@link UsernamePasswordAuthenticationFilter}
+     *       — limits login to 5 attempts/minute and registration to 3 attempts/hour per IP</li>
+     *   <li>{@link JwtFilter} inserted before {@link UsernamePasswordAuthenticationFilter}
+     *       — validates JWT tokens on every protected request</li>
      * </ul>
      *
      * @param http the {@link HttpSecurity} to configure
@@ -136,6 +152,7 @@ public class SecurityConfig {
                         })
                 )
                 .authenticationProvider(authenticationProvider())
+                .addFilterBefore(rateLimitFilter, UsernamePasswordAuthenticationFilter.class)
                 .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
         return http.build();
     }
