@@ -35,8 +35,10 @@ server:
 
 application:
   jwt:
-    secret: ${JWT_SECRET:ce-secret-doit-faire-au-moins-256-bits-soit-32-caracteres-minimum}
-    expiration: 86400000
+    secret: ${JWT_SECRET:your-secret-key-must-be-at-least-32-characters-long}
+    expiration: ${JWT_EXPIRATION:86400000}
+  cookie:
+    secure: ${COOKIE_SECURE:false}
 
 springdoc:
   api-docs:

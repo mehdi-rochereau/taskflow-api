@@ -14,6 +14,7 @@ import com.mehdi.taskflow.user.dto.LoginRequest;
 import com.mehdi.taskflow.user.dto.RegisterRequest;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
+import jakarta.servlet.http.HttpServletResponse;
 import org.hamcrest.Matchers;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -97,7 +98,8 @@ class AuthControllerTest {
         request.setPassword("password123");
 
         AuthResponse authResponse = new AuthResponse("fake-token", "mehdi", "mehdi@test.com");
-        when(userService.register(any(RegisterRequest.class))).thenReturn(authResponse);
+        when(userService.register(any(RegisterRequest.class), any(HttpServletResponse.class)))
+                .thenReturn(authResponse);
 
         // WHEN & THEN
         mockMvc.perform(post("/api/auth/register")
@@ -262,7 +264,7 @@ class AuthControllerTest {
         request.setEmail("mehdi@test.com");
         request.setPassword("password123");
 
-        when(userService.register(any(RegisterRequest.class)))
+        when(userService.register(any(RegisterRequest.class), any(HttpServletResponse.class)))
                 .thenThrow(new IllegalArgumentException("This username is already taken"));
 
         // WHEN & THEN
@@ -281,7 +283,7 @@ class AuthControllerTest {
         request.setEmail("mehdi@test.com");
         request.setPassword("password123");
         when(messageService.get("error.unexpected")).thenReturn("An unexpected error occurred");
-        when(userService.register(any(RegisterRequest.class)))
+        when(userService.register(any(RegisterRequest.class), any(HttpServletResponse.class)))
                 .thenThrow(new RuntimeException("unexpected"));
 
         // WHEN & THEN
@@ -300,7 +302,8 @@ class AuthControllerTest {
         request.setPassword("password123");
 
         AuthResponse authResponse = new AuthResponse("fake-token", "mehdi", "mehdi@test.com");
-        when(userService.login(any(LoginRequest.class))).thenReturn(authResponse);
+        when(userService.login(any(LoginRequest.class), any(HttpServletResponse.class)))
+                .thenReturn(authResponse);
 
         // WHEN & THEN
         mockMvc.perform(post("/api/auth/login")
@@ -320,7 +323,8 @@ class AuthControllerTest {
         request.setPassword("password123");
 
         AuthResponse authResponse = new AuthResponse("fake-token", "mehdi", "mehdi@test.com");
-        when(userService.login(any(LoginRequest.class))).thenReturn(authResponse);
+        when(userService.login(any(LoginRequest.class), any(HttpServletResponse.class)))
+                .thenReturn(authResponse);
 
         // WHEN & THEN
         mockMvc.perform(post("/api/auth/login")
@@ -394,7 +398,7 @@ class AuthControllerTest {
         request.setIdentifier("invalid-username");
         request.setPassword("invalid-password");
         when(messageService.get("error.bad.credentials")).thenReturn("Invalid username or password");
-        when(userService.login(any(LoginRequest.class)))
+        when(userService.login(any(LoginRequest.class), any(HttpServletResponse.class)))
                 .thenThrow(new BadCredentialsException("Bad credentials"));
 
 

@@ -4,6 +4,7 @@ import com.mehdi.taskflow.user.UserService;
 import com.mehdi.taskflow.user.dto.AuthResponse;
 import com.mehdi.taskflow.user.dto.LoginRequest;
 import com.mehdi.taskflow.user.dto.RegisterRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -46,14 +47,17 @@ public class AuthController implements AuthControllerApi {
      * and returns a JWT token upon successful registration.</p>
      *
      * @param request the registration data — username, email and password
+     * @param response the HTTP response used to write the JWT HttpOnly cookie
      * @return {@code 201 Created} with the JWT token and user details,
      * or {@code 400 Bad Request} if validation fails or the username/email is already taken
      */
     @Override
     @PostMapping("/register")
-    public ResponseEntity<AuthResponse> register(@Valid @RequestBody RegisterRequest request) {
-        AuthResponse response = userService.register(request);
-        return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    public ResponseEntity<AuthResponse> register(@Valid @RequestBody RegisterRequest request,
+                                                 HttpServletResponse response) {
+        return ResponseEntity
+                .status(HttpStatus.CREATED)
+                .body(userService.register(request, response));
     }
 
     /**
@@ -64,14 +68,15 @@ public class AuthController implements AuthControllerApi {
      * {@link org.springframework.security.authentication.AuthenticationManager}.</p>
      *
      * @param request the login data — identifier (username or email) and password
+     * @param response the HTTP response used to write the JWT HttpOnly cookie
      * @return {@code 200 OK} with the JWT token and user details,
      * {@code 400 Bad Request} if required fields are missing or blank,
      * or {@code 401 Unauthorized} if the credentials are invalid
      */
     @Override
     @PostMapping("/login")
-    public ResponseEntity<AuthResponse> login(@Valid @RequestBody LoginRequest request) {
-        AuthResponse response = userService.login(request);
-        return ResponseEntity.ok(response);
+    public ResponseEntity<AuthResponse> login(@Valid @RequestBody LoginRequest request,
+                                              HttpServletResponse response) {
+        return ResponseEntity.ok(userService.login(request, response));
     }
 }

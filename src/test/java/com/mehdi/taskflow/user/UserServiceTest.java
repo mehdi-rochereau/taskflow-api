@@ -6,6 +6,7 @@ import com.mehdi.taskflow.security.JwtService;
 import com.mehdi.taskflow.user.dto.AuthResponse;
 import com.mehdi.taskflow.user.dto.LoginRequest;
 import com.mehdi.taskflow.user.dto.RegisterRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -36,6 +37,9 @@ class UserServiceTest {
 
     @Mock
     private AuthenticationManager authenticationManager;
+
+    @Mock
+    private HttpServletResponse httpServletResponse;
 
     @Mock
     private MessageService messageService;
@@ -79,7 +83,7 @@ class UserServiceTest {
         when(jwtService.generateToken(any(User.class))).thenReturn("fake-jwt-token");
 
         // WHEN
-        AuthResponse response = userService.register(registerRequest);
+        AuthResponse response = userService.register(registerRequest, httpServletResponse);
 
         // THEN
         assertNotNull(response);
@@ -108,7 +112,7 @@ class UserServiceTest {
 
         // WHEN & THEN
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
-                () -> userService.register(registerRequest));
+                () -> userService.register(registerRequest, httpServletResponse));
         assertEquals("This username is already taken", ex.getMessage());
         verify(messageService).get("error.username.taken");
         verify(userRepository, never()).save(any(User.class));
@@ -124,7 +128,7 @@ class UserServiceTest {
 
         // WHEN & THEN
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
-                () -> userService.register(registerRequest));
+                () -> userService.register(registerRequest, httpServletResponse));
         assertEquals("This email is already in use", ex.getMessage());
         verify(messageService).get("error.email.taken");
         verify(userRepository, never()).save(any(User.class));
@@ -138,7 +142,7 @@ class UserServiceTest {
 
         // WHEN
         assertThrows(IllegalArgumentException.class,
-                () -> userService.register(registerRequest));
+                () -> userService.register(registerRequest, httpServletResponse));
 
         // THEN — email check should never be called if username is already taken
         verify(userRepository, never()).existsByEmail(anyString());
@@ -153,7 +157,7 @@ class UserServiceTest {
         when(jwtService.generateToken(any(User.class))).thenReturn("fake-jwt-token");
 
         // WHEN
-        AuthResponse response = userService.login(loginRequest);
+        AuthResponse response = userService.login(loginRequest, httpServletResponse);
 
         // THEN
         assertNotNull(response);
@@ -176,7 +180,7 @@ class UserServiceTest {
         when(jwtService.generateToken(any(User.class))).thenReturn("fake-jwt-token");
 
         // WHEN
-        AuthResponse response = userService.login(loginRequest);
+        AuthResponse response = userService.login(loginRequest, httpServletResponse);
 
         // THEN
         assertNotNull(response);
@@ -199,7 +203,7 @@ class UserServiceTest {
 
         // WHEN & THEN
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
-                () -> userService.login(loginRequest));
+                () -> userService.login(loginRequest, httpServletResponse));
         assertEquals("User not found", ex.getMessage());
         verify(messageService).get("error.user.not.found");
         verify(userRepository).findByUsername("mehdi");
@@ -215,7 +219,7 @@ class UserServiceTest {
 
         // WHEN & THEN
         BadCredentialsException ex = assertThrows(BadCredentialsException.class,
-                () -> userService.login(loginRequest));
+                () -> userService.login(loginRequest, httpServletResponse));
 
         assertEquals("Bad credentials", ex.getMessage());
         verify(userRepository, never()).findByUsername(anyString());

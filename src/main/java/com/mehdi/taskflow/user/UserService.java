@@ -6,6 +6,8 @@ import com.mehdi.taskflow.security.JwtService;
 import com.mehdi.taskflow.user.dto.AuthResponse;
 import com.mehdi.taskflow.user.dto.LoginRequest;
 import com.mehdi.taskflow.user.dto.RegisterRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -34,6 +36,12 @@ public class UserService {
     private final AuthenticationManager authenticationManager;
     private final MessageService messageService;
     private final AuditService auditService;
+
+    @Value("${application.jwt.expiration}")
+    private long jwtExpiration;
+
+    @Value("${application.cookie.secure:false}")
+    private boolean cookieSecure;
 
     /**
      * Constructs a new {@code UserService} with its required dependencies.
@@ -67,11 +75,12 @@ public class UserService {
      * and returns a JWT token valid for 24 hours.</p>
      *
      * @param request registration data containing username, email and password
+     * @param response HTTP response used to write the JWT HttpOnly cookie
      * @return an {@link AuthResponse} containing the JWT token and user details
      * @throws IllegalArgumentException if the username or email is already in use
      */
     @Transactional
-    public AuthResponse register(RegisterRequest request) {
+    public AuthResponse register(RegisterRequest request, HttpServletResponse response) {
         if (userRepository.existsByUsername(request.getUsername())) {
             throw new IllegalArgumentException(messageService.get("error.username.taken"));
         }
@@ -89,6 +98,7 @@ public class UserService {
         auditService.logRegisterSuccess(user.getUsername());
 
         String token = jwtService.generateToken(user);
+        addJwtCookie(response, token);
         return new AuthResponse(token, user.getUsername(), user.getEmail());
     }
 
@@ -101,12 +111,13 @@ public class UserService {
      * before any database lookup occurs.</p>
      *
      * @param request login data containing the identifier (username or email) and password
+     * @param response HTTP response used to write the JWT HttpOnly cookie
      * @return an {@link AuthResponse} containing the JWT token and user details
      * @throws org.springframework.security.authentication.BadCredentialsException if the credentials are invalid
      * @throws IllegalArgumentException                                            if no user matches the provided identifier
      */
     @Transactional(readOnly = true)
-    public AuthResponse login(LoginRequest request) {
+    public AuthResponse login(LoginRequest request, HttpServletResponse response) {
         authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(
                         request.getIdentifier(),
@@ -120,9 +131,38 @@ public class UserService {
                         messageService.get("error.user.not.found")));
 
         String token = jwtService.generateToken(user);
-        AuthResponse response = new AuthResponse(token, user.getUsername(), user.getEmail());
+        AuthResponse authResponse = new AuthResponse(token, user.getUsername(), user.getEmail());
+        addJwtCookie(response, token);
         auditService.logLoginSuccess(user.getUsername());
+        return authResponse;
+    }
 
-        return response;
+    /**
+     * Writes the JWT token as an HttpOnly cookie in the HTTP response.
+     *
+     * <p>The cookie is configured with the following security attributes:</p>
+     * <ul>
+     *   <li>{@code HttpOnly} — inaccessible to JavaScript, prevents XSS token theft</li>
+     *   <li>{@code Secure} — must be set to {@code true} in production (HTTPS)</li>
+     *   <li>{@code SameSite=Strict} — prevents CSRF attacks by blocking cross-site requests</li>
+     *   <li>{@code Path=/api} — scoped to API endpoints only</li>
+     *   <li>{@code Max-Age} — matches JWT expiration configured via {@code application.jwt.expiration}</li>
+     * </ul>
+     *
+     * <p>Note: {@code SameSite} is not natively supported by the Jakarta Cookie API
+     * and is therefore added manually via the {@code Set-Cookie} response header.</p>
+     *
+     * @param response the HTTP response to write the cookie to
+     * @param token    the signed JWT token to store in the cookie
+     */
+    private void addJwtCookie(HttpServletResponse response, String token) {
+        int maxAge = (int) (jwtExpiration / 1000);
+        String cookieValue = "jwt=" + token
+                + "; HttpOnly"
+                + "; Path=/api"
+                + "; Max-Age=" + maxAge
+                + "; SameSite=Strict"
+                + (cookieSecure ? "; Secure" : "");
+        response.addHeader("Set-Cookie", cookieValue);
     }
 }

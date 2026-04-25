@@ -4,6 +4,7 @@ import com.mehdi.taskflow.config.MessageService;
 import io.jsonwebtoken.ExpiredJwtException;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
+import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.lang.NonNull;
@@ -67,6 +68,9 @@ public class JwtFilter extends OncePerRequestFilter {
     /**
      * Processes the JWT token from the request and sets the authentication context.
      *
+     * <p>Extracts the JWT token from either the {@code Authorization: Bearer} header
+     * or the {@code jwt} HttpOnly cookie — header takes precedence.</p>
+     *
      * <p>Requests without a valid {@code Authorization: Bearer} header are passed
      * through without modification — Spring Security will handle authorization
      * based on the endpoint configuration.</p>
@@ -98,14 +102,12 @@ public class JwtFilter extends OncePerRequestFilter {
             @NonNull FilterChain filterChain
     ) throws ServletException, IOException {
 
-        final String authHeader = request.getHeader("Authorization");
+        final String jwt = extractToken(request);
 
-        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+        if (jwt == null) {
             filterChain.doFilter(request, response);
             return;
         }
-
-        final String jwt = authHeader.substring(7);
 
         try {
             final String username = jwtService.extractUsername(jwt);
@@ -137,5 +139,31 @@ public class JwtFilter extends OncePerRequestFilter {
         }
 
         filterChain.doFilter(request, response);
+    }
+
+    /**
+     * Extracts the JWT token from the request.
+     *
+     * <p>Checks the {@code Authorization: Bearer} header first,
+     * then falls back to the {@code jwt} HttpOnly cookie.
+     * This dual strategy allows testing via Swagger/Postman with the header
+     * while using the secure cookie in production with Angular.</p>
+     *
+     * @param request the incoming HTTP request
+     * @return the JWT token string, or {@code null} if not found
+     */
+    private String extractToken(HttpServletRequest request) {
+        String authHeader = request.getHeader("Authorization");
+        if (authHeader != null && authHeader.startsWith("Bearer ")) {
+            return authHeader.substring(7);
+        }
+        if (request.getCookies() != null) {
+            for (Cookie cookie : request.getCookies()) {
+                if ("jwt".equals(cookie.getName())) {
+                    return cookie.getValue();
+                }
+            }
+        }
+        return null;
     }
 }

@@ -10,6 +10,7 @@ import io.swagger.v3.oas.annotations.media.ExampleObject;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -34,6 +35,8 @@ public interface AuthControllerApi {
             summary = "Register a new user account",
             description = """
                     Creates a new user account with a BCrypt-encoded password.
+                    
+                    The JWT token is also set as an **HttpOnly cookie** named `jwt` for secure browser storage.
                     
                     Returns a signed JWT token valid for **24 hours** upon successful registration.
                     
@@ -140,12 +143,14 @@ public interface AuthControllerApi {
                     )
             }
     )
-    ResponseEntity<AuthResponse> register(@Valid @RequestBody RegisterRequest request);
-
+    ResponseEntity<AuthResponse> register(@Valid @RequestBody RegisterRequest request,
+                                          HttpServletResponse response);
     @Operation(
             summary = "Login",
             description = """
                     Authenticates a user and returns a signed JWT token valid for **24 hours**.
+                    
+                    The JWT token is also set as an **HttpOnly cookie** named `jwt` for secure browser storage.
                     
                     The `identifier` field accepts either a **username** or an **email address**.
                     
@@ -244,5 +249,5 @@ public interface AuthControllerApi {
                     )
             }
     )
-    ResponseEntity<AuthResponse> login(@Valid @RequestBody LoginRequest request);
-}
+    ResponseEntity<AuthResponse> login(@Valid @RequestBody LoginRequest request,
+                                       HttpServletResponse response);}
