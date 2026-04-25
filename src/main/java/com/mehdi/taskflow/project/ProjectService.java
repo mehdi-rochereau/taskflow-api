@@ -2,6 +2,7 @@ package com.mehdi.taskflow.project;
 
 import com.mehdi.taskflow.config.AuditService;
 import com.mehdi.taskflow.config.MessageService;
+import com.mehdi.taskflow.config.SanitizationService;
 import com.mehdi.taskflow.exception.ResourceNotFoundException;
 import com.mehdi.taskflow.project.dto.ProjectRequest;
 import com.mehdi.taskflow.security.SecurityUtils;
@@ -33,6 +34,7 @@ public class ProjectService {
     private final SecurityUtils securityUtils;
     private final MessageService messageService;
     private final AuditService auditService;
+    private final SanitizationService sanitizationService;
 
 
     /**
@@ -42,15 +44,18 @@ public class ProjectService {
      * @param securityUtils     utility for resolving the currently authenticated user
      * @param messageService utility component for resolving i18n messages based on the current request locale
      * @param auditService   service for logging security audit events
+     * @param sanitizationService service for sanitizing user-provided text input
      */
     public ProjectService(ProjectRepository projectRepository,
                           SecurityUtils securityUtils,
                           MessageService messageService,
-                          AuditService auditService) {
+                          AuditService auditService,
+                          SanitizationService sanitizationService) {
         this.projectRepository = projectRepository;
         this.securityUtils = securityUtils;
         this.messageService = messageService;
         this.auditService = auditService;
+        this.sanitizationService = sanitizationService;
     }
 
     /**
@@ -92,6 +97,8 @@ public class ProjectService {
     /**
      * Creates a new project owned by the currently authenticated user.
      *
+     * <p>Input fields are sanitized before persistence to prevent XSS attacks.</p>
+     *
      * @param request data for the project to create
      * @return the persisted project with its generated identifier
      */
@@ -100,8 +107,8 @@ public class ProjectService {
     public Project createProject(ProjectRequest request) {
         User currentUser = securityUtils.getCurrentUser();
         Project project = new Project();
-        project.setName(request.getName());
-        project.setDescription(request.getDescription());
+        project.setName(sanitizationService.sanitize(request.getName()));
+        project.setDescription(sanitizationService.sanitize(request.getDescription()));
         project.setOwner(currentUser);
         return projectRepository.save(project);
     }
@@ -111,6 +118,8 @@ public class ProjectService {
      *
      * <p>Ownership is verified before loading the project —
      * if the current user is not the owner, the project is never fetched.</p>
+     *
+     * <p>Input fields are sanitized before persistence to prevent XSS attacks.</p>
      *
      * @param id      the identifier of the project to update
      * @param request updated project data
@@ -128,8 +137,8 @@ public class ProjectService {
         Project project = projectRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException(
                         messageService.get("error.project.not.found")));
-        project.setName(request.getName());
-        project.setDescription(request.getDescription());
+        project.setName(sanitizationService.sanitize(request.getName()));
+        project.setDescription(sanitizationService.sanitize(request.getDescription()));
         return projectRepository.save(project);
     }
 

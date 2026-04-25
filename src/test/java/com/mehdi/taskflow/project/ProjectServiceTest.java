@@ -2,6 +2,7 @@ package com.mehdi.taskflow.project;
 
 import com.mehdi.taskflow.config.AuditService;
 import com.mehdi.taskflow.config.MessageService;
+import com.mehdi.taskflow.config.SanitizationService;
 import com.mehdi.taskflow.exception.ResourceNotFoundException;
 import com.mehdi.taskflow.project.dto.ProjectRequest;
 import com.mehdi.taskflow.security.SecurityUtils;
@@ -35,6 +36,9 @@ class ProjectServiceTest {
 
     @Mock
     private AuditService auditService;
+
+    @Mock
+    private SanitizationService sanitizationService;
 
     @InjectMocks
     private ProjectService projectService;
@@ -156,6 +160,7 @@ class ProjectServiceTest {
     @Test
     void createProject_shouldCreateAndReturnProject() {
         // GIVEN
+        when(sanitizationService.sanitize(any())).thenAnswer(invocation -> invocation.getArgument(0));
         when(projectRepository.save(any(Project.class)))
                 .thenAnswer(invocation -> invocation.getArgument(0));
 
@@ -184,6 +189,7 @@ class ProjectServiceTest {
         // GIVEN
         when(projectRepository.existsByIdAndOwnerId(1L, 1L)).thenReturn(true);
         when(projectRepository.findById(1L)).thenReturn(Optional.of(project));
+        when(sanitizationService.sanitize(any())).thenAnswer(invocation -> invocation.getArgument(0));
         when(projectRepository.save(any(Project.class))).thenReturn(project);
 
         // WHEN
