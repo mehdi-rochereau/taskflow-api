@@ -112,6 +112,15 @@ public class AuditService {
     }
 
     /**
+     * Logs a scheduled token purge event.
+     *
+     * @param count the number of tokens deleted during the purge
+     */
+    public void logTokenPurge(int count) {
+        AUDIT.info("[TOKEN_PURGE] deleted={}", count);
+    }
+
+    /**
      * Extracts the client IP address from the current HTTP request context.
      *
      * <p>Checks the {@code X-Forwarded-For} header first to handle

@@ -8,6 +8,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.time.LocalDateTime;
 import java.util.Optional;
 
 /**
@@ -35,4 +36,15 @@ public interface RefreshTokenRepository extends JpaRepository<RefreshToken, Long
     @Modifying
     @Query("UPDATE RefreshToken rt SET rt.revoked = true WHERE rt.user = :user AND rt.revoked = false")
     void revokeAllByUser(@Param("user") User user);
+
+    /**
+     * Deletes all refresh tokens that have expired or have been revoked.
+     * Used by the scheduled cleanup job to prevent unbounded table growth.
+     *
+     * @param expiresAt tokens expired before this timestamp will be deleted
+     * @return the number of deleted tokens
+     */
+    @Modifying
+    @Query("DELETE FROM RefreshToken rt WHERE rt.expiresAt < :expiresAt OR rt.revoked = true")
+    int deleteAllExpiredOrRevoked(@Param("expiresAt") LocalDateTime expiresAt);
 }
