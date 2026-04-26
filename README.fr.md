@@ -2,7 +2,7 @@
 
 > 🇬🇧 [English version](README.md)
 
-Une API REST de gestion de tâches développée en Java 21 et Spring Boot 3.5, avec authentification JWT stateless, contrôle d'accès par propriétaire et une couverture de tests complète.
+Une API REST de gestion de tâches développée en Java 21 et Spring Boot 3.5, avec authentification JWT stateless, gestion de session par cookies HttpOnly, contrôle d'accès par propriétaire, sanitization des entrées et une couverture de tests complète.
 
 [![Java](https://img.shields.io/badge/Java-21-ED8B00?style=flat&logo=openjdk&logoColor=white)](https://openjdk.org/)
 [![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.5-6DB33F?style=flat&logo=springboot&logoColor=white)](https://spring.io/projects/spring-boot)
@@ -14,6 +14,8 @@ Une API REST de gestion de tâches développée en Java 21 et Spring Boot 3.5, a
 ## Présentation
 
 TaskFlow API permet à des utilisateurs authentifiés de gérer des projets et des tâches. Chaque utilisateur est propriétaire de ses projets et contrôle l'accès aux tâches associées. L'API suit les conventions REST et retourne des réponses JSON structurées pour toutes les opérations, y compris les erreurs.
+
+Pour les détails de sécurité, voir [SECURITY.fr.md](SECURITY.fr.md).
 
 ---
 
@@ -31,6 +33,8 @@ TaskFlow API permet à des utilisateurs authentifiés de gérer des projets et d
 | Tests | JUnit 5 + Mockito + MockMvc |
 | Couverture | JaCoCo |
 | Documentation | Springdoc OpenAPI / Swagger UI |
+| Limitation de débit | Bucket4j |
+| Sanitization | OWASP Java HTML Sanitizer |
 
 ---
 
@@ -38,11 +42,12 @@ TaskFlow API permet à des utilisateurs authentifiés de gérer des projets et d
 
 ```
 src/main/java/com/mehdi/taskflow/
-├── auth/               # Controller d'authentification
-├── config/             # Configuration Spring Security et OpenAPI
+├── auth/               # Entité, repository, service refresh token, job de nettoyage
+│   └── AuthController  # Endpoints d'authentification
+├── config/             # Configuration Spring Security, OpenAPI, Cookie, Sanitization, Audit
 ├── exception/          # Gestionnaire d'exceptions centralisé
 ├── project/            # Entité, repository, service, controller, DTOs
-├── security/           # Filtre JWT, service JWT, UserDetailsService
+├── security/           # Filtre JWT, service JWT, filtre rate limiting, UserDetailsService
 ├── task/               # Entité, repository, service, controller, DTOs
 └── user/               # Entité, repository, service, DTOs
 ```
@@ -58,13 +63,20 @@ L'application suit une architecture en couches standard :
 ## Fonctionnalités
 
 - Authentification JWT stateless — inscription et connexion par username ou email
+- Gestion de session par cookies HttpOnly — JWT (15 min) + Refresh Token (7 jours)
+- Rotation des refresh tokens — tokens à usage unique, renouvellement automatique
 - CRUD complet sur les projets et les tâches
 - Contrôle d'accès par propriétaire — chaque utilisateur n'accède qu'à ses propres ressources
 - Filtrage des tâches par statut et priorité
+- Sanitization des entrées via OWASP Java HTML Sanitizer — prévention XSS
+- Limitation de débit sur les endpoints d'authentification — protection brute force
+- Journal d'audit pour tous les événements de sécurité
+- Purge planifiée des refresh tokens expirés et révoqués
 - Gestion centralisée des erreurs avec réponses JSON structurées
+- Messages d'erreur i18n — anglais et français
 - Versioning du schéma de base de données avec Flyway
 - Documentation API interactive via Swagger UI
-- Couverture de tests > 93% sur 98 tests (unitaires + intégration)
+- 159 tests — couverture > 93% (JUnit 5 + Mockito + MockMvc)
 
 ---
 
@@ -85,7 +97,14 @@ Copie `.env.example` vers `.env` et renseigne tes valeurs :
 cp .env.example .env
 ```
 
-Ou utilise les valeurs par défaut déjà définies dans `application.yml` — suffisant pour un environnement de développement local.
+| Variable | Description | Défaut |
+|----------|-------------|--------|
+| `JWT_SECRET` | Clé de signature HMAC-SHA512 — min 32 caractères | — |
+| `JWT_EXPIRATION` | Expiration JWT en millisecondes | `900000` (15 min) |
+| `COOKIE_SECURE` | Active le flag `Secure` sur les cookies | `false` |
+| `REFRESH_TOKEN_EXPIRATION_DAYS` | Validité du refresh token en jours | `7` |
+| `DB_USERNAME` | Nom d'utilisateur MySQL | `root` |
+| `DB_PASSWORD` | Mot de passe MySQL | `root` |
 
 **2. Démarrer MySQL**
 
@@ -128,7 +147,9 @@ http://localhost:8082/swagger-ui/index.html
 | Méthode | Endpoint | Description | Auth requise |
 |---------|----------|-------------|--------------|
 | POST | `/api/auth/register` | Créer un compte | Non |
-| POST | `/api/auth/login` | Se connecter — retourne un token JWT | Non |
+| POST | `/api/auth/login` | Se connecter — définit les cookies JWT + refresh token | Non |
+| POST | `/api/auth/refresh` | Rafraîchir le JWT via le cookie refresh token | Non |
+| POST | `/api/auth/logout` | Se déconnecter — révoque le refresh token, efface les cookies | Non |
 
 ### Projets
 
@@ -150,7 +171,9 @@ http://localhost:8082/swagger-ui/index.html
 | PUT | `/api/projects/{projectId}/tasks/{id}` | Modifier une tâche | Oui |
 | DELETE | `/api/projects/{projectId}/tasks/{id}` | Supprimer une tâche | Oui |
 
-Tous les endpoints protégés nécessitent un header `Authorization: Bearer <token>`.
+Les endpoints protégés acceptent l'authentification via :
+- Header `Authorization: Bearer <token>` — pour Swagger UI et Postman
+- Cookie HttpOnly `jwt` — pour Angular (envoyé automatiquement par le navigateur)
 
 ---
 
@@ -158,9 +181,16 @@ Tous les endpoints protégés nécessitent un header `Authorization: Bearer <tok
 
 ```
 POST /api/auth/login
-→ Retourne un token JWT (valide 24h)
-→ À inclure dans les requêtes suivantes : Authorization: Bearer <token>
+→ Cookie JWT (15 min) + Cookie Refresh Token (7 jours)
+
+JWT expiré → POST /api/auth/refresh
+→ Nouveau cookie JWT + Nouveau cookie Refresh Token (rotation)
+
+POST /api/auth/logout
+→ Refresh token révoqué côté serveur + cookies effacés
 ```
+
+Pour les détails complets sur la sécurité — limitation de débit, configuration des cookies et journal d'audit — voir [SECURITY.fr.md](SECURITY.fr.md).
 
 ---
 
@@ -197,7 +227,7 @@ Les erreurs de validation incluent le détail par champ :
   "timestamp": "2026-04-08T10:00:00",
   "status": 400,
   "errors": {
-    "title": "Le titre est obligatoire"
+    "title": ["Le titre est obligatoire"]
   }
 }
 ```
@@ -206,10 +236,18 @@ Les erreurs de validation incluent le détail par champ :
 
 ## Améliorations prévues
 
-- Frontend Angular
-- Docker Compose + GitHub Actions CI/CD
-- Déploiement sur un VPS Hetzner (Docker + Nginx + nom de domaine)
-- Connexion OAuth2 (Google / GitHub)
-- Authentification à deux facteurs (TOTP)
-- Internationalisation des messages d'erreur (EN/FR)
-- Pagination sur les endpoints de liste
+- [ ] Docker Compose + GitHub Actions CI/CD
+- [ ] Déploiement sur VPS Hetzner (Docker + Nginx + nom de domaine)
+- [ ] Connexion OAuth2 (Google / GitHub)
+
+---
+
+## Écosystème
+
+| Dépôt | Description |
+|-------|-------------|
+| [taskflow-api](https://github.com/mehdi-rochereau/taskflow-api) | API REST Spring Boot (ce dépôt) |
+| [taskflow-ui](https://github.com/mehdi-rochereau/taskflow-ui) | Frontend Angular |
+| [SECURITY.fr.md](SECURITY.fr.md) | Politique de sécurité API |
+| [taskflow-ui/SECURITY.md](https://github.com/mehdi-rochereau/taskflow-ui/blob/main/SECURITY.md) | Politique de sécurité frontend |
+```

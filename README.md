@@ -2,7 +2,7 @@
 
 > 🇫🇷 [Version française](README.fr.md)
 
-A RESTful task management API built with Java 21 and Spring Boot 3.5, featuring stateless JWT authentication, ownership-based access control, and comprehensive test coverage.
+A RESTful task management API built with Java 21 and Spring Boot 3.5, featuring stateless JWT authentication, HttpOnly cookie-based session management, ownership-based access control, input sanitization and comprehensive test coverage.
 
 [![Java](https://img.shields.io/badge/Java-21-ED8B00?style=flat&logo=openjdk&logoColor=white)](https://openjdk.org/)
 [![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.5-6DB33F?style=flat&logo=springboot&logoColor=white)](https://spring.io/projects/spring-boot)
@@ -14,6 +14,8 @@ A RESTful task management API built with Java 21 and Spring Boot 3.5, featuring 
 ## Overview
 
 TaskFlow API allows authenticated users to manage projects and tasks. Each user owns their projects and controls access to the associated tasks. The API follows REST conventions and returns structured JSON responses for all operations, including errors.
+
+For security details, see [SECURITY.md](SECURITY.md).
 
 ---
 
@@ -31,6 +33,8 @@ TaskFlow API allows authenticated users to manage projects and tasks. Each user 
 | Testing | JUnit 5 + Mockito + MockMvc |
 | Coverage | JaCoCo |
 | Documentation | Springdoc OpenAPI / Swagger UI |
+| Rate Limiting | Bucket4j |
+| Input Sanitization | OWASP Java HTML Sanitizer |
 
 ---
 
@@ -38,11 +42,12 @@ TaskFlow API allows authenticated users to manage projects and tasks. Each user 
 
 ```
 src/main/java/com/mehdi/taskflow/
-├── auth/               # Authentication controller
-├── config/             # Security and OpenAPI configuration
+├── auth/               # Refresh token entity, repository, service, cleanup job
+│   └── AuthController  # Authentication endpoints
+├── config/             # Security, OpenAPI, Cookie, Sanitization, Audit configuration
 ├── exception/          # Global exception handler
 ├── project/            # Project entity, repository, service, controller, DTOs
-├── security/           # JWT filter, JWT service, UserDetailsService
+├── security/           # JWT filter, JWT service, Rate limit filter, UserDetailsService
 ├── task/               # Task entity, repository, service, controller, DTOs
 └── user/               # User entity, repository, service, DTOs
 ```
@@ -58,13 +63,20 @@ The application follows a standard layered architecture:
 ## Features
 
 - Stateless JWT authentication — register and login with username or email
+- HttpOnly cookie-based session management — JWT (15 min) + Refresh Token (7 days)
+- Refresh token rotation — single-use tokens, automatic renewal
 - Full CRUD on projects and tasks
 - Ownership-based access control — users can only access their own resources
 - Task filtering by status and priority
+- Input sanitization via OWASP Java HTML Sanitizer — XSS prevention
+- Rate limiting on authentication endpoints — brute force protection
+- Audit logging for all security-relevant events
+- Scheduled cleanup of expired and revoked refresh tokens
 - Centralized error handling with structured JSON responses
+- i18n error messages — English and French
 - Database schema versioning with Flyway
 - Interactive API documentation via Swagger UI
-- 93%+ test coverage across 98 tests (unit + integration)
+- 159 tests — 93%+ coverage (JUnit 5 + Mockito + MockMvc)
 
 ---
 
@@ -85,7 +97,14 @@ Copy `.env.example` to `.env` and fill in your values:
 cp .env.example .env
 ```
 
-Or use the default values already set in `application.yml` — suitable for local development.
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `JWT_SECRET` | HMAC-SHA512 signing key — min 32 chars | — |
+| `JWT_EXPIRATION` | JWT expiry in milliseconds | `900000` (15 min) |
+| `COOKIE_SECURE` | Enable `Secure` flag on cookies | `false` |
+| `REFRESH_TOKEN_EXPIRATION_DAYS` | Refresh token validity in days | `7` |
+| `DB_USERNAME` | MySQL username | `root` |
+| `DB_PASSWORD` | MySQL password | `root` |
 
 **2. Start MySQL**
 
@@ -128,7 +147,9 @@ http://localhost:8082/swagger-ui/index.html
 | Method | Endpoint | Description | Auth required |
 |--------|----------|-------------|---------------|
 | POST | `/api/auth/register` | Create a new account | No |
-| POST | `/api/auth/login` | Log in — returns a JWT token | No |
+| POST | `/api/auth/login` | Log in — sets JWT + refresh token cookies | No |
+| POST | `/api/auth/refresh` | Refresh JWT using refresh token cookie | No |
+| POST | `/api/auth/logout` | Log out — revokes refresh token, clears cookies | No |
 
 ### Projects
 
@@ -144,13 +165,15 @@ http://localhost:8082/swagger-ui/index.html
 
 | Method | Endpoint | Description | Auth required |
 |--------|----------|-------------|---------------|
-| GET | `/api/projects/{projectId}/tasks` | List tasks (optional filters: `?status=TODO`, `?priority=HIGH`) | Yes |
+| GET | `/api/projects/{projectId}/tasks` | List tasks (filters: `?status=TODO`, `?priority=HIGH`) | Yes |
 | GET | `/api/projects/{projectId}/tasks/{id}` | Get a task by ID | Yes |
 | POST | `/api/projects/{projectId}/tasks` | Create a task | Yes |
 | PUT | `/api/projects/{projectId}/tasks/{id}` | Update a task | Yes |
 | DELETE | `/api/projects/{projectId}/tasks/{id}` | Delete a task | Yes |
 
-All protected endpoints require an `Authorization: Bearer <token>` header.
+Protected endpoints accept authentication via:
+- `Authorization: Bearer <token>` header — for Swagger UI and Postman
+- `jwt` HttpOnly cookie — for Angular (sent automatically by the browser)
 
 ---
 
@@ -158,9 +181,17 @@ All protected endpoints require an `Authorization: Bearer <token>` header.
 
 ```
 POST /api/auth/login
-→ Returns a JWT token (valid 24h)
-→ Include in subsequent requests: Authorization: Bearer <token>
+→ JWT cookie (15 min) + Refresh Token cookie (7 days)
+
+JWT expired → POST /api/auth/refresh
+→ New JWT cookie + New Refresh Token cookie (rotation)
+
+POST /api/auth/logout
+→ Refresh token revoked server-side + cookies cleared
 ```
+
+For full security details including rate limiting, cookie configuration and audit logging,
+see [SECURITY.md](SECURITY.md).
 
 ---
 
@@ -197,7 +228,7 @@ Validation errors include field-level details:
   "timestamp": "2026-04-08T10:00:00",
   "status": 400,
   "errors": {
-    "title": "Le titre est obligatoire"
+    "title": ["Title is required"]
   }
 }
 ```
@@ -206,10 +237,18 @@ Validation errors include field-level details:
 
 ## Planned Improvements
 
-- Angular frontend
-- Docker Compose + GitHub Actions CI/CD
-- Deployment on a Hetzner VPS (Docker + Nginx + custom domain)
-- OAuth2 login (Google / GitHub)
-- Two-factor authentication (TOTP)
-- Internationalization of error messages (EN/FR)
-- Pagination on list endpoints
+- [ ] Docker Compose + GitHub Actions CI/CD
+- [ ] Deployment on Hetzner VPS (Docker + Nginx + custom domain)
+- [ ] OAuth2 login (Google / GitHub)
+
+---
+
+## Ecosystem
+
+| Repository | Description |
+|------------|-------------|
+| [taskflow-api](https://github.com/mehdi-rochereau/taskflow-api) | Spring Boot REST API (this repo) |
+| [taskflow-ui](https://github.com/mehdi-rochereau/taskflow-ui) | Angular frontend |
+| [SECURITY.md](SECURITY.md) | API security policy |
+| [taskflow-ui/SECURITY.md](https://github.com/mehdi-rochereau/taskflow-ui/blob/main/SECURITY.md) | Frontend security policy |
+```
