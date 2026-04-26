@@ -90,8 +90,9 @@ public class SecurityConfig {
      * <ul>
      *   <li>CORS — allows requests from the Angular frontend on {@code localhost:4200}</li>
      *   <li>Security headers — {@code X-Frame-Options: DENY}, {@code X-Content-Type-Options: nosniff},
-     *       {@code Strict-Transport-Security}, {@code Content-Security-Policy: default-src 'self'},
-     *       {@code Referrer-Policy: no-referrer}</li>
+     *     {@code Strict-Transport-Security},
+     *     {@code Content-Security-Policy: default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; frame-ancestors 'none'},
+     *     {@code Referrer-Policy: no-referrer}</li>
      *   <li>CSRF disabled — not needed for stateless REST APIs</li>
      *   <li>Public routes: {@code /api/auth/**}, {@code /swagger-ui/**},
      *       {@code /v3/api-docs/**}</li>
@@ -122,7 +123,12 @@ public class SecurityConfig {
                                 .maxAgeInSeconds(31536000)
                         )
                         .contentSecurityPolicy(csp -> csp
-                                .policyDirectives("default-src 'self'; frame-ancestors 'none'")
+                                .policyDirectives(
+                                        "default-src 'self'; " +
+                                                "style-src 'self' 'unsafe-inline'; " +
+                                                "img-src 'self' data:; " +
+                                                "frame-ancestors 'none'"
+                                )
                         )
                         .referrerPolicy(referrer -> referrer
                                 .policy(ReferrerPolicyHeaderWriter.ReferrerPolicy.NO_REFERRER)
@@ -134,7 +140,7 @@ public class SecurityConfig {
                                 "/api/auth/**",
                                 "/swagger-ui/**",
                                 "/v3/api-docs/**",
-                                "/redoc.html"
+                                "/favicon.ico"
                         ).permitAll()
                         .anyRequest().authenticated()
                 )
