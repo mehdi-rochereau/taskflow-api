@@ -192,3 +192,16 @@ responsibly by contacting:
 **Email:** mehdi.rochereau.dev@gmail.com
 
 Please include:
+- A description of the vulnerability
+- Steps to reproduce
+- Potential impact
+
+This is a portfolio project and is not intended for production use with real user data.
+Response time may vary.
+
+---
+
+## Related
+
+- [taskflow-ui](https://github.com/mehdi-rochereau/taskflow-ui) — Angular frontend
+- [taskflow-ui/SECURITY.md](https://github.com/mehdi-rochereau/taskflow-ui/blob/main/SECURITY.md) — Frontend security policy
