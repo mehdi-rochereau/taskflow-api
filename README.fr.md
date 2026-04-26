@@ -244,10 +244,10 @@ Les erreurs de validation incluent le détail par champ :
 
 ## Écosystème
 
-| Dépôt | Description |
-|-------|-------------|
-| [taskflow-api](https://github.com/mehdi-rochereau/taskflow-api) | API REST Spring Boot (ce dépôt) |
-| [taskflow-ui](https://github.com/mehdi-rochereau/taskflow-ui) | Frontend Angular |
-| [SECURITY.fr.md](SECURITY.fr.md) | Politique de sécurité API |
-| [taskflow-ui/SECURITY.md](https://github.com/mehdi-rochereau/taskflow-ui/blob/main/SECURITY.md) | Politique de sécurité frontend |
+| Dépôt                                                                                                 | Description |
+|-------------------------------------------------------------------------------------------------------|-------------|
+| [taskflow-api](https://github.com/mehdi-rochereau/taskflow-api)                                       | API REST Spring Boot (ce dépôt) |
+| [taskflow-ui](https://github.com/mehdi-rochereau/taskflow-ui)                                         | Frontend Angular |
+| [SECURITY.fr.md](SECURITY.fr.md)                                                                      | Politique de sécurité API |
+| [taskflow-ui/SECURITY.fr.md](https://github.com/mehdi-rochereau/taskflow-ui/blob/main/SECURITY.fr.md) | Politique de sécurité frontend |
 ```
