@@ -26,6 +26,7 @@ import java.util.concurrent.ConcurrentHashMap;
  * per IP address on sensitive authentication endpoints:</p>
  * <ul>
  *   <li>{@code POST /api/auth/login} — maximum 5 attempts per minute</li>
+ *   <li>{@code POST /api/auth/refresh} — maximum 20 attempts per minute</li>
  *   <li>{@code POST /api/auth/register} — maximum 3 attempts per hour</li>
  * </ul>
  *
@@ -50,6 +51,11 @@ public class RateLimitFilter extends OncePerRequestFilter {
      * Buckets for login attempts — 5 requests per minute per IP.
      */
     private final Map<String, Bucket> loginBuckets = new ConcurrentHashMap<>();
+
+    /**
+     * Buckets for refresh attempts — 20 requests per minute per IP.
+     */
+    private final Map<String, Bucket> refreshBuckets = new ConcurrentHashMap<>();
 
     /**
      * Buckets for registration attempts — 3 requests per hour per IP.
@@ -95,7 +101,7 @@ public class RateLimitFilter extends OncePerRequestFilter {
                 return;
             }
         } else if ("POST".equals(method) && "/api/auth/refresh".equals(path)) {
-            Bucket bucket = loginBuckets.computeIfAbsent(ip, k -> createLoginBucket());
+            Bucket bucket = refreshBuckets.computeIfAbsent(ip, k -> createRefreshBucket());
             if (!bucket.tryConsume(1)) {
                 rejectRequest(response, request);
                 return;
@@ -122,6 +128,21 @@ public class RateLimitFilter extends OncePerRequestFilter {
                 .addLimit(Bandwidth.builder()
                         .capacity(5)
                         .refillGreedy(5, Duration.ofMinutes(1))
+                        .build())
+                .build();
+    }
+
+    /**
+     * Creates a bucket allowing 20 requests per minute.
+     * Used for refresh endpoint protection.
+     *
+     * @return a configured {@link Bucket}
+     */
+    private Bucket createRefreshBucket() {
+        return Bucket.builder()
+                .addLimit(Bandwidth.builder()
+                        .capacity(20)
+                        .refillGreedy(20, Duration.ofMinutes(1))
                         .build())
                 .build();
     }

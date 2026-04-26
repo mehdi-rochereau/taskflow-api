@@ -45,7 +45,6 @@ import java.util.List;
  *   <li>{@code POST /api/auth/logout}</li>
  *   <li>{@code /swagger-ui/**}</li>
  *   <li>{@code /v3/api-docs/**}</li>
- *   <li>{@code /redoc.html}</li>
  * </ul>
  *
  * <p>All other endpoints require a valid JWT token passed as a
@@ -95,7 +94,7 @@ public class SecurityConfig {
      *       {@code Referrer-Policy: no-referrer}</li>
      *   <li>CSRF disabled — not needed for stateless REST APIs</li>
      *   <li>Public routes: {@code /api/auth/**}, {@code /swagger-ui/**},
-     *       {@code /v3/api-docs/**}, {@code /redoc.html}</li>
+     *       {@code /v3/api-docs/**}</li>
      *   <li>All other routes require authentication</li>
      *   <li>Session management: {@link SessionCreationPolicy#STATELESS} — no HTTP session created</li>
      *   <li>Custom {@link org.springframework.security.web.AuthenticationEntryPoint} — returns a
@@ -224,6 +223,7 @@ public class SecurityConfig {
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/api/**", config);
+        source.registerCorsConfiguration("/v3/api-docs/**", config);
         return source;
     }
 }

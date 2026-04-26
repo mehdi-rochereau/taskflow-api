@@ -25,9 +25,9 @@ import org.springframework.context.annotation.Configuration;
  * <a href="http://localhost:8082/swagger-ui/index.html">
  * http://localhost:8082/swagger-ui/index.html</a></p>
  *
- * <p>The raw OpenAPI specification is available at:
- * <a href="http://localhost:8082/v3/api-docs">
- * http://localhost:8082/v3/api-docs</a></p>
+ * <p>The API documentation (Redoc) is accessible at:
+ * <a href="http://localhost:4200/api-docs">
+ * http://localhost:4200/api-docs</a> (requires Angular frontend)</p>
  *
  * @see <a href="https://swagger.io/specification/">OpenAPI Specification</a>
  */
@@ -41,7 +41,7 @@ import org.springframework.context.annotation.Configuration;
                         
                         A task management API built with **Spring Boot 3.5**, **JWT authentication** and **MySQL**.
                         
-                        > **Documentation:** [Redoc](http://localhost:8082/redoc.html) — [Swagger UI](http://localhost:8082/swagger-ui/index.html)
+                        > **Documentation:** [Redoc](http://localhost:4200/api-docs) — [Swagger UI](http://localhost:8082/swagger-ui/index.html)
                         
                         ### Authentication
                         
@@ -88,7 +88,7 @@ import org.springframework.context.annotation.Configuration;
                         
                         ### Token expiration
                         
-                        JWT tokens are valid for **24 hours**. After expiration, re-authenticate to obtain a new token.
+                        JWT tokens are valid for **15 minutes**. After expiration, the client automatically refreshes the token using the `refreshToken` HttpOnly cookie via `POST /api/auth/refresh`.
                         """,
                 contact = @Contact(
                         name = "Mehdi Rochereau",
