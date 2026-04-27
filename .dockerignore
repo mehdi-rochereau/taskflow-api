@@ -1,0 +1,52 @@
+# .dockerignore
+# Defines what is excluded from the Docker build context.
+# The build context is the set of files sent to the Docker daemon
+# when running "docker build". Excluding unnecessary files:
+# - Speeds up the build (less data to transfer)
+# - Prevents sensitive files from accidentally entering the image
+# - Reduces the chance of cache invalidation
+
+# Gradle build cache and output directory.
+# These are regenerated during the build inside the container.
+# Including them would pollute the build and invalidate cache.
+.gradle/
+build/
+
+# IDE configuration files — not needed in the image.
+.idea/
+*.iml
+*.ipr
+*.iws
+
+# OS-generated metadata files — irrelevant in a Linux container.
+.DS_Store
+Thumbs.db
+
+# Git history and configuration — not needed at runtime.
+.git/
+.gitignore
+
+# Documentation — informational only, not part of the application.
+README.md
+README.fr.md
+SECURITY.md
+SECURITY.fr.md
+
+# Environment files — sensitive credentials must never enter the image.
+# The exception (.env.example) is a safe template with no real values.
+.env
+.env.*
+!.env.example
+
+# Docker files — the Dockerfile and Compose files are used to build
+# and orchestrate containers, not needed inside the container itself.
+Dockerfile
+docker-compose*.yml
+
+# Test sources — tests are skipped during Docker build (-x test).
+# Excluding them reduces the build context size.
+src/test/
+
+# Log files — runtime artifacts, should not be baked into the image.
+*.log
+logs/

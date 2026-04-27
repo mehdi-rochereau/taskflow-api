@@ -1,0 +1,66 @@
+# Production profile — activated via SPRING_PROFILES_ACTIVE=prod
+# Overrides application.yml for production-specific settings.
+# Properties not defined here inherit from application.yml.
+
+spring:
+  datasource:
+    # DB_HOST defaults to "mysql" — the Docker Compose service name.
+    # On the Docker internal network, services reach each other by name.
+    # useSSL=false — both containers are on the same private Docker network,
+    # SSL between containers on the same host adds no security benefit.
+    url: jdbc:mysql://${DB_HOST:mysql}:${DB_PORT:3306}/${DB_NAME:taskflow}?createDatabaseIfNotExist=true&useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
+    # No defaults — these MUST be provided via environment variables.
+    # The application will refuse to start if they are missing.
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+
+  jpa:
+    hibernate:
+      # validate — Flyway manages the schema. Hibernate only checks that
+      # entity mappings match the existing schema. Never auto-creates or
+      # drops tables in production.
+      ddl-auto: validate
+    # Never log SQL in production — performance overhead and potential
+    # sensitive data exposure in logs.
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: false
+    # Disabled — session is closed after the service layer.
+    # Prevents unintended lazy-loading outside transactions.
+    open-in-view: false
+
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    # baseline-on-migrate — allows Flyway to run on a pre-existing database
+    # that was not initially managed by Flyway.
+    baseline-on-migrate: true
+
+server:
+  port: 8082
+  error:
+    # Disable Spring Boot's default HTML error page.
+    # All errors are handled by GlobalExceptionHandler returning JSON.
+    whitelabel:
+      enabled: false
+
+application:
+  jwt:
+    # No default — must be provided. Missing value causes startup failure.
+    secret: ${JWT_SECRET}
+    # Default 15 minutes — short-lived tokens reduce exposure window.
+    expiration: ${JWT_EXPIRATION:900000}
+  cookie:
+    # Defaults to true in production — cookies only sent over HTTPS.
+    secure: ${COOKIE_SECURE:true}
+  refresh-token:
+    # Default 7 days — balances security and user experience.
+    expiration-days: ${REFRESH_TOKEN_EXPIRATION_DAYS:7}
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui/index.html
