@@ -4,6 +4,7 @@ import com.mehdi.taskflow.security.JwtFilter;
 import com.mehdi.taskflow.security.RateLimitFilter;
 import com.mehdi.taskflow.security.UserDetailsServiceImpl;
 import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -59,6 +60,9 @@ import java.util.List;
 @EnableMethodSecurity
 public class SecurityConfig {
 
+    @Value("${cors.allowed-origins}")
+    private String allowedOrigins;
+
     private final JwtFilter jwtFilter;
     private final UserDetailsServiceImpl userDetailsService;
     private final MessageService messageService;
@@ -80,7 +84,6 @@ public class SecurityConfig {
         this.userDetailsService = userDetailsService;
         this.messageService = messageService;
         this.rateLimitFilter = rateLimitFilter;
-
     }
 
     /**
@@ -88,7 +91,8 @@ public class SecurityConfig {
      *
      * <p>Applies the following configuration:</p>
      * <ul>
-     *   <li>CORS — allows requests from the Angular frontend on {@code localhost:4200}</li>
+     *   <li>CORS — allowed origins loaded from {@code cors.allowed-origins} property,
+     *     configured via {@code CORS_ALLOWED_ORIGINS} environment variable</li>
      *   <li>Security headers — {@code X-Frame-Options: DENY}, {@code X-Content-Type-Options: nosniff},
      *     {@code Strict-Transport-Security},
      *     {@code Content-Security-Policy: default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; frame-ancestors 'none'},
@@ -140,6 +144,7 @@ public class SecurityConfig {
                                 "/api/auth/**",
                                 "/swagger-ui/**",
                                 "/v3/api-docs/**",
+                                "/actuator/health",
                                 "/favicon.ico"
                         ).permitAll()
                         .anyRequest().authenticated()
@@ -213,15 +218,19 @@ public class SecurityConfig {
     /**
      * Configures CORS to allow requests from the Angular frontend.
      *
+     * <p>Allowed origins are loaded from the {@code cors.allowed-origins} property,
+     * which is bound to the {@code CORS_ALLOWED_ORIGINS} environment variable.
+     * Defaults to {@code http://localhost:4200} in development.</p>
+     *
      * <p>Allows all headers and the standard HTTP methods used by the API.
-     * Credentials are allowed to support JWT Bearer token transmission.</p>
+     * Credentials are allowed to support HttpOnly cookie transmission.</p>
      *
      * @return the CORS configuration source
      */
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
-        config.setAllowedOrigins(List.of("http://localhost:4200"));
+        config.setAllowedOrigins(List.of(allowedOrigins));
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(List.of("*"));
         config.setExposedHeaders(List.of("Authorization"));
