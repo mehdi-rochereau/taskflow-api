@@ -86,5 +86,7 @@ dependencies {
 		exclude group: 'com.google.guava', module: 'guava'
 	}
 	implementation 'com.google.guava:guava:33.2.1-jre'
+	// Actuator — exposes /actuator/health for container healthchecks and monitoring
+	implementation 'org.springframework.boot:spring-boot-starter-actuator'
 }
 
