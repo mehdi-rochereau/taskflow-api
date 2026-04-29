@@ -2,6 +2,9 @@
 
 > 🇫🇷 [Version française](README.fr.md)
 
+🌐 **Live:** [taskflow.mehdi-rochereau.dev](https://taskflow.mehdi-rochereau.dev)
+📖 **API Docs:** [api.taskflow.mehdi-rochereau.dev/swagger-ui/index.html](https://api.taskflow.mehdi-rochereau.dev/swagger-ui/index.html)
+
 A RESTful task management API built with Java 21 and Spring Boot 3.5, featuring stateless JWT authentication, HttpOnly cookie-based session management, ownership-based access control, input sanitization and comprehensive test coverage.
 
 [![Java](https://img.shields.io/badge/Java-21-ED8B00?style=flat&logo=openjdk&logoColor=white)](https://openjdk.org/)
@@ -237,8 +240,7 @@ Validation errors include field-level details:
 
 ## Planned Improvements
 
-- [ ] Docker Compose + GitHub Actions CI/CD
-- [ ] Deployment on Hetzner VPS (Docker + Nginx + custom domain)
+- [ ] GitHub Actions CI/CD
 - [ ] OAuth2 login (Google / GitHub)
 
 ---
@@ -249,6 +251,7 @@ Validation errors include field-level details:
 |------------|-------------|
 | [taskflow-api](https://github.com/mehdi-rochereau/taskflow-api) | Spring Boot REST API (this repo) |
 | [taskflow-ui](https://github.com/mehdi-rochereau/taskflow-ui) | Angular frontend |
+| [taskflow-deploy](https://github.com/mehdi-rochereau/taskflow-deploy) | Docker Compose, Nginx, deployment scripts |
 | [SECURITY.md](SECURITY.md) | API security policy |
 | [taskflow-ui/SECURITY.md](https://github.com/mehdi-rochereau/taskflow-ui/blob/main/SECURITY.md) | Frontend security policy |
 ```
