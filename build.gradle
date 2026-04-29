@@ -88,5 +88,7 @@ dependencies {
 	implementation 'com.google.guava:guava:33.2.1-jre'
 	// Actuator — exposes /actuator/health for container healthchecks and monitoring
 	implementation 'org.springframework.boot:spring-boot-starter-actuator'
+	// Apache Commons Text — HTML entity decoding after OWASP sanitization (e.g. &#39; → ')
+	implementation 'org.apache.commons:commons-text:1.12.0'
 }
 

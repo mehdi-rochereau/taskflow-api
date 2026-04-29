@@ -1,5 +1,6 @@
 package com.mehdi.taskflow.config;
 
+import org.apache.commons.text.StringEscapeUtils;
 import org.owasp.html.HtmlPolicyBuilder;
 import org.owasp.html.PolicyFactory;
 import org.springframework.stereotype.Service;
@@ -15,6 +16,10 @@ import org.springframework.stereotype.Service;
  * <p>This service implements a defense-in-depth strategy against XSS attacks —
  * even if a client fails to escape output correctly, the stored data
  * will never contain executable scripts or malicious HTML.</p>
+ *
+ * <p>After sanitization, HTML entities (e.g. {@code &#39;}, {@code &amp;}) are decoded
+ * back to their plain text equivalents using Apache Commons Text
+ * {@link org.apache.commons.text.StringEscapeUtils#unescapeHtml4(String)}.</p>
  *
  * <p>Applied on the following fields:</p>
  * <ul>
@@ -71,10 +76,12 @@ public class SanitizationService {
      *
      * <p>Examples:</p>
      * <pre>
-     * sanitize("Hello World")                        → "Hello World"
-     * sanitize("<script>alert('XSS')</script>Hello") → "Hello"
-     * sanitize("<b>Bold</b> text")                   → "Bold text"
-     * sanitize(null)                                 → null
+     * sanitize("Hello World)                                       → "Hello World"
+     * sanitize("'<'script'>''alert('XSS')''<'/script'>''Hello")    → "Hello"
+     * sanitize("'<'b'>'Bold'<'/b'>' text)                          → "Bold text"
+     * sanitize("L'animal")                                         → "L'animal"
+     * sanitize("Café & croissant")                                 → "Café & croissant"
+     * sanitize(null)                                               → null
      * </pre>
      *
      * @param input the raw user input to sanitize
@@ -82,7 +89,7 @@ public class SanitizationService {
      */
     public String sanitize(String input) {
         if (input == null) return null;
-        return POLICY.sanitize(input);
+        return StringEscapeUtils.unescapeHtml4(POLICY.sanitize(input));
     }
 
     /**
