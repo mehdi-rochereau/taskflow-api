@@ -3,6 +3,7 @@
 > 🇫🇷 [Version française](README.fr.md)
 
 🌐 **Live:** [taskflow.mehdi-rochereau.dev](https://taskflow.mehdi-rochereau.dev)
+
 📖 **API Docs:** [api.taskflow.mehdi-rochereau.dev/swagger-ui/index.html](https://api.taskflow.mehdi-rochereau.dev/swagger-ui/index.html)
 
 A RESTful task management API built with Java 21 and Spring Boot 3.5, featuring stateless JWT authentication, HttpOnly cookie-based session management, ownership-based access control, input sanitization and comprehensive test coverage.
