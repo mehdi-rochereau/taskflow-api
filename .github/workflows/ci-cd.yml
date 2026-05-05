@@ -264,7 +264,7 @@ jobs:
       # ── Trivy scan ───────────────────────────────────────
       - name: Scan Docker image with Trivy
         id: trivy
-        uses: aquasecurity/trivy-action@0.29.0
+        uses: aquasecurity/trivy-action@master
         with:
           image-ref: ${{ env.IMAGE_NAME }}@${{ steps.build.outputs.digest }}
           format: 'table'
