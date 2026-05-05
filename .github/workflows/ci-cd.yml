@@ -1,0 +1,342 @@
+# ============================================================
+# CI/CD Pipeline — TaskFlow API
+#
+# CI — triggered on every push, pull request and manually
+#      via workflow_dispatch (CI only by default)
+# CD — triggered on push to main only, or manually with
+#      force_deploy enabled
+#
+# Jobs:
+#   ci → gitleaks, checkstyle, compile, test, jacoco, owasp
+#   cd → docker build, trivy scan, push ghcr.io, deploy VPS,
+#        health check, smoke tests
+# ============================================================
+
+name: CI/CD
+
+on:
+  push:
+    branches: [ "**" ]
+  pull_request:
+    branches: [ "**" ]
+  workflow_dispatch:
+    inputs:
+      force_deploy:
+        description: 'Force deployment to VPS (CD)'
+        required: false
+        default: 'false'
+        type: boolean
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ghcr.io/mehdi-rochereau/taskflow-api
+  JAVA_VERSION: '21'
+  API_BASE_URL: https://api.taskflow.mehdi-rochereau.dev
+
+jobs:
+
+  # ── CI ─────────────────────────────────────────────────────
+  ci:
+    name: CI
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      checks: write
+      actions: read
+
+    steps:
+
+      # ── Checkout ─────────────────────────────────────────
+      - name: Checkout source code
+        uses: actions/checkout@v4
+        with:
+          # Required for GitLeaks full history scan
+          fetch-depth: 0
+
+      # ── Secret scanning ──────────────────────────────────
+      - name: Scan for secrets with GitLeaks
+        id: gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # ── Java setup ───────────────────────────────────────
+      - name: Set up Java ${{ env.JAVA_VERSION }}
+        id: java
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: 'temurin'
+
+      # ── Gradle cache ─────────────────────────────────────
+      - name: Cache Gradle packages
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-${{ runner.os }}-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          restore-keys: gradle-${{ runner.os }}-
+
+      # ── Checkstyle ───────────────────────────────────────
+      - name: Run Checkstyle
+        id: checkstyle
+        run: ./gradlew checkstyleMain checkstyleTest --no-daemon
+        continue-on-error: true
+
+      - name: Upload Checkstyle report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: checkstyle-report
+          path: build/reports/checkstyle/
+          retention-days: 7
+
+      # ── Compile ──────────────────────────────────────────
+      - name: Compile
+        id: compile
+        run: ./gradlew compileJava compileTestJava --no-daemon
+
+      # ── Tests + JaCoCo ───────────────────────────────────
+      - name: Run tests and generate JaCoCo report
+        id: tests
+        run: ./gradlew test jacocoTestReport --no-daemon
+        env:
+          SPRING_PROFILES_ACTIVE: test
+
+      - name: Upload JaCoCo HTML report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: jacoco-report
+          path: build/reports/jacoco/html/
+          retention-days: 7
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: build/reports/tests/test/
+          retention-days: 7
+
+      # ── Coverage threshold ───────────────────────────────
+      - name: Check coverage threshold (80%)
+        id: coverage
+        run: |
+          COVERAGE=$(python3 -c "
+          import xml.etree.ElementTree as ET
+          tree = ET.parse('build/reports/jacoco/test/jacocoTestReport.xml')
+          root = tree.getroot()
+          for counter in root.findall('counter'):
+              if counter.get('type') == 'INSTRUCTION':
+                  missed = int(counter.get('missed'))
+                  covered = int(counter.get('covered'))
+                  total = missed + covered
+                  pct = (covered / total) * 100 if total > 0 else 0
+                  print(f'{pct:.2f}')
+                  break
+          ")
+          echo "coverage=${COVERAGE}" >> $GITHUB_OUTPUT
+          echo "Coverage: ${COVERAGE}%"
+          if (( $(echo "$COVERAGE < 80" | bc -l) )); then
+            echo "❌ Coverage ${COVERAGE}% is below the 80% threshold"
+            exit 1
+          else
+            echo "✅ Coverage ${COVERAGE}% meets the 80% threshold"
+          fi
+
+      # ── Codecov ──────────────────────────────────────────
+      - name: Upload coverage to Codecov
+        id: codecov
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: build/reports/jacoco/test/jacocoTestReport.xml
+          fail_ci_if_error: false
+          verbose: true
+
+      # ── OWASP Dependency Check ───────────────────────────
+      - name: Run OWASP Dependency Check
+        id: owasp
+        run: ./gradlew dependencyCheckAnalyze --no-daemon
+        continue-on-error: true
+
+      - name: Upload OWASP report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: owasp-report
+          path: build/reports/dependency-check-report.html
+          retention-days: 7
+
+      # ── Build JAR ────────────────────────────────────────
+      - name: Build JAR
+        id: jar
+        run: ./gradlew bootJar --no-daemon -x test
+
+      - name: Upload JAR artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: taskflow-api-jar
+          path: build/libs/*.jar
+          retention-days: 7
+
+      # ── GitHub Actions Step Summary ──────────────────────
+      - name: Generate CI summary
+        if: always()
+        run: |
+          echo "## 🚀 TaskFlow API — CI Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Check | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|-------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| 🔍 GitLeaks | ${{ steps.gitleaks.outcome == 'success' && '✅ No secrets detected' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| ☕ Java | ${{ env.JAVA_VERSION }} (Temurin) |" >> $GITHUB_STEP_SUMMARY
+          echo "| 🎨 Checkstyle | ${{ steps.checkstyle.outcome == 'success' && '✅ Passed' || '⚠️ Warnings' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| 🔨 Compile | ${{ steps.compile.outcome == 'success' && '✅ Success' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| 🧪 Tests | ${{ steps.tests.outcome == 'success' && '✅ Passed' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| 📊 Coverage | ${{ steps.coverage.outcome == 'success' && '✅' || '❌' }} ${{ steps.coverage.outputs.coverage }}% |" >> $GITHUB_STEP_SUMMARY
+          echo "| 🔒 OWASP | ${{ steps.owasp.outcome == 'success' && '✅ No issues' || '⚠️ Check report' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| 📦 JAR | ${{ steps.jar.outcome == 'success' && '✅ Built' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
+
+  # ── CD ─────────────────────────────────────────────────────
+  cd:
+    name: CD
+    runs-on: ubuntu-latest
+    needs: ci
+    if: |
+      github.event_name != 'pull_request' &&
+      (
+        (github.ref == 'refs/heads/main' && github.event_name == 'push') ||
+        (github.event_name == 'workflow_dispatch' && github.event.inputs.force_deploy == 'true')
+      )
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+
+      # ── Checkout ─────────────────────────────────────────
+      - name: Checkout source code
+        uses: actions/checkout@v4
+
+      # ── Docker login ─────────────────────────────────────
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # ── Docker metadata ──────────────────────────────────
+      - name: Extract Docker metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.IMAGE_NAME }}
+          tags: |
+            type=sha,prefix=sha-
+            type=raw,value=latest
+
+      # ── Docker build & push ──────────────────────────────
+      - name: Build and push Docker image
+        id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      # ── Trivy scan ───────────────────────────────────────
+      - name: Scan Docker image with Trivy
+        id: trivy
+        uses: aquasecurity/trivy-action@0.30.0
+        with:
+          image-ref: ${{ env.IMAGE_NAME }}@${{ steps.build.outputs.digest }}
+          format: 'table'
+          exit-code: '1'
+          ignore-unfixed: true
+          severity: 'CRITICAL,HIGH'
+          output: trivy-report.txt
+        continue-on-error: true
+
+      - name: Upload Trivy report
+        uses: actions/upload-artifact@v4
+        with:
+          name: trivy-report
+          path: trivy-report.txt
+          retention-days: 7
+
+      # ── Deploy VPS ───────────────────────────────────────
+      - name: Deploy to VPS
+        id: deploy
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          script: |
+            cd /opt/taskflow
+            docker compose pull taskflow-api
+            docker compose up -d taskflow-api
+            echo "✅ taskflow-api deployed"
+
+      # ── Health check ─────────────────────────────────────
+      - name: Health check
+        id: health
+        run: |
+          echo "Waiting for API to start..."
+          for i in $(seq 1 12); do
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" ${{ env.API_BASE_URL }}/actuator/health)
+            if [ "$STATUS" = "200" ]; then
+              echo "✅ API is healthy (HTTP $STATUS) after attempt $i"
+              exit 0
+            fi
+            echo "Attempt $i/12 — HTTP $STATUS, retrying in 10s..."
+            sleep 10
+          done
+          echo "❌ Timeout after 2 minutes — API did not respond"
+          exit 1
+
+      # ── Smoke tests ──────────────────────────────────────
+      - name: Smoke test public endpoints
+        id: smoke
+        run: |
+          echo "Testing public endpoints..."
+
+          SWAGGER=$(curl -s -o /dev/null -w "%{http_code}" ${{ env.API_BASE_URL }}/swagger-ui/index.html)
+          echo "Swagger UI: HTTP $SWAGGER"
+
+          DOCS=$(curl -s -o /dev/null -w "%{http_code}" ${{ env.API_BASE_URL }}/v3/api-docs)
+          echo "API Docs: HTTP $DOCS"
+
+          HEALTH=$(curl -s -o /dev/null -w "%{http_code}" ${{ env.API_BASE_URL }}/actuator/health)
+          echo "Health: HTTP $HEALTH"
+
+          if [ "$SWAGGER" = "200" ] && [ "$DOCS" = "200" ] && [ "$HEALTH" = "200" ]; then
+            echo "✅ All smoke tests passed"
+          else
+            echo "❌ Smoke tests failed"
+            exit 1
+          fi
+
+      # ── CD Summary ───────────────────────────────────────
+      - name: Generate CD summary
+        if: always()
+        run: |
+          echo "## 🚢 TaskFlow API — CD Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Step | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| 🐳 Docker Build & Push | ${{ steps.build.outcome == 'success' && '✅' || '❌' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| 🔒 Trivy Scan | ${{ steps.trivy.outcome == 'success' && '✅ No critical issues' || '⚠️ Check report' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| 🚀 Deploy to VPS | ${{ steps.deploy.outcome == 'success' && '✅' || '❌' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| ❤️ Health Check | ${{ steps.health.outcome == 'success' && '✅ API is UP' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| 🧪 Smoke Tests | ${{ steps.smoke.outcome == 'success' && '✅ All passed' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Image:** \`${{ env.IMAGE_NAME }}:latest\`" >> $GITHUB_STEP_SUMMARY
+          echo "**Digest:** \`${{ steps.build.outputs.digest }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "**Deployed at:** $(date -u '+%Y-%m-%d %H:%M:%S UTC')" >> $GITHUB_STEP_SUMMARY
