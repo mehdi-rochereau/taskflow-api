@@ -1,0 +1,145 @@
+<?xml version="1.0"?>
+<!DOCTYPE module PUBLIC
+        "-//Checkstyle//DTD Checkstyle Configuration 1.3//EN"
+        "https://checkstyle.org/dtds/configuration_1_3.dtd">
+
+<!--
+    Checkstyle configuration for TaskFlow API.
+    Based on Google Java Style Guide with minor adjustments
+    for Spring Boot projects.
+    https://google.github.io/styleguide/javaguide.html
+-->
+<module name="Checker">
+
+    <property name="severity" value="warning"/>
+    <property name="fileExtensions" value="java"/>
+
+    <!-- ── File-level checks ──────────────────────────── -->
+
+    <!-- No tab characters — use spaces only -->
+    <module name="FileTabCharacter">
+        <property name="eachLine" value="true"/>
+    </module>
+
+    <!-- Files must end with a newline -->
+    <module name="NewlineAtEndOfFile"/>
+
+    <!-- Max line length: 120 characters -->
+    <module name="LineLength">
+        <property name="max" value="120"/>
+        <!-- Ignore long import statements and URLs in comments -->
+        <property name="ignorePattern" value="^import .*|.*https?://.*"/>
+    </module>
+
+    <module name="TreeWalker">
+
+        <!-- ── Naming conventions ─────────────────────── -->
+
+        <!-- Class names: UpperCamelCase -->
+        <module name="TypeName"/>
+
+        <!-- Method names: lowerCamelCase -->
+        <module name="MethodName"/>
+
+        <!-- Variable names: lowerCamelCase -->
+        <module name="LocalVariableName"/>
+
+        <!-- Parameter names: lowerCamelCase -->
+        <module name="ParameterName"/>
+
+        <!-- Constants: UPPER_SNAKE_CASE -->
+        <module name="ConstantName"/>
+
+        <!-- Package names: lowercase -->
+        <module name="PackageName">
+            <property name="format" value="^[a-z]+(\.[a-z][a-z0-9]*)*$"/>
+        </module>
+
+        <!-- ── Imports ────────────────────────────────── -->
+
+        <!-- No wildcard imports (e.g. import java.util.*) -->
+        <module name="AvoidStarImport"/>
+
+        <!-- No unused imports -->
+        <module name="UnusedImports"/>
+
+        <!-- No redundant imports -->
+        <module name="RedundantImport"/>
+
+        <!-- ── Whitespace ─────────────────────────────── -->
+
+        <!-- Space after keywords (if, for, while, etc.) -->
+        <module name="WhitespaceAfter"/>
+
+        <!-- No whitespace before semicolons and commas -->
+        <module name="NoWhitespaceBefore"/>
+
+        <!-- ── Braces ─────────────────────────────────── -->
+
+        <!-- Always use braces, even for single-line blocks -->
+        <module name="NeedBraces"/>
+
+        <!-- Opening brace on same line as declaration -->
+        <module name="LeftCurly"/>
+
+        <!-- Closing brace on its own line -->
+        <module name="RightCurly"/>
+
+        <!-- ── Code quality ───────────────────────────── -->
+
+        <!-- No empty blocks -->
+        <module name="EmptyBlock">
+            <property name="option" value="text"/>
+        </module>
+
+        <!-- No empty catch blocks without a comment -->
+        <module name="EmptyCatchBlock">
+            <property name="exceptionVariableName" value="expected|ignored"/>
+        </module>
+
+        <!-- equals() and hashCode() must be overridden together -->
+        <module name="EqualsHashCode"/>
+
+        <!-- No magic numbers — use named constants -->
+        <!-- Ignores common values: -1, 0, 1, 2 and annotation values -->
+        <module name="MagicNumber">
+            <property name="ignoreNumbers" value="-1, 0, 1, 2"/>
+            <property name="ignoreAnnotation" value="true"/>
+            <property name="ignoreHashCodeMethod" value="true"/>
+        </module>
+
+        <!-- No System.out.println — use a logger -->
+        <module name="Regexp">
+            <property name="format" value="System\.out\.println"/>
+            <property name="illegalPattern" value="true"/>
+            <property name="message" value="Use a logger instead of System.out.println"/>
+        </module>
+
+        <!-- Track TODO comments without blocking the build -->
+        <module name="TodoComment">
+            <property name="format" value="TODO:"/>
+        </module>
+
+        <!-- Max method length: 50 lines -->
+        <module name="MethodLength">
+            <property name="max" value="50"/>
+        </module>
+
+        <!-- Max parameters per method: 7 -->
+        <module name="ParameterNumber">
+            <property name="max" value="7"/>
+        </module>
+
+        <!-- ── Javadoc ────────────────────────────────── -->
+
+        <!-- Javadoc required on public methods -->
+        <!-- Ignore test methods — their name describes their intent -->
+        <module name="MissingJavadocMethod">
+            <property name="scope" value="public"/>
+            <property name="allowMissingPropertyJavadoc" value="true"/>
+            <property name="ignoreMethodNamesRegex" value="^(test|should|given|when|then).*$"/>
+        </module>
+
+    </module>
+
+</module>
