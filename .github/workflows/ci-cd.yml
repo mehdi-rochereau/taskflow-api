@@ -39,12 +39,17 @@ permissions:
   checks: write
   actions: read
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
 
   # ── CI ─────────────────────────────────────────────────────
   ci:
     name: CI
     runs-on: ubuntu-latest
+    timeout-minutes: 30
 
     steps:
 
@@ -217,6 +222,7 @@ jobs:
     name: CD
     runs-on: ubuntu-latest
     needs: ci
+    timeout-minutes: 20
     if: |
       github.event_name != 'pull_request' &&
       (
@@ -319,7 +325,7 @@ jobs:
         id: health
         run: |
           echo "Waiting for API to start..."
-          for i in $(seq 1 12); do
+          for i in $(seq 1 18); do
             STATUS=$(curl -s -o /dev/null -w "%{http_code}" ${{ env.API_BASE_URL }}/actuator/health)
             if [ "$STATUS" = "200" ]; then
               echo "✅ API is healthy (HTTP $STATUS) after attempt $i"
@@ -328,7 +334,7 @@ jobs:
             echo "Attempt $i/12 — HTTP $STATUS, retrying in 10s..."
             sleep 10
           done
-          echo "❌ Timeout after 2 minutes — API did not respond"
+          echo "❌ Timeout after 3 minutes — API did not respond"
           exit 1
 
       # ── Smoke tests ──────────────────────────────────────
