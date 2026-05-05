@@ -78,6 +78,13 @@ jobs:
           key: gradle-${{ runner.os }}-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
           restore-keys: gradle-${{ runner.os }}-
 
+      - name: Cache OWASP NVD database
+        uses: actions/cache@v4
+        with:
+          path: ~/.gradle/dependency-check-data
+          key: owasp-nvd-${{ runner.os }}-${{ hashFiles('build.gradle') }}
+          restore-keys: owasp-nvd-${{ runner.os }}-
+
       # ── Checkstyle ───────────────────────────────────────
       - name: Run Checkstyle
         id: checkstyle
