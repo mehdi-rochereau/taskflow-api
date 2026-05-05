@@ -1,6 +1,37 @@
+# ============================================================
+# GitLeaks Configuration — TaskFlow API
+#
+# GitLeaks scans the full git history for accidentally committed
+# secrets (API keys, passwords, tokens, private keys).
+# It runs as the first step of the CI pipeline to catch security
+# issues before any build or deployment occurs.
+#
+# This file extends the default GitLeaks ruleset and adds an
+# allowlist to suppress known false positives.
+# ============================================================
+
+# Extend the default GitLeaks ruleset.
+# useDefault: true includes all built-in detection rules:
+# AWS keys, GitHub tokens, JWT secrets, private keys, etc.
+# Custom rules can be added below if needed.
 [extend]
 useDefault = true
 
+# Allowlist — commits excluded from secret scanning.
+#
+# These commits contain false positives triggered by the
+# "generic-api-key" rule in GitLeaks. The flagged content is
+# the "token" field in Swagger/OpenAPI @SecurityScheme annotations
+# in AuthControllerApi.java — it is an example value in API
+# documentation, not a real credential.
+#
+# Allowlisting by commit SHA is the most precise approach:
+# it suppresses only these specific commits without disabling
+# the rule globally or excluding entire files.
+#
+# Flagged file: src/main/java/com/mehdi/taskflow/auth/AuthControllerApi.java
+# Rule:         generic-api-key
+# Reason:       Swagger @SecurityScheme annotation example token value
 [allowlist]
 commits = [
     "1f5e4c2ea526d37e9a005278e09609a8886c0fc0",

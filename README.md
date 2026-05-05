@@ -11,7 +11,8 @@ A RESTful task management API built with Java 21 and Spring Boot 3.5, featuring 
 [![Java](https://img.shields.io/badge/Java-21-ED8B00?style=flat&logo=openjdk&logoColor=white)](https://openjdk.org/)
 [![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.5-6DB33F?style=flat&logo=springboot&logoColor=white)](https://spring.io/projects/spring-boot)
 [![MySQL](https://img.shields.io/badge/MySQL-8.4-4479A1?style=flat&logo=mysql&logoColor=white)](https://www.mysql.com/)
-[![Coverage](https://img.shields.io/badge/Coverage-93%25-brightgreen?style=flat)]()
+[![CI/CD](https://github.com/mehdi-rochereau/taskflow-api/actions/workflows/ci-cd.yml/badge.svg)](https://github.com/mehdi-rochereau/taskflow-api/actions/workflows/ci-cd.yml)
+[![codecov](https://codecov.io/gh/mehdi-rochereau/taskflow-api/graph/badge.svg)](https://codecov.io/gh/mehdi-rochereau/taskflow-api)
 
 ---
 
@@ -39,6 +40,9 @@ For security details, see [SECURITY.md](SECURITY.md).
 | Documentation | Springdoc OpenAPI / Swagger UI |
 | Rate Limiting | Bucket4j |
 | Input Sanitization | OWASP Java HTML Sanitizer |
+| CI/CD | GitHub Actions + Docker + Trivy |
+| Container | Docker + ghcr.io |
+| Deployment | Hetzner VPS + Nginx + Let's Encrypt |
 
 ---
 
@@ -80,7 +84,7 @@ The application follows a standard layered architecture:
 - i18n error messages — English and French
 - Database schema versioning with Flyway
 - Interactive API documentation via Swagger UI
-- 159 tests — 93%+ coverage (JUnit 5 + Mockito + MockMvc)
+- 80%+ coverage (JUnit 5 + Mockito + MockMvc)
 
 ---
 
@@ -213,6 +217,26 @@ build/reports/jacoco/html/index.html
 
 ---
 
+## CI/CD Pipeline
+
+Every push triggers an automated pipeline:
+
+| Step | Tool | Details |
+|------|------|---------|
+| Secret scanning | GitLeaks | Full history scan |
+| Code style | Checkstyle | Google Style variant |
+| Tests | JUnit 5 + Mockito | 159 tests |
+| Coverage | JaCoCo + Codecov | 80% threshold |
+| Dependency CVEs | OWASP Dependency Check | NVD database |
+| Docker image scan | Trivy | Blocks on CRITICAL CVEs |
+| Deployment | SSH + Docker Compose | Hetzner VPS |
+| Health check | Spring Actuator | 3 min retry |
+| Rollback | Automatic | On health check failure |
+
+Push to `main` → CI passes → Docker image built → deployed to production automatically.
+
+---
+
 ## Error Responses
 
 All errors follow a consistent JSON structure:
@@ -241,8 +265,10 @@ Validation errors include field-level details:
 
 ## Planned Improvements
 
-- [ ] GitHub Actions CI/CD
 - [ ] OAuth2 login (Google / GitHub)
+- [ ] Angular frontend integration
+- [ ] Prometheus + Grafana monitoring
+- [ ] Redis-based rate limiting
 
 ---
 
