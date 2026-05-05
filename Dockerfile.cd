@@ -13,13 +13,13 @@
 #   This Dockerfile skips compilation entirely, reducing the
 #   CD build time by ~3-5 minutes.
 #
-# Base image: eclipse-temurin:21-jre-alpine
+# Base image: eclipse-temurin:21-jre-jammy
 #   - JRE only (not JDK) — no compiler, no javac, smaller attack surface
-#   - Alpine Linux — minimal OS (~5MB), fewer CVEs than debian/ubuntu
+#   - Ubuntu 22.04 LTS (Jammy) — well-maintained, frequent security patches
 #   - Temurin 21 — LTS release, same version as CI build environment
 # ============================================================
 
-FROM eclipse-temurin:21-jre-alpine
+FROM eclipse-temurin:21-jre-jammy
 
 WORKDIR /app
 
@@ -28,7 +28,7 @@ WORKDIR /app
 # a compromised application would have root access to the host.
 # -S creates a system account: no password, no home directory,
 # no login shell — principle of least privilege.
-RUN addgroup -S taskflow && adduser -S taskflow -G taskflow
+RUN groupadd -r taskflow && useradd -r -g taskflow taskflow
 
 # Copy the pre-built JAR from the Docker build context.
 # In the CD pipeline, the JAR is copied to the repo root as app.jar
