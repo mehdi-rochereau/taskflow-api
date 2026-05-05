@@ -1,133 +1,135 @@
 plugins {
-	id 'java'
-	id 'org.springframework.boot' version '3.5.13'
-	id 'io.spring.dependency-management' version '1.1.7'
-	id 'jacoco'
-	// Checkstyle — enforces Java code style conventions
-	id 'checkstyle'
-	// OWASP Dependency Check — scans dependencies for known CVEs
-	id 'org.owasp.dependencycheck' version '12.1.1'
+    id 'java'
+    id 'org.springframework.boot' version '3.5.13'
+    id 'io.spring.dependency-management' version '1.1.7'
+    id 'jacoco'
+    // Checkstyle — enforces Java code style conventions
+    id 'checkstyle'
+    // OWASP Dependency Check — scans dependencies for known CVEs
+    id 'org.owasp.dependencycheck' version '12.1.1'
 }
 
 jacoco {
-	toolVersion = "0.8.11"
+    toolVersion = "0.8.11"
 }
 
 checkstyle {
-	toolVersion = "10.21.4"
-	// Configuration file defining the rules to enforce
-	configFile = file("config/checkstyle/checkstyle.xml")
-	// Do not fail the build on Checkstyle violations — warnings only
-	// Set to false once all violations are resolved
-	ignoreFailures = true
-	// Show violations in the console output
-	showViolations = true
+    toolVersion = "10.21.4"
+    // Configuration file defining the rules to enforce
+    configFile = file("config/checkstyle/checkstyle.xml")
+    // Do not fail the build on Checkstyle violations — warnings only
+    // Set to false once all violations are resolved
+    ignoreFailures = true
+    // Show violations in the console output
+    showViolations = true
 }
 
 dependencyCheck {
-	// Fail the build if a dependency has a CVSS score >= 9 (Critical)
-	failBuildOnCVSS = 9
-	// Output formats — HTML for humans, JSON for CI tools
-	formats = ['HTML', 'JSON']
-	// Skip test dependencies — they are not shipped to production
-	skipTestGroups = true
-	// NVD API key — speeds up CVE database updates significantly
-	nvd {
-		// API key read from environment variable — never hardcoded
-		apiKey = System.getenv('NVD_API_KEY') ?: ''
-		// Delay between NVD API requests in milliseconds
-		// 2000ms with API key (default), 8000ms without
-		delay = 2000
-	}
-	analyzers {
-		// Sonatype OSS Index disabled — requires authentication since Sept 2025
-		// NVD via OWASP Dependency Check provides equivalent CVE coverage
-		ossIndexEnabled = false
-	}
+    // Fail the build if a dependency has a CVSS score >= 9 (Critical)
+    failBuildOnCVSS = 9
+    // Output formats — HTML for humans, JSON for CI tools
+    formats = ['HTML', 'JSON']
+    // Skip test dependencies — they are not shipped to production
+    skipTestGroups = true
+    // NVD API key — speeds up CVE database updates significantly
+    nvd {
+        // API key read from environment variable — never hardcoded
+        apiKey = System.getenv('NVD_API_KEY') ?: ''
+        // Delay between NVD API requests in milliseconds
+        // 2000ms with API key (default), 8000ms without
+        delay = 2000
+    }
+    analyzers {
+        // Sonatype OSS Index disabled — requires authentication since Sept 2025
+        // NVD via OWASP Dependency Check provides equivalent CVE coverage
+        ossIndex {
+            enabled = false
+        }
+    }
 }
 
 tasks.jacocoTestReport {
-	dependsOn test  // ensures tests run before report generation
-	reports {
-		html.required = true
-		html.outputLocation = layout.buildDirectory.dir("reports/jacoco/html")
-		xml.required = true   // required by CI/CD tools (Codecov, etc.)
-		csv.required = true   // useful for custom coverage badge generation
-	}
-	afterEvaluate {
-		classDirectories.setFrom(files(classDirectories.files.collect {
-			fileTree(dir: it, exclude: [
-					'**/dto/**',
-					'**/*Application*',
-					'**/config/**',
-					'**/*Exception*'
-			])
-		}))
-	}
+    dependsOn test  // ensures tests run before report generation
+    reports {
+        html.required = true
+        html.outputLocation = layout.buildDirectory.dir("reports/jacoco/html")
+        xml.required = true   // required by CI/CD tools (Codecov, etc.)
+        csv.required = true   // useful for custom coverage badge generation
+    }
+    afterEvaluate {
+        classDirectories.setFrom(files(classDirectories.files.collect {
+            fileTree(dir: it, exclude: [
+                    '**/dto/**',
+                    '**/*Application*',
+                    '**/config/**',
+                    '**/*Exception*'
+            ])
+        }))
+    }
 }
 
 tasks.test {
-	useJUnitPlatform()
-	finalizedBy jacocoTestReport  // generates coverage report after tests
+    useJUnitPlatform()
+    finalizedBy jacocoTestReport  // generates coverage report after tests
 }
 
 group = 'com.mehdi.taskflow'
 version = '0.0.1-SNAPSHOT'
 
 java {
-	toolchain {
-		languageVersion = JavaLanguageVersion.of(21)
-	}
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(21)
+    }
 }
 
 repositories {
-	mavenCentral()
+    mavenCentral()
 }
 
 ext {
-	// Overriding Tomcat to ensure compatibility with Spring Boot 3.5.13
-	set('tomcat.version', '10.1.54')
-	// Forced to 3.18.0 to fix CVE-2025-48924 (StackOverflowError in ClassUtils)
-	set('commons-lang3.version', '3.18.0')
+    // Overriding Tomcat to ensure compatibility with Spring Boot 3.5.13
+    set('tomcat.version', '10.1.54')
+    // Forced to 3.18.0 to fix CVE-2025-48924 (StackOverflowError in ClassUtils)
+    set('commons-lang3.version', '3.18.0')
 }
 
 dependencies {
-	// Web
-	implementation 'org.springframework.boot:spring-boot-starter-web'
-	// JPA / Hibernate
-	implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
-	// Spring Security
-	implementation 'org.springframework.boot:spring-boot-starter-security'
-	// MySQL
-	runtimeOnly 'com.mysql:mysql-connector-j'
-	// Flyway
-	implementation 'org.flywaydb:flyway-core'
-	implementation 'org.flywaydb:flyway-mysql'
-	// Validation
-	implementation 'org.springframework.boot:spring-boot-starter-validation'
-	// JWT
-	implementation 'io.jsonwebtoken:jjwt-api:0.12.6'
-	runtimeOnly 'io.jsonwebtoken:jjwt-impl:0.12.6'
-	runtimeOnly 'io.jsonwebtoken:jjwt-jackson:0.12.6'
-	// Swagger / OpenAPI
-	implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.8'
-	// Test
-	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
-	testImplementation 'org.springframework.boot:spring-boot-starter-test'
-	testImplementation 'org.springframework.security:spring-security-test'
-	// OAuth2 — planned feature, not yet implemented
-	// implementation 'org.springframework.boot:spring-boot-starter-oauth2-client'
-	// Rate Limiting
-	implementation 'com.bucket4j:bucket4j-core:8.10.1'
-	// OWASP Java HTML Sanitizer — XSS prevention on user input
-	// Keeping version 20220608.1 — CVE-2025-66021 affects noscript/style tags
-	// which are not used in our HtmlPolicyBuilder — no patch available yet
-	implementation('com.googlecode.owasp-java-html-sanitizer:owasp-java-html-sanitizer:20220608.1') {
-		exclude group: 'com.google.guava', module: 'guava'
-	}
-	implementation 'com.google.guava:guava:33.2.1-jre'
-	// Actuator — exposes /actuator/health for container healthchecks and monitoring
-	implementation 'org.springframework.boot:spring-boot-starter-actuator'
-	// Apache Commons Text — HTML entity decoding after OWASP sanitization (e.g. &#39; → ')
-	implementation 'org.apache.commons:commons-text:1.12.0'
+    // Web
+    implementation 'org.springframework.boot:spring-boot-starter-web'
+    // JPA / Hibernate
+    implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+    // Spring Security
+    implementation 'org.springframework.boot:spring-boot-starter-security'
+    // MySQL
+    runtimeOnly 'com.mysql:mysql-connector-j'
+    // Flyway
+    implementation 'org.flywaydb:flyway-core'
+    implementation 'org.flywaydb:flyway-mysql'
+    // Validation
+    implementation 'org.springframework.boot:spring-boot-starter-validation'
+    // JWT
+    implementation 'io.jsonwebtoken:jjwt-api:0.12.6'
+    runtimeOnly 'io.jsonwebtoken:jjwt-impl:0.12.6'
+    runtimeOnly 'io.jsonwebtoken:jjwt-jackson:0.12.6'
+    // Swagger / OpenAPI
+    implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.8'
+    // Test
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testImplementation 'org.springframework.security:spring-security-test'
+    // OAuth2 — planned feature, not yet implemented
+    // implementation 'org.springframework.boot:spring-boot-starter-oauth2-client'
+    // Rate Limiting
+    implementation 'com.bucket4j:bucket4j-core:8.10.1'
+    // OWASP Java HTML Sanitizer — XSS prevention on user input
+    // Keeping version 20220608.1 — CVE-2025-66021 affects noscript/style tags
+    // which are not used in our HtmlPolicyBuilder — no patch available yet
+    implementation('com.googlecode.owasp-java-html-sanitizer:owasp-java-html-sanitizer:20220608.1') {
+        exclude group: 'com.google.guava', module: 'guava'
+    }
+    implementation 'com.google.guava:guava:33.2.1-jre'
+    // Actuator — exposes /actuator/health for container healthchecks and monitoring
+    implementation 'org.springframework.boot:spring-boot-starter-actuator'
+    // Apache Commons Text — HTML entity decoding after OWASP sanitization (e.g. &#39; → ')
+    implementation 'org.apache.commons:commons-text:1.12.0'
 }
