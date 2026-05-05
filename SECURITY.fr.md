@@ -114,6 +114,21 @@ Tous les événements de sécurité pertinents sont loggés via un logger `AUDIT
 | `TOKEN_PURGE` | INFO |
 | `UNEXPECTED_ERROR` | ERROR |
 
+### Sécurité CI/CD
+
+Le pipeline de déploiement intègre plusieurs contrôles de sécurité :
+
+| Contrôle | Outil | Détails |
+|---------|------|---------|
+| Scan de secrets | GitLeaks | Historique git complet scanné à chaque push |
+| CVE dépendances | OWASP Dependency Check | Base NVD, bloque sur CVSS ≥ 9 |
+| Scan image Docker | Trivy | Bloque le déploiement sur CVE CRITICAL |
+| Moindre privilège | GITHUB_TOKEN | Pas de PAT — token scopé avec permissions minimales |
+| Clé SSH dédiée | Ed25519 | Clé réservée GitHub Actions, séparée des clés développeur |
+| Protection de branche | GitHub Rulesets | CI doit passer avant tout merge sur main |
+| Déploiements immuables | Digest d'image | Trivy scanne le digest exact pushé, pas un tag mutable |
+| Rollback automatique | Docker | Image précédente restaurée si le health check échoue |
+
 ### Gestion des erreurs
 
 - Les stack traces et détails internes ne sont **jamais** exposés dans les réponses API.
@@ -184,7 +199,8 @@ une recherche plus rapide et une expiration automatique par TTL.
 - [ ] `DELETE /api/users/me` — suppression de compte pour la conformité RGPD
 - [ ] `GET /api/auth/me` — endpoint de validation de session côté serveur
 - [ ] Limitation de débit basée sur Redis pour les déploiements multi-instances
-- [ ] CSP basée sur des nonces pour éliminer `unsafe-inline`
+- [ ] Scan Trivy sur la sévérité HIGH (actuellement CRITICAL uniquement)
+- [ ] CSP basée sur les nonces pour éliminer `unsafe-inline`
 
 ---
 

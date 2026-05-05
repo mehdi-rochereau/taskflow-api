@@ -112,6 +112,21 @@ All security-relevant events are logged via a dedicated `AUDIT` logger:
 | `TOKEN_PURGE` | INFO |
 | `UNEXPECTED_ERROR` | ERROR |
 
+### CI/CD Security
+
+The deployment pipeline integrates multiple security controls:
+
+| Control | Tool | Details |
+|---------|------|---------|
+| Secret scanning | GitLeaks | Full git history scanned on every push |
+| Dependency CVEs | OWASP Dependency Check | NVD database, blocks on CVSS ≥ 9 |
+| Docker image scan | Trivy | Blocks deployment on CRITICAL CVEs |
+| Least privilege | GITHUB_TOKEN | No PAT — scoped token with minimal permissions |
+| Dedicated SSH key | Ed25519 | GitHub Actions-only key, separate from developer keys |
+| Branch protection | GitHub Rulesets | CI must pass before any merge to main |
+| Immutable deploys | Image digest | Trivy scans the exact pushed digest, not a mutable tag |
+| Automatic rollback | Docker | Previous image restored if health check fails post-deploy |
+
 ### Error Handling
 
 - Stack traces and internal details are **never** exposed in API responses.
@@ -180,6 +195,7 @@ automatic TTL-based expiry.
 - [ ] `DELETE /api/users/me` — account deletion for GDPR compliance
 - [ ] `GET /api/auth/me` — server-side session validation endpoint
 - [ ] Redis-based rate limiting for multi-instance deployments
+- [ ] Trivy scan on HIGH severity (currently CRITICAL only)
 - [ ] Nonce-based CSP to eliminate `unsafe-inline`
 
 ---
