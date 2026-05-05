@@ -1,24 +1,88 @@
 # ============================================================
-# CD Dockerfile — uses pre-built JAR from CI artifact
-# No compilation — JAR is provided by the CI pipeline
+# CD Dockerfile — TaskFlow API
+#
+# Runtime-only image — no compilation, no build tools.
+# The JAR is pre-built by the CI pipeline and passed as an
+# artifact to the CD job, then copied into this image.
+#
+# Why a separate Dockerfile for CD?
+#   The main Dockerfile (Dockerfile) compiles the application
+#   with Gradle during the Docker build. This is useful for
+#   local development but wasteful in CI/CD — the JAR has
+#   already been compiled, tested, and validated by the CI job.
+#   This Dockerfile skips compilation entirely, reducing the
+#   CD build time by ~3-5 minutes.
+#
+# Base image: eclipse-temurin:21-jre-alpine
+#   - JRE only (not JDK) — no compiler, no javac, smaller attack surface
+#   - Alpine Linux — minimal OS (~5MB), fewer CVEs than debian/ubuntu
+#   - Temurin 21 — LTS release, same version as CI build environment
 # ============================================================
+
 FROM eclipse-temurin:21-jre-alpine
 
 WORKDIR /app
 
+# Create a dedicated non-root system user and group.
+# Running as root inside a container is a security risk —
+# a compromised application would have root access to the host.
+# -S creates a system account: no password, no home directory,
+# no login shell — principle of least privilege.
 RUN addgroup -S taskflow && adduser -S taskflow -G taskflow
 
+# Copy the pre-built JAR from the Docker build context.
+# In the CD pipeline, the JAR is copied to the repo root as app.jar
+# before the Docker build is invoked (see ci-cd.yml: "Prepare JAR" step).
+# This is necessary because Docker buildx sends the build context
+# to an isolated builder daemon — relative paths like build/libs/
+# are not reliably accessible without placing the file at the root.
 COPY app.jar app.jar
 
+# Transfer ownership to the non-root user.
+# Must be done as root (before USER instruction) —
+# the taskflow user does not have permission to chown files.
 RUN chown taskflow:taskflow app.jar
 
+# Switch to non-root user for all subsequent instructions
+# and at container runtime.
 USER taskflow
 
+# Document the application port.
+# EXPOSE is metadata only — it does not publish the port.
+# Actual port mapping is defined in docker-compose.yml.
 EXPOSE 8082
 
+# JVM options optimized for containerized workloads.
+#
+# -XX:+UseContainerSupport
+#   Makes the JVM read CPU and memory limits from cgroup,
+#   not from the host machine. Without this, the JVM sees
+#   the host's total RAM and may size the heap incorrectly.
+#
+# -XX:MaxRAMPercentage=75.0
+#   Caps the heap at 75% of the container's memory limit.
+#   Leaves 25% for OS overhead, JVM metaspace, thread stacks,
+#   and off-heap allocations (Netty buffers, etc.).
+#
+# -XX:+UseG1GC
+#   G1 (Garbage First) collector — well-suited for server
+#   workloads with moderate heap sizes. Provides predictable
+#   pause times and good throughput for REST APIs.
+#
+# -Djava.security.egd=file:/dev/./urandom
+#   Speeds up SecureRandom initialization on Linux.
+#   /dev/random blocks if entropy is low (common in containers).
+#   /dev/urandom is non-blocking and cryptographically sufficient
+#   for session tokens, JWT signing, and similar use cases.
 ENV JAVA_OPTS="-XX:+UseContainerSupport \
                -XX:MaxRAMPercentage=75.0 \
                -XX:+UseG1GC \
                -Djava.security.egd=file:/dev/./urandom"
 
-ENTRYPOINT ["sh", "-c", "exec java $JAVA_OPTS -jar app.jar"]
+# Start the application using exec form with shell for JAVA_OPTS expansion.
+# "exec" replaces the shell process with Java, making Java PID 1.
+# This ensures Docker's SIGTERM reaches Java directly, enabling
+# graceful shutdown — Spring Boot drains in-flight requests,
+# closes DB connections, and stops scheduled tasks cleanly.
+# Without "exec", the shell becomes PID 1 and may swallow signals.
+ENTRYPOINT ["sh", "-c", "exec ja
