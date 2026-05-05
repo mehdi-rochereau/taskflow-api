@@ -8,7 +8,7 @@ WORKDIR /app
 
 RUN addgroup -S taskflow && adduser -S taskflow -G taskflow
 
-COPY build/libs/taskflow-api-*.jar app.jar
+COPY app.jar app.jar
 
 RUN chown taskflow:taskflow app.jar
 

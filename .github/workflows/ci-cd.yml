@@ -237,9 +237,9 @@ jobs:
           name: taskflow-api-jar
           path: build/libs/
 
-      # ── Verify JAR ───────────────────────────────────────
-      - name: Verify JAR exists
-        run: ls -la build/libs/
+      # ── Prepare JAR for Docker ────────────────────────────
+      - name: Prepare JAR for Docker build
+        run: cp build/libs/taskflow-api-*.jar app.jar
 
       # ── Setup Buildx ─────────────────────────────────────
       - name: Set up Docker Buildx
