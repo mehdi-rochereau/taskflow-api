@@ -316,6 +316,8 @@ jobs:
           key: ${{ secrets.VPS_SSH_KEY }}
           script: |
             cd /opt/taskflow
+            PREVIOUS_IMAGE=$(docker inspect taskflow-api --format='{{.Config.Image}}' 2>/dev/null || echo "")
+            echo "previous_image=$PREVIOUS_IMAGE" > /tmp/taskflow_rollback.env
             docker compose pull taskflow-api
             docker compose up -d taskflow-api
             echo "✅ taskflow-api deployed"
@@ -336,6 +338,27 @@ jobs:
           done
           echo "❌ Timeout after 3 minutes — API did not respond"
           exit 1
+          
+      # ── Rollback on failure ──────────────────────────────
+      - name: Rollback on health check failure
+        if: failure() && steps.health.outcome == 'failure'
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          script: |
+            cd /opt/taskflow
+            source /tmp/taskflow_rollback.env
+            if [ -n "$PREVIOUS_IMAGE" ]; then
+              echo "⚠️ Rolling back to $PREVIOUS_IMAGE"
+              docker compose stop taskflow-api
+              docker tag $PREVIOUS_IMAGE ghcr.io/mehdi-rochereau/taskflow-api:latest
+              docker compose up -d taskflow-api
+              echo "✅ Rollback complete"
+            else
+              echo "❌ No previous image found, cannot rollback"
+            fi  
 
       # ── Smoke tests ──────────────────────────────────────
       - name: Smoke test public endpoints
