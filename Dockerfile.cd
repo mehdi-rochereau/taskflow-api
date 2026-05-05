@@ -8,7 +8,6 @@ WORKDIR /app
 
 RUN addgroup -S taskflow && adduser -S taskflow -G taskflow
 
-# JAR is downloaded from CI artifact into build/libs/
 COPY build/libs/*.jar app.jar
 
 RUN chown taskflow:taskflow app.jar
