@@ -31,6 +31,14 @@ dependencyCheck {
 	formats = ['HTML', 'JSON']
 	// Skip test dependencies — they are not shipped to production
 	skipTestGroups = true
+	// NVD API key — speeds up CVE database updates significantly
+	nvd {
+		// API key read from environment variable — never hardcoded
+		apiKey = System.getenv('NVD_API_KEY') ?: ''
+		// Delay between NVD API requests in milliseconds
+		// 2000ms with API key (default), 8000ms without
+		delay = 2000
+	}
 }
 
 tasks.jacocoTestReport {
