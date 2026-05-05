@@ -264,7 +264,7 @@ jobs:
       # ── Trivy scan ───────────────────────────────────────
       - name: Scan Docker image with Trivy
         id: trivy
-        uses: aquasecurity/trivy-action@0.30.0
+        uses: aquasecurity/trivy-action@0.29.0
         with:
           image-ref: ${{ env.IMAGE_NAME }}@${{ steps.build.outputs.digest }}
           format: 'table'
@@ -272,6 +272,9 @@ jobs:
           ignore-unfixed: true
           severity: 'CRITICAL,HIGH'
           output: trivy-report.txt
+        env:
+          TRIVY_USERNAME: ${{ github.actor }}
+          TRIVY_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
         continue-on-error: true
 
       - name: Upload Trivy report
