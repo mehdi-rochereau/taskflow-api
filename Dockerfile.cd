@@ -74,15 +74,15 @@ EXPOSE 8082
 #   /dev/random blocks if entropy is low (common in containers).
 #   /dev/urandom is non-blocking and cryptographically sufficient
 #   for session tokens, JWT signing, and similar use cases.
-ENV JAVA_OPTS="-XX:+UseContainerSupport \
-               -XX:MaxRAMPercentage=75.0 \
-               -XX:+UseG1GC \
-               -Djava.security.egd=file:/dev/./urandom"
-
-# Start the application using exec form with shell for JAVA_OPTS expansion.
-# "exec" replaces the shell process with Java, making Java PID 1.
+#
+# Start the application in exec form — Java is PID 1 directly.
 # This ensures Docker's SIGTERM reaches Java directly, enabling
 # graceful shutdown — Spring Boot drains in-flight requests,
 # closes DB connections, and stops scheduled tasks cleanly.
-# Without "exec", the shell becomes PID 1 and may swallow signals.
-ENTRYPOINT ["sh", "-c", "exec ja
+# JVM flags are passed directly as arguments — no shell expansion needed.
+ENTRYPOINT ["java", \
+    "-XX:+UseContainerSupport", \
+    "-XX:MaxRAMPercentage=75.0", \
+    "-XX:+UseG1GC", \
+    "-Djava.security.egd=file:/dev/./urandom", \
+    "-jar", "app.jar"]
