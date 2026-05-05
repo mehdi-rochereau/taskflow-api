@@ -11,7 +11,8 @@ Une API REST de gestion de tâches développée en Java 21 et Spring Boot 3.5, a
 [![Java](https://img.shields.io/badge/Java-21-ED8B00?style=flat&logo=openjdk&logoColor=white)](https://openjdk.org/)
 [![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.5-6DB33F?style=flat&logo=springboot&logoColor=white)](https://spring.io/projects/spring-boot)
 [![MySQL](https://img.shields.io/badge/MySQL-8.4-4479A1?style=flat&logo=mysql&logoColor=white)](https://www.mysql.com/)
-[![Coverage](https://img.shields.io/badge/Coverage-93%25-brightgreen?style=flat)]()
+[![CI/CD](https://github.com/mehdi-rochereau/taskflow-api/actions/workflows/ci-cd.yml/badge.svg)](https://github.com/mehdi-rochereau/taskflow-api/actions/workflows/ci-cd.yml)
+[![codecov](https://codecov.io/gh/mehdi-rochereau/taskflow-api/graph/badge.svg)](https://codecov.io/gh/mehdi-rochereau/taskflow-api)
 
 ---
 
@@ -39,7 +40,9 @@ Pour les détails de sécurité, voir [SECURITY.fr.md](SECURITY.fr.md).
 | Documentation | Springdoc OpenAPI / Swagger UI |
 | Limitation de débit | Bucket4j |
 | Sanitization | OWASP Java HTML Sanitizer |
-
+| CI/CD | GitHub Actions + Docker + Trivy |
+| Conteneur | Docker + ghcr.io |
+| Déploiement | Hetzner VPS + Nginx + Let's Encrypt |
 ---
 
 ## Architecture
@@ -80,7 +83,7 @@ L'application suit une architecture en couches standard :
 - Messages d'erreur i18n — anglais et français
 - Versioning du schéma de base de données avec Flyway
 - Documentation API interactive via Swagger UI
-- 159 tests — couverture > 93% (JUnit 5 + Mockito + MockMvc)
+- Couverture > 80% (JUnit 5 + Mockito + MockMvc)
 
 ---
 
@@ -212,6 +215,26 @@ build/reports/jacoco/html/index.html
 
 ---
 
+## Pipeline CI/CD
+
+Chaque push déclenche un pipeline automatisé :
+
+| Étape | Outil | Détails |
+|-------|-------|---------|
+| Scan de secrets | GitLeaks | Historique complet |
+| Style de code | Checkstyle | Google Style |
+| Tests | JUnit 5 + Mockito | 159 tests |
+| Couverture | JaCoCo + Codecov | Seuil 80% |
+| CVE dépendances | OWASP Dependency Check | Base NVD |
+| Scan image Docker | Trivy | Bloque sur CVE CRITICAL |
+| Déploiement | SSH + Docker Compose | VPS Hetzner |
+| Health check | Spring Actuator | 3 min de retry |
+| Rollback | Automatique | En cas d'échec health check |
+
+Push sur `main` → CI vert → image Docker buildée → déployée en production automatiquement.
+
+---
+
 ## Format des erreurs
 
 Toutes les erreurs suivent une structure JSON cohérente :
@@ -240,8 +263,10 @@ Les erreurs de validation incluent le détail par champ :
 
 ## Améliorations prévues
 
-- [ ] CI/CD GitHub Actions
 - [ ] Connexion OAuth2 (Google / GitHub)
+- [ ] Intégration frontend Angular
+- [ ] Monitoring Prometheus + Grafana
+- [ ] Rate limiting Redis
 
 ---
 
