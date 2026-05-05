@@ -319,7 +319,7 @@ jobs:
         run: |
           echo "Testing public endpoints..."
 
-          SWAGGER=$(curl -s -o /dev/null -w "%{http_code}" ${{ env.API_BASE_URL }}/swagger-ui/index.html)
+          SWAGGER=$(curl -s -L -o /dev/null -w "%{http_code}" ${{ env.API_BASE_URL }}/swagger-ui/index.html)
           echo "Swagger UI: HTTP $SWAGGER"
 
           DOCS=$(curl -s -o /dev/null -w "%{http_code}" ${{ env.API_BASE_URL }}/v3/api-docs)
