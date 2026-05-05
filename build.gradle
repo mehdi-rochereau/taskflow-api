@@ -39,6 +39,11 @@ dependencyCheck {
 		// 2000ms with API key (default), 8000ms without
 		delay = 2000
 	}
+	analyzers {
+		// Sonatype OSS Index disabled — requires authentication since Sept 2025
+		// NVD via OWASP Dependency Check provides equivalent CVE coverage
+		ossIndexEnabled = false
+	}
 }
 
 tasks.jacocoTestReport {
