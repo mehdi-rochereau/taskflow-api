@@ -1,0 +1,24 @@
+# ============================================================
+# CD Dockerfile — uses pre-built JAR from CI artifact
+# No compilation — JAR is provided by the CI pipeline
+# ============================================================
+FROM eclipse-temurin:21-jre-alpine
+
+WORKDIR /app
+
+RUN addgroup -S taskflow && adduser -S taskflow -G taskflow
+
+COPY app.jar app.jar
+
+RUN chown taskflow:taskflow app.jar
+
+USER taskflow
+
+EXPOSE 8082
+
+ENV JAVA_OPTS="-XX:+UseContainerSupport \
+               -XX:MaxRAMPercentage=75.0 \
+               -XX:+UseG1GC \
+               -Djava.security.egd=file:/dev/./urandom"
+
+ENTRYPOINT ["sh", "-c", "exec java $JAVA_OPTS -jar app.jar"]

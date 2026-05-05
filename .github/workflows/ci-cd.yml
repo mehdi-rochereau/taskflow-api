@@ -33,16 +33,23 @@ env:
   JAVA_VERSION: '21'
   API_BASE_URL: https://api.taskflow.mehdi-rochereau.dev
 
+permissions:
+  contents: read
+  packages: write
+  checks: write
+  actions: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
 
   # ── CI ─────────────────────────────────────────────────────
   ci:
     name: CI
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      checks: write
-      actions: read
+    timeout-minutes: 30
 
     steps:
 
@@ -215,15 +222,13 @@ jobs:
     name: CD
     runs-on: ubuntu-latest
     needs: ci
+    timeout-minutes: 20
     if: |
       github.event_name != 'pull_request' &&
       (
         (github.ref == 'refs/heads/main' && github.event_name == 'push') ||
         (github.event_name == 'workflow_dispatch' && github.event.inputs.force_deploy == 'true')
       )
-    permissions:
-      contents: read
-      packages: write
 
     steps:
 
@@ -231,13 +236,28 @@ jobs:
       - name: Checkout source code
         uses: actions/checkout@v4
 
+      # ── Download JAR from CI ──────────────────────────────
+      - name: Download JAR artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: taskflow-api-jar
+          path: build/libs/
+
+      # ── Prepare JAR for Docker ────────────────────────────
+      - name: Prepare JAR for Docker build
+        run: cp build/libs/taskflow-api-*.jar app.jar
+
+      # ── Setup Buildx ─────────────────────────────────────
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
       # ── Docker login ─────────────────────────────────────
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@v3
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          password: ${{ secrets.GHCR_TOKEN }}
 
       # ── Docker metadata ──────────────────────────────────
       - name: Extract Docker metadata
@@ -255,16 +275,18 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: .
+          file: Dockerfile.cd
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+          provenance: false
 
       # ── Trivy scan ───────────────────────────────────────
       - name: Scan Docker image with Trivy
         id: trivy
-        uses: aquasecurity/trivy-action@0.30.0
+        uses: aquasecurity/trivy-action@master
         with:
           image-ref: ${{ env.IMAGE_NAME }}@${{ steps.build.outputs.digest }}
           format: 'table'
@@ -272,6 +294,9 @@ jobs:
           ignore-unfixed: true
           severity: 'CRITICAL,HIGH'
           output: trivy-report.txt
+        env:
+          TRIVY_USERNAME: ${{ github.actor }}
+          TRIVY_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
         continue-on-error: true
 
       - name: Upload Trivy report
@@ -291,6 +316,8 @@ jobs:
           key: ${{ secrets.VPS_SSH_KEY }}
           script: |
             cd /opt/taskflow
+            PREVIOUS_IMAGE=$(docker inspect taskflow-api --format='{{.Config.Image}}' 2>/dev/null || echo "")
+            echo "previous_image=$PREVIOUS_IMAGE" > /tmp/taskflow_rollback.env
             docker compose pull taskflow-api
             docker compose up -d taskflow-api
             echo "✅ taskflow-api deployed"
@@ -300,7 +327,7 @@ jobs:
         id: health
         run: |
           echo "Waiting for API to start..."
-          for i in $(seq 1 12); do
+          for i in $(seq 1 18); do
             STATUS=$(curl -s -o /dev/null -w "%{http_code}" ${{ env.API_BASE_URL }}/actuator/health)
             if [ "$STATUS" = "200" ]; then
               echo "✅ API is healthy (HTTP $STATUS) after attempt $i"
@@ -309,8 +336,29 @@ jobs:
             echo "Attempt $i/12 — HTTP $STATUS, retrying in 10s..."
             sleep 10
           done
-          echo "❌ Timeout after 2 minutes — API did not respond"
+          echo "❌ Timeout after 3 minutes — API did not respond"
           exit 1
+          
+      # ── Rollback on failure ──────────────────────────────
+      - name: Rollback on health check failure
+        if: failure() && steps.health.outcome == 'failure'
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          script: |
+            cd /opt/taskflow
+            source /tmp/taskflow_rollback.env
+            if [ -n "$PREVIOUS_IMAGE" ]; then
+              echo "⚠️ Rolling back to $PREVIOUS_IMAGE"
+              docker compose stop taskflow-api
+              docker tag $PREVIOUS_IMAGE ghcr.io/mehdi-rochereau/taskflow-api:latest
+              docker compose up -d taskflow-api
+              echo "✅ Rollback complete"
+            else
+              echo "❌ No previous image found, cannot rollback"
+            fi  
 
       # ── Smoke tests ──────────────────────────────────────
       - name: Smoke test public endpoints
@@ -318,7 +366,7 @@ jobs:
         run: |
           echo "Testing public endpoints..."
 
-          SWAGGER=$(curl -s -o /dev/null -w "%{http_code}" ${{ env.API_BASE_URL }}/swagger-ui/index.html)
+          SWAGGER=$(curl -s -L -o /dev/null -w "%{http_code}" ${{ env.API_BASE_URL }}/swagger-ui/index.html)
           echo "Swagger UI: HTTP $SWAGGER"
 
           DOCS=$(curl -s -o /dev/null -w "%{http_code}" ${{ env.API_BASE_URL }}/v3/api-docs)
