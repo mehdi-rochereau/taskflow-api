@@ -33,16 +33,18 @@ env:
   JAVA_VERSION: '21'
   API_BASE_URL: https://api.taskflow.mehdi-rochereau.dev
 
+permissions:
+  contents: read
+  packages: write
+  checks: write
+  actions: read
+
 jobs:
 
   # ── CI ─────────────────────────────────────────────────────
   ci:
     name: CI
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      checks: write
-      actions: read
 
     steps:
 
@@ -221,15 +223,19 @@ jobs:
         (github.ref == 'refs/heads/main' && github.event_name == 'push') ||
         (github.event_name == 'workflow_dispatch' && github.event.inputs.force_deploy == 'true')
       )
-    permissions:
-      contents: read
-      packages: write
 
     steps:
 
       # ── Checkout ─────────────────────────────────────────
       - name: Checkout source code
         uses: actions/checkout@v4
+
+      # ── Download JAR from CI ──────────────────────────────
+      - name: Download JAR artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: taskflow-api-jar
+          path: build/libs/
 
       # ── Setup Buildx ─────────────────────────────────────
       - name: Set up Docker Buildx
@@ -241,7 +247,7 @@ jobs:
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
-          password: ${{ secrets.GHCR_TOKEN }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
       # ── Docker metadata ──────────────────────────────────
       - name: Extract Docker metadata
