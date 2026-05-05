@@ -41,6 +41,16 @@ tasks.jacocoTestReport {
 		xml.required = true   // required by CI/CD tools (Codecov, etc.)
 		csv.required = true   // useful for custom coverage badge generation
 	}
+	afterEvaluate {
+		classDirectories.setFrom(files(classDirectories.files.collect {
+			fileTree(dir: it, exclude: [
+					'**/dto/**',
+					'**/*Application*',
+					'**/config/**',
+					'**/*Exception*'
+			])
+		}))
+	}
 }
 
 tasks.test {
