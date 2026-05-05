@@ -3,36 +3,49 @@ plugins {
 	id 'org.springframework.boot' version '3.5.13'
 	id 'io.spring.dependency-management' version '1.1.7'
 	id 'jacoco'
+	// Checkstyle — enforces Java code style conventions
+	id 'checkstyle'
+	// OWASP Dependency Check — scans dependencies for known CVEs
+	id 'org.owasp.dependencycheck' version '12.1.1'
 }
 
 jacoco {
 	toolVersion = "0.8.11"
 }
 
+checkstyle {
+	toolVersion = "10.21.4"
+	// Configuration file defining the rules to enforce
+	configFile = file("config/checkstyle/checkstyle.xml")
+	// Do not fail the build on Checkstyle violations — warnings only
+	// Set to false once all violations are resolved
+	ignoreFailures = true
+	// Show violations in the console output
+	showViolations = true
+}
+
+dependencyCheck {
+	// Fail the build if a dependency has a CVSS score >= 9 (Critical)
+	failBuildOnCVSS = 9
+	// Output formats — HTML for humans, JSON for CI tools
+	formats = ['HTML', 'JSON']
+	// Skip test dependencies — they are not shipped to production
+	skipTestGroups = true
+}
+
 tasks.jacocoTestReport {
-	dependsOn test  // s'assure que les tests tournent avant
+	dependsOn test  // ensures tests run before report generation
 	reports {
 		html.required = true
 		html.outputLocation = layout.buildDirectory.dir("reports/jacoco/html")
-		xml.required = true   // utile pour les outils CI/CD
-		csv.required = true
-	}
-	// Exclure les classes qui n'ont pas besoin d'être couvertes
-	afterEvaluate {
-		classDirectories.setFrom(files(classDirectories.files.collect {
-			fileTree(dir: it, exclude: [
-//					'**/dto/**',           // DTOs — getters/setters inutiles à tester
-//					'**/*Application*',    // classe main Spring Boot
-//					'**/config/**',        // configuration Spring
-//					'**/*Exception*'       // exceptions simples
-			])
-		}))
+		xml.required = true   // required by CI/CD tools (Codecov, etc.)
+		csv.required = true   // useful for custom coverage badge generation
 	}
 }
 
 tasks.test {
 	useJUnitPlatform()
-	finalizedBy jacocoTestReport  // génère le rapport après les tests
+	finalizedBy jacocoTestReport  // generates coverage report after tests
 }
 
 group = 'com.mehdi.taskflow'
@@ -49,7 +62,9 @@ repositories {
 }
 
 ext {
+	// Overriding Tomcat to ensure compatibility with Spring Boot 3.5.13
 	set('tomcat.version', '10.1.54')
+	// Forced to 3.18.0 to fix CVE-2025-48924 (StackOverflowError in ClassUtils)
 	set('commons-lang3.version', '3.18.0')
 }
 
@@ -77,11 +92,13 @@ dependencies {
 	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 	testImplementation 'org.springframework.boot:spring-boot-starter-test'
 	testImplementation 'org.springframework.security:spring-security-test'
-	// OAuth2
-	implementation 'org.springframework.boot:spring-boot-starter-oauth2-client'
+	// OAuth2 — planned feature, not yet implemented
+	// implementation 'org.springframework.boot:spring-boot-starter-oauth2-client'
 	// Rate Limiting
 	implementation 'com.bucket4j:bucket4j-core:8.10.1'
-	// OWASP Java HTML Sanitizer
+	// OWASP Java HTML Sanitizer — XSS prevention on user input
+	// Keeping version 20220608.1 — CVE-2025-66021 affects noscript/style tags
+	// which are not used in our HtmlPolicyBuilder — no patch available yet
 	implementation('com.googlecode.owasp-java-html-sanitizer:owasp-java-html-sanitizer:20220608.1') {
 		exclude group: 'com.google.guava', module: 'guava'
 	}
@@ -91,4 +108,3 @@ dependencies {
 	// Apache Commons Text — HTML entity decoding after OWASP sanitization (e.g. &#39; → ')
 	implementation 'org.apache.commons:commons-text:1.12.0'
 }
-
