@@ -41,7 +41,7 @@ import org.springframework.context.annotation.Configuration;
                         
                         A task management API built with **Spring Boot 3.5**, **JWT authentication** and **MySQL**.
                         
-                        > **Documentation:** [Redoc](http://localhost:4200/api-docs) — [Swagger UI](http://localhost:8082/swagger-ui/index.html)
+                        > **Documentation:** [Redoc](https://taskflow.mehdi-rochereau.dev/api-docs) — [Swagger UI](https://api.taskflow.mehdi-rochereau.dev/swagger-ui/index.html)
                         
                         ### Authentication
                         
@@ -100,7 +100,7 @@ import org.springframework.context.annotation.Configuration;
                 )
         ),
         servers = {
-                @Server(url = "http://localhost:8082", description = "Local development server")
+                @Server(url = "https://api.taskflow.mehdi-rochereau.dev", description = "Production server")
         }
 )
 @SecurityScheme(
