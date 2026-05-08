@@ -30,6 +30,12 @@ WORKDIR /app
 # no login shell — principle of least privilege.
 RUN groupadd -r taskflow && useradd -r -g taskflow taskflow
 
+# Update system packages to get latest security patches.
+# eclipse-temurin:21-jre-jammy may ship with vulnerable versions
+# of system libraries (openssl, curl, etc.).
+# apt-get upgrade pulls fixed versions from Ubuntu 22.04 repos.
+RUN apt-get update && apt-get upgrade -y && rm -rf /var/lib/apt/lists/*
+
 # Copy the pre-built JAR from the Docker build context.
 # In the CD pipeline, the JAR is copied to the repo root as app.jar
 # before the Docker build is invoked (see ci-cd.yml: "Prepare JAR" step).

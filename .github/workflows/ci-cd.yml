@@ -437,7 +437,7 @@ jobs:
         with:
           image-ref: ${{ env.IMAGE_NAME }}@${{ steps.build.outputs.digest }}
           format: 'table'
-          exit-code: '1'
+          exit-code: '0'
           ignore-unfixed: true
           severity: 'CRITICAL'
           output: trivy-report.txt
@@ -446,11 +446,22 @@ jobs:
           TRIVY_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Upload Trivy report
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: trivy-report
           path: trivy-report.txt
           retention-days: 7
+
+      - name: Block on CRITICAL CVE
+        run: |
+          if grep -q "CRITICAL" trivy-report.txt; then
+            echo "❌ CRITICAL CVE detected — blocking deployment"
+            cat trivy-report.txt
+            exit 1
+          else
+            echo "✅ No CRITICAL CVE detected"
+          fi
 
       # ── Deploy VPS ───────────────────────────────────────
       # Connects to the production VPS via SSH and deploys the new image.
