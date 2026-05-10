@@ -7,11 +7,14 @@ import com.mehdi.taskflow.config.CookieUtils;
 import com.mehdi.taskflow.config.MessageService;
 import com.mehdi.taskflow.config.SanitizationService;
 import com.mehdi.taskflow.security.JwtService;
+import com.mehdi.taskflow.security.SecurityUtils;
 import com.mehdi.taskflow.user.dto.AuthResponse;
 import com.mehdi.taskflow.user.dto.LoginRequest;
 import com.mehdi.taskflow.user.dto.RegisterRequest;
+import com.mehdi.taskflow.user.dto.UserResponse;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -42,6 +45,7 @@ public class UserService {
     private final AuditService auditService;
     private final RefreshTokenService refreshTokenService;
     private final SanitizationService sanitizationService;
+    private final SecurityUtils securityUtils;
 
     @Value("${application.jwt.expiration}")
     private long jwtExpiration;
@@ -56,19 +60,22 @@ public class UserService {
      * @param passwordEncoder       BCrypt encoder for password hashing
      * @param jwtService            service for JWT token generation
      * @param authenticationManager Spring Security authentication manager
-     * @param messageService utility component for resolving i18n messages based on the current request locale
-     * @param auditService   service for logging security audit events
-     * @param refreshTokenService service for refresh token generation and management
-     * @param sanitizationService service for sanitizing user-provided text input
+     * @param messageService        utility component for resolving i18n messages based on the current request locale
+     * @param auditService          service for logging security audit events
+     * @param refreshTokenService   service for refresh token generation and management
+     * @param sanitizationService   service for sanitizing user-provided text input
+     * @param securityUtils         utility for resolving the currently authenticated user
      */
-    public UserService(UserRepository userRepository,
-                       PasswordEncoder passwordEncoder,
-                       JwtService jwtService,
-                       AuthenticationManager authenticationManager,
-                       MessageService messageService,
-                       AuditService auditService,
-                       RefreshTokenService refreshTokenService,
-                       SanitizationService sanitizationService) {
+    public UserService(
+            UserRepository userRepository,
+            PasswordEncoder passwordEncoder,
+            JwtService jwtService,
+            AuthenticationManager authenticationManager,
+            MessageService messageService,
+            AuditService auditService,
+            RefreshTokenService refreshTokenService,
+            SanitizationService sanitizationService,
+            SecurityUtils securityUtils) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtService = jwtService;
@@ -77,6 +84,7 @@ public class UserService {
         this.auditService = auditService;
         this.refreshTokenService = refreshTokenService;
         this.sanitizationService = sanitizationService;
+        this.securityUtils = securityUtils;
     }
 
     /**
@@ -91,7 +99,7 @@ public class UserService {
      *
      * <p>The username is sanitized before persistence to prevent XSS attacks.</p>
      *
-     * @param request registration data containing username, email and password
+     * @param request  registration data containing username, email and password
      * @param response HTTP response used to write the JWT HttpOnly cookie
      * @return an {@link AuthResponse} containing the JWT token and user details
      * @throws IllegalArgumentException if the username or email is already in use
@@ -106,7 +114,8 @@ public class UserService {
         }
 
         User user = new User();
-        user.setUsername(sanitizationService.sanitizeAndLog(request.getUsername(), "username", auditService));        user.setEmail(request.getEmail());
+        user.setUsername(sanitizationService.sanitizeAndLog(request.getUsername(), "username", auditService));
+        user.setEmail(request.getEmail());
         user.setPassword(passwordEncoder.encode(request.getPassword()));
         user.setRole("ROLE_USER");
 
@@ -137,7 +146,7 @@ public class UserService {
      * if credentials are invalid, a {@code BadCredentialsException} is thrown
      * before any database lookup occurs.</p>
      *
-     * @param request login data containing the identifier (username or email) and password
+     * @param request  login data containing the identifier (username or email) and password
      * @param response HTTP response used to write the JWT HttpOnly cookie
      * @return an {@link AuthResponse} containing the JWT token and user details
      * @throws org.springframework.security.authentication.BadCredentialsException if the credentials are invalid
@@ -170,4 +179,29 @@ public class UserService {
         return authResponse;
     }
 
+
+    /**
+     * Returns the public profile of the currently authenticated user.
+     *
+     * <p>Resolves the authenticated user from the current
+     * {@link org.springframework.security.core.context.SecurityContext}
+     * via {@link SecurityUtils#getCurrentUser()} and maps it to a
+     * {@link UserResponse} DTO — password and sensitive fields are never exposed.</p>
+     *
+     * @return a {@link UserResponse} containing the authenticated user's public profile
+     * @throws org.springframework.security.access.AccessDeniedException if no authenticated user
+     *         is present in the current security context
+     */
+    @PreAuthorize("isAuthenticated()")
+    @Transactional(readOnly = true)
+    public UserResponse getUserProfile() {
+        User currentUser = securityUtils.getCurrentUser();
+        return new UserResponse(
+                currentUser.getId(),
+                currentUser.getUsername(),
+                currentUser.getEmail(),
+                currentUser.getRole(),
+                currentUser.getCreatedAt()
+        );
+    }
 }

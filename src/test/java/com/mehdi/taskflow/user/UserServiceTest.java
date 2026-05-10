@@ -6,9 +6,11 @@ import com.mehdi.taskflow.config.AuditService;
 import com.mehdi.taskflow.config.MessageService;
 import com.mehdi.taskflow.config.SanitizationService;
 import com.mehdi.taskflow.security.JwtService;
+import com.mehdi.taskflow.security.SecurityUtils;
 import com.mehdi.taskflow.user.dto.AuthResponse;
 import com.mehdi.taskflow.user.dto.LoginRequest;
 import com.mehdi.taskflow.user.dto.RegisterRequest;
+import com.mehdi.taskflow.user.dto.UserResponse;
 import jakarta.servlet.http.HttpServletResponse;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -20,6 +22,8 @@ import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.crypto.password.PasswordEncoder;
+
+import java.time.LocalDateTime;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
@@ -55,6 +59,9 @@ class UserServiceTest {
 
     @Mock
     private SanitizationService sanitizationService;
+
+    @Mock
+    private SecurityUtils securityUtils;
 
     @InjectMocks
     private UserService userService;
@@ -244,5 +251,25 @@ class UserServiceTest {
         assertEquals("Bad credentials", ex.getMessage());
         verify(userRepository, never()).findByUsername(anyString());
         verify(userRepository, never()).findByEmail(anyString());
+    }
+
+    @Test
+    void getUserProfile_shouldReturnUserProfile_whenAuthenticated() {
+        // GIVEN
+        LocalDateTime createdAt = LocalDateTime.of(2026, 1, 1, 0, 0);
+        user.setCreatedAt(createdAt);
+        when(securityUtils.getCurrentUser()).thenReturn(user);
+
+        // WHEN
+        UserResponse response = userService.getUserProfile();
+
+        // THEN
+        assertNotNull(response);
+        assertEquals(1L, response.getId());
+        assertEquals("mehdi", response.getUsername());
+        assertEquals("mehdi@test.com", response.getEmail());
+        assertEquals("ROLE_USER", response.getRole());
+        assertEquals(createdAt, response.getCreatedAt());
+        verify(securityUtils).getCurrentUser();
     }
 }
