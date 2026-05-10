@@ -1,10 +1,10 @@
 package com.mehdi.taskflow.user;
 
+import com.mehdi.taskflow.user.dto.ChangePasswordRequest;
 import com.mehdi.taskflow.user.dto.UserResponse;
+import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 /**
  * REST controller handling authenticated user profile operations.
@@ -45,5 +45,23 @@ public class UserController implements UserControllerApi {
     @GetMapping("/me")
     public ResponseEntity<UserResponse> getProfile() {
         return ResponseEntity.ok(userService.getUserProfile());
+    }
+
+    /**
+     * Changes the password of the currently authenticated user.
+     *
+     * <p>Verifies the current password, applies the new password encoded with BCrypt,
+     * and revokes all active refresh tokens to invalidate existing sessions.</p>
+     *
+     * @param request the change password data — current and new passwords
+     * @return {@code 204 No Content} on success,
+     *         {@code 400 Bad Request} if validation fails or current password is incorrect,
+     *         or {@code 401 Unauthorized} if no valid JWT token is present
+     */
+    @Override
+    @PostMapping("/me/password")
+    public ResponseEntity<Void> changePassword(@Valid @RequestBody ChangePasswordRequest request) {
+        userService.changePassword(request);
+        return ResponseEntity.noContent().build();
     }
 }

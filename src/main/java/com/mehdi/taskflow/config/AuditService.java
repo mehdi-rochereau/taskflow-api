@@ -144,4 +144,16 @@ public class AuditService {
             return "unknown";
         }
     }
+
+    /**
+     * Logs a successful password change event.
+     *
+     * <p>Called after the user's password has been successfully updated
+     * and all active refresh tokens have been revoked.</p>
+     *
+     * @param username the username of the user who changed their password
+     */
+    public void logPasswordChange(String username) {
+        AUDIT.info("[PASSWORD_CHANGE] username={} ip={}", username, extractIp());
+    }
 }

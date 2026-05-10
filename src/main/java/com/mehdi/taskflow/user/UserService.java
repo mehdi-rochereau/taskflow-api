@@ -8,10 +8,7 @@ import com.mehdi.taskflow.config.MessageService;
 import com.mehdi.taskflow.config.SanitizationService;
 import com.mehdi.taskflow.security.JwtService;
 import com.mehdi.taskflow.security.SecurityUtils;
-import com.mehdi.taskflow.user.dto.AuthResponse;
-import com.mehdi.taskflow.user.dto.LoginRequest;
-import com.mehdi.taskflow.user.dto.RegisterRequest;
-import com.mehdi.taskflow.user.dto.UserResponse;
+import com.mehdi.taskflow.user.dto.*;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -203,5 +200,39 @@ public class UserService {
                 currentUser.getRole(),
                 currentUser.getCreatedAt()
         );
+    }
+
+    /**
+     * Changes the authenticated user's password.
+     *
+     * <p>Verifies the current password against the stored BCrypt hash before
+     * applying the new password. Rejects the change if the new password is
+     * identical to the current one.</p>
+     *
+     * <p>All active refresh tokens are revoked after a successful password change
+     * to invalidate all existing sessions — the user must re-authenticate.</p>
+     *
+     * @param request the change password data containing the current and new passwords
+     * @throws IllegalArgumentException if the current password is incorrect
+     *                                  or if the new password is identical to the current one
+     */
+    @PreAuthorize("isAuthenticated()")
+    @Transactional
+    public void changePassword(ChangePasswordRequest request) {
+        User currentUser = securityUtils.getCurrentUser();
+
+        if (!passwordEncoder.matches(request.getCurrentPassword(), currentUser.getPassword())) {
+            throw new IllegalArgumentException(messageService.get("error.password.incorrect"));
+        }
+
+        if (passwordEncoder.matches(request.getNewPassword(), currentUser.getPassword())) {
+            throw new IllegalArgumentException(messageService.get("error.password.same"));
+        }
+
+        currentUser.setPassword(passwordEncoder.encode(request.getNewPassword()));
+        userRepository.save(currentUser);
+
+        refreshTokenService.revokeAllUserTokens(currentUser);
+        auditService.logPasswordChange(currentUser.getUsername());
     }
 }

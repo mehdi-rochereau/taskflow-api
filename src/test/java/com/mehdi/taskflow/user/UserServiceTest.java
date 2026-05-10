@@ -7,10 +7,7 @@ import com.mehdi.taskflow.config.MessageService;
 import com.mehdi.taskflow.config.SanitizationService;
 import com.mehdi.taskflow.security.JwtService;
 import com.mehdi.taskflow.security.SecurityUtils;
-import com.mehdi.taskflow.user.dto.AuthResponse;
-import com.mehdi.taskflow.user.dto.LoginRequest;
-import com.mehdi.taskflow.user.dto.RegisterRequest;
-import com.mehdi.taskflow.user.dto.UserResponse;
+import com.mehdi.taskflow.user.dto.*;
 import jakarta.servlet.http.HttpServletResponse;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -271,5 +268,77 @@ class UserServiceTest {
         assertEquals("ROLE_USER", response.getRole());
         assertEquals(createdAt, response.getCreatedAt());
         verify(securityUtils).getCurrentUser();
+    }
+
+    @Test
+    void changePassword_shouldChangePassword_whenCurrentPasswordIsCorrect() {
+        // GIVEN
+        when(securityUtils.getCurrentUser()).thenReturn(user);
+        when(passwordEncoder.matches("OldPassword@2026", "hashedPassword")).thenReturn(true);
+        when(passwordEncoder.matches("NewPassword@2026", "hashedPassword")).thenReturn(false);
+        when(passwordEncoder.encode("NewPassword@2026")).thenReturn("newHashedPassword");
+
+        ChangePasswordRequest request = new ChangePasswordRequest();
+        request.setCurrentPassword("OldPassword@2026");
+        request.setNewPassword("NewPassword@2026");
+
+        // WHEN
+        userService.changePassword(request);
+
+        // THEN
+        verify(securityUtils).getCurrentUser();
+        verify(passwordEncoder).matches("OldPassword@2026", "hashedPassword");
+        verify(passwordEncoder).matches("NewPassword@2026", "hashedPassword");
+        verify(passwordEncoder).encode("NewPassword@2026");
+        verify(userRepository).save(argThat(u -> u.getPassword().equals("newHashedPassword")));
+        verify(refreshTokenService).revokeAllUserTokens(user);
+        verify(auditService).logPasswordChange("mehdi");
+    }
+
+    @Test
+    void changePassword_shouldThrow_whenCurrentPasswordIsIncorrect() {
+        // GIVEN
+        when(securityUtils.getCurrentUser()).thenReturn(user);
+        when(passwordEncoder.matches("WrongPassword@2026", "hashedPassword")).thenReturn(false);
+        when(messageService.get("error.password.incorrect")).thenReturn("Current password is incorrect");
+
+        ChangePasswordRequest request = new ChangePasswordRequest();
+        request.setCurrentPassword("WrongPassword@2026");
+        request.setNewPassword("NewPassword@2026");
+
+        // WHEN
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+                () -> userService.changePassword(request));
+
+        // THEN
+        assertEquals("Current password is incorrect", ex.getMessage());
+        verify(securityUtils).getCurrentUser();
+        verify(passwordEncoder).matches("WrongPassword@2026", "hashedPassword");
+        verify(userRepository, never()).save(any());
+        verify(refreshTokenService, never()).revokeAllUserTokens(any());
+    }
+
+    @Test
+    void changePassword_shouldThrow_whenNewPasswordIsSameAsCurrent() {
+        // GIVEN
+        when(securityUtils.getCurrentUser()).thenReturn(user);
+        when(passwordEncoder.matches("SamePassword@2026", "hashedPassword")).thenReturn(true);
+        when(messageService.get("error.password.same"))
+                .thenReturn("New password must be different from the current password");
+
+        ChangePasswordRequest request = new ChangePasswordRequest();
+        request.setCurrentPassword("SamePassword@2026");
+        request.setNewPassword("SamePassword@2026");
+
+        // WHEN
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+                () -> userService.changePassword(request));
+
+        // THEN
+        assertEquals("New password must be different from the current password", ex.getMessage());
+        verify(securityUtils).getCurrentUser();
+        verify(passwordEncoder, times(2)).matches("SamePassword@2026", "hashedPassword");
+        verify(userRepository, never()).save(any());
+        verify(refreshTokenService, never()).revokeAllUserTokens(any());
     }
 }
