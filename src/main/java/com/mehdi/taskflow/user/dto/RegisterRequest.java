@@ -3,6 +3,7 @@ package com.mehdi.taskflow.user.dto;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
 /**
@@ -11,8 +12,8 @@ import jakarta.validation.constraints.Size;
  * <p>Used as the request body for {@code POST /api/auth/register}.
  * All fields are validated before processing — see constraint annotations for details.</p>
  *
- * @see com.mehdi.taskflow.auth.AuthController#register(RegisterRequest)
- * @see com.mehdi.taskflow.user.UserService#register(RegisterRequest)
+ * @see com.mehdi.taskflow.auth.AuthController#register(RegisterRequest, jakarta.servlet.http.HttpServletResponse)
+ * @see com.mehdi.taskflow.user.UserService#register(RegisterRequest, jakarta.servlet.http.HttpServletResponse)
  */
 @Schema(
         name = "RegisterRequest",
@@ -50,17 +51,35 @@ public class RegisterRequest {
 
     /**
      * Plain-text password for the new account.
-     * Must be at least 8 characters. Encoded with BCrypt before persistence.
+     *
+     * <p>Must meet the following strength requirements:</p>
+     * <ul>
+     *   <li>At least 8 characters</li>
+     *   <li>At least one uppercase letter (A-Z)</li>
+     *   <li>At least one digit (0-9)</li>
+     *   <li>At least one special character</li>
+     * </ul>
+     *
+     * <p>Encoded with BCrypt before persistence — never stored in plain text.</p>
      */
     @Schema(
-            description = "Plain-text password. Minimum 8 characters. Stored as BCrypt hash.",
-            example = "password123",
+            description = """
+            Plain-text password. Must contain at least:
+            - 8 characters
+            - 1 uppercase letter (A-Z)
+            - 1 digit (0-9)
+            - 1 special character
+            Stored as BCrypt hash — never in plain text.
+            """,
+            example = "Mehdi@2026",
             minLength = 8,
             requiredMode = Schema.RequiredMode.REQUIRED
     )
     @NotBlank(message = "{validation.password.required}")
-    @Size(min = 8, message = "{validation.password.size}")
-    private String password;
+    @Pattern(
+            regexp = "^(?=.*[A-Z])(?=.*[0-9])(?=.*[^a-zA-Z0-9]).{8,}$",
+            message = "{validation.password.strength}"
+    )    private String password;
 
     /**
      * Default constructor required for JSON deserialization.
