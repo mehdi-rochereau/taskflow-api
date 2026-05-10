@@ -44,7 +44,7 @@ public interface AuthControllerApi {
                     **Constraints:**
                     - `username` must be between 3 and 50 characters and unique
                     - `email` must be a valid email address and unique
-                    - `password` must be at least 8 characters
+                    - `password` must be at least 8 characters with 1 uppercase, 1 digit and 1 special character
                     """,
             parameters = {
                     @Parameter(ref = "#/components/parameters/Accept-Language")
