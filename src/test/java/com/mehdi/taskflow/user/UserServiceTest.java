@@ -341,4 +341,108 @@ class UserServiceTest {
         verify(userRepository, never()).save(any());
         verify(refreshTokenService, never()).revokeAllUserTokens(any());
     }
+
+    @Test
+    void updateProfile_shouldUpdateAndReturnProfile_whenDataIsValid() {
+        // GIVEN
+        when(securityUtils.getCurrentUser()).thenReturn(user);
+        when(sanitizationService.sanitizeAndLog(any(), any(), any()))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+        when(userRepository.existsByUsername("mehdi_updated")).thenReturn(false);
+        when(userRepository.existsByEmail("mehdi.updated@test.com")).thenReturn(false);
+        when(userRepository.save(any(User.class))).thenReturn(user);
+
+        UpdateProfileRequest request = new UpdateProfileRequest();
+        request.setUsername("mehdi_updated");
+        request.setEmail("mehdi.updated@test.com");
+
+        // WHEN
+        UserResponse response = userService.updateProfile(request);
+
+        // THEN
+        assertNotNull(response);
+        assertEquals("mehdi_updated", response.getUsername());
+        assertEquals("mehdi.updated@test.com", response.getEmail());
+        verify(securityUtils).getCurrentUser();
+        verify(userRepository).existsByUsername("mehdi_updated");
+        verify(userRepository).existsByEmail("mehdi.updated@test.com");
+        verify(userRepository).save(argThat(u ->
+                u.getUsername().equals("mehdi_updated")
+                        && u.getEmail().equals("mehdi.updated@test.com")
+        ));
+        verify(auditService).logProfileUpdate("mehdi_updated");
+    }
+
+    @Test
+    void updateProfile_shouldUpdateAndReturnProfile_whenSameUsernameAndEmail() {
+        // GIVEN — user keeps the same username and email
+        when(securityUtils.getCurrentUser()).thenReturn(user);
+        when(sanitizationService.sanitizeAndLog(any(), any(), any()))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+        when(userRepository.save(any(User.class))).thenReturn(user);
+
+        UpdateProfileRequest request = new UpdateProfileRequest();
+        request.setUsername("mehdi");
+        request.setEmail("mehdi@test.com");
+
+        // WHEN
+        UserResponse response = userService.updateProfile(request);
+
+        // THEN
+        assertNotNull(response);
+        assertEquals("mehdi", response.getUsername());
+        assertEquals("mehdi@test.com", response.getEmail());
+        verify(userRepository, never()).existsByUsername(any());
+        verify(userRepository, never()).existsByEmail(any());
+        verify(userRepository).save(any(User.class));
+    }
+
+    @Test
+    void updateProfile_shouldThrow_whenUsernameAlreadyTakenByAnotherAccount() {
+        // GIVEN
+        when(securityUtils.getCurrentUser()).thenReturn(user);
+        when(sanitizationService.sanitizeAndLog(any(), any(), any()))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+        when(userRepository.existsByUsername("other_user")).thenReturn(true);
+        when(messageService.get("error.username.taken.other"))
+                .thenReturn("This username is already taken by another account");
+
+        UpdateProfileRequest request = new UpdateProfileRequest();
+        request.setUsername("other_user");
+        request.setEmail("mehdi@test.com");
+
+        // WHEN
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+                () -> userService.updateProfile(request));
+
+        // THEN
+        assertEquals("This username is already taken by another account", ex.getMessage());
+        verify(userRepository, never()).save(any());
+        verify(auditService, never()).logProfileUpdate(any());
+    }
+
+    @Test
+    void updateProfile_shouldThrow_whenEmailAlreadyTakenByAnotherAccount() {
+        // GIVEN
+        when(securityUtils.getCurrentUser()).thenReturn(user);
+        when(sanitizationService.sanitizeAndLog(any(), any(), any()))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+        when(userRepository.existsByUsername("mehdi_updated")).thenReturn(false);
+        when(userRepository.existsByEmail("other@test.com")).thenReturn(true);
+        when(messageService.get("error.email.taken.other"))
+                .thenReturn("This email is already in use by another account");
+
+        UpdateProfileRequest request = new UpdateProfileRequest();
+        request.setUsername("mehdi_updated");
+        request.setEmail("other@test.com");
+
+        // WHEN
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+                () -> userService.updateProfile(request));
+
+        // THEN
+        assertEquals("This email is already in use by another account", ex.getMessage());
+        verify(userRepository, never()).save(any());
+        verify(auditService, never()).logProfileUpdate(any());
+    }
 }

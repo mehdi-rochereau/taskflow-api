@@ -1,6 +1,7 @@
 package com.mehdi.taskflow.user;
 
 import com.mehdi.taskflow.user.dto.ChangePasswordRequest;
+import com.mehdi.taskflow.user.dto.UpdateProfileRequest;
 import com.mehdi.taskflow.user.dto.UserResponse;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
@@ -63,5 +64,23 @@ public class UserController implements UserControllerApi {
     public ResponseEntity<Void> changePassword(@Valid @RequestBody ChangePasswordRequest request) {
         userService.changePassword(request);
         return ResponseEntity.noContent().build();
+    }
+
+    /**
+     * Updates the profile of the currently authenticated user.
+     *
+     * <p>Validates uniqueness of the new username and email before applying changes.
+     * The username is sanitized before persistence.</p>
+     *
+     * @param request the updated profile data — new username and email
+     * @return {@code 200 OK} with the updated user profile as {@link UserResponse},
+     *         {@code 400 Bad Request} if validation fails or username/email is already taken,
+     *         or {@code 401 Unauthorized} if no valid JWT token is present
+     */
+    @Override
+    @PutMapping("/me")
+    public ResponseEntity<UserResponse> updateProfile(
+            @Valid @RequestBody UpdateProfileRequest request) {
+        return ResponseEntity.ok(userService.updateProfile(request));
     }
 }

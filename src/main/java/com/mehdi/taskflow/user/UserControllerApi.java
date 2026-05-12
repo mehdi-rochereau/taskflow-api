@@ -1,6 +1,7 @@
 package com.mehdi.taskflow.user;
 
 import com.mehdi.taskflow.user.dto.ChangePasswordRequest;
+import com.mehdi.taskflow.user.dto.UpdateProfileRequest;
 import com.mehdi.taskflow.user.dto.UserResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -199,4 +200,116 @@ public interface UserControllerApi {
             }
     )
     ResponseEntity<Void> changePassword(@Valid @RequestBody ChangePasswordRequest request);
+
+    @Operation(
+            summary = "Update authenticated user profile",
+            description = """
+                Updates the username and email of the currently authenticated user.
+                
+                **Uniqueness:** The new username and email must not already be taken
+                by another account. Re-submitting unchanged values is allowed.
+                
+                **Sanitization:** The username is sanitized before persistence
+                to prevent XSS attacks.
+                """,
+            parameters = {
+                    @Parameter(ref = "#/components/parameters/Accept-Language")
+            },
+            responses = {
+                    @ApiResponse(
+                            responseCode = "200",
+                            description = "Profile updated successfully",
+                            content = @Content(
+                                    mediaType = "application/json",
+                                    schema = @Schema(implementation = UserResponse.class),
+                                    examples = @ExampleObject(
+                                            name = "Success",
+                                            value = """
+                                                {
+                                                  "id": 1,
+                                                  "username": "mehdi_updated",
+                                                  "email": "mehdi.updated@example.com",
+                                                  "role": "ROLE_USER",
+                                                  "createdAt": "2026-04-01T10:00:00"
+                                                }
+                                                """
+                                    )
+                            )
+                    ),
+                    @ApiResponse(
+                            responseCode = "400",
+                            description = "Validation failed or username/email already taken by another account",
+                            content = @Content(
+                                    mediaType = "application/json",
+                                    examples = {
+                                            @ExampleObject(
+                                                    name = "Validation error",
+                                                    value = """
+                                                        {
+                                                          "timestamp": "2026-04-18T10:00:00",
+                                                          "status": 400,
+                                                          "errors": {
+                                                            "username": ["Username is required"],
+                                                            "email": ["Invalid email address"]
+                                                          }
+                                                        }
+                                                        """
+                                            ),
+                                            @ExampleObject(
+                                                    name = "Username taken",
+                                                    value = """
+                                                        {
+                                                          "timestamp": "2026-04-18T10:00:00",
+                                                          "status": 400,
+                                                          "message": "This username is already taken by another account"
+                                                        }
+                                                        """
+                                            ),
+                                            @ExampleObject(
+                                                    name = "Email taken",
+                                                    value = """
+                                                        {
+                                                          "timestamp": "2026-04-18T10:00:00",
+                                                          "status": 400,
+                                                          "message": "This email is already in use by another account"
+                                                        }
+                                                        """
+                                            )
+                                    }
+                            )
+                    ),
+                    @ApiResponse(
+                            responseCode = "401",
+                            description = "Missing or invalid JWT token",
+                            content = @Content(
+                                    mediaType = "application/json",
+                                    examples = @ExampleObject(
+                                            value = """
+                                                {
+                                                  "status": 401,
+                                                  "message": "Authentication required"
+                                                }
+                                                """
+                                    )
+                            )
+                    ),
+                    @ApiResponse(
+                            responseCode = "500",
+                            description = "Unexpected server error",
+                            content = @Content(
+                                    mediaType = "application/json",
+                                    examples = @ExampleObject(
+                                            value = """
+                                                {
+                                                  "timestamp": "2026-04-18T10:00:00",
+                                                  "status": 500,
+                                                  "message": "An unexpected error occurred"
+                                                }
+                                                """
+                                    )
+                            )
+                    )
+            }
+    )
+    ResponseEntity<UserResponse> updateProfile(@Valid @RequestBody UpdateProfileRequest request);
 }

@@ -121,6 +121,29 @@ public class AuditService {
     }
 
     /**
+     * Logs a successful password change event.
+     *
+     * <p>Called after the user's password has been successfully updated
+     * and all active refresh tokens have been revoked.</p>
+     *
+     * @param username the username of the user who changed their password
+     */
+    public void logPasswordChange(String username) {
+        AUDIT.info("[PASSWORD_CHANGE] username={} ip={}", username, extractIp());
+    }
+
+    /**
+     * Logs a successful profile update event.
+     *
+     * <p>Called after the user's username or email has been successfully updated.</p>
+     *
+     * @param username the updated username of the user
+     */
+    public void logProfileUpdate(String username) {
+        AUDIT.info("[PROFILE_UPDATE] username={} ip={}", username, extractIp());
+    }
+
+    /**
      * Extracts the client IP address from the current HTTP request context.
      *
      * <p>Checks the {@code X-Forwarded-For} header first to handle
@@ -143,17 +166,5 @@ public class AuditService {
         } catch (Exception e) {
             return "unknown";
         }
-    }
-
-    /**
-     * Logs a successful password change event.
-     *
-     * <p>Called after the user's password has been successfully updated
-     * and all active refresh tokens have been revoked.</p>
-     *
-     * @param username the username of the user who changed their password
-     */
-    public void logPasswordChange(String username) {
-        AUDIT.info("[PASSWORD_CHANGE] username={} ip={}", username, extractIp());
     }
 }

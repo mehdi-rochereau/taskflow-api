@@ -235,4 +235,51 @@ public class UserService {
         refreshTokenService.revokeAllUserTokens(currentUser);
         auditService.logPasswordChange(currentUser.getUsername());
     }
+
+    /**
+     * Updates the authenticated user's profile.
+     *
+     * <p>Validates that the new username and email are not already taken by another account
+     * before applying the changes. The current user's own username and email are excluded
+     * from the uniqueness check to allow re-submitting unchanged values.</p>
+     *
+     * <p>The new username is sanitized before persistence to prevent XSS attacks.</p>
+     *
+     * @param request the updated profile data containing the new username and email
+     * @return a {@link UserResponse} containing the updated user's public profile
+     * @throws IllegalArgumentException if the new username or email is already taken
+     *                                  by another account
+     */
+    @PreAuthorize("isAuthenticated()")
+    @Transactional
+    public UserResponse updateProfile(UpdateProfileRequest request) {
+        User currentUser = securityUtils.getCurrentUser();
+
+        String sanitizedUsername = sanitizationService.sanitizeAndLog(
+                request.getUsername(), "username", auditService);
+
+        if (!currentUser.getUsername().equals(sanitizedUsername)
+                && userRepository.existsByUsername(sanitizedUsername)) {
+            throw new IllegalArgumentException(messageService.get("error.username.taken.other"));
+        }
+
+        if (!currentUser.getEmail().equals(request.getEmail())
+                && userRepository.existsByEmail(request.getEmail())) {
+            throw new IllegalArgumentException(messageService.get("error.email.taken.other"));
+        }
+
+        currentUser.setUsername(sanitizedUsername);
+        currentUser.setEmail(request.getEmail());
+        userRepository.save(currentUser);
+
+        auditService.logProfileUpdate(currentUser.getUsername());
+
+        return new UserResponse(
+                currentUser.getId(),
+                currentUser.getUsername(),
+                currentUser.getEmail(),
+                currentUser.getRole(),
+                currentUser.getCreatedAt()
+        );
+    }
 }
