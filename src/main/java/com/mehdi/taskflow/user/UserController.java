@@ -1,8 +1,10 @@
 package com.mehdi.taskflow.user;
 
 import com.mehdi.taskflow.user.dto.ChangePasswordRequest;
+import com.mehdi.taskflow.user.dto.DeleteAccountRequest;
 import com.mehdi.taskflow.user.dto.UpdateProfileRequest;
 import com.mehdi.taskflow.user.dto.UserResponse;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -82,5 +84,27 @@ public class UserController implements UserControllerApi {
     public ResponseEntity<UserResponse> updateProfile(
             @Valid @RequestBody UpdateProfileRequest request) {
         return ResponseEntity.ok(userService.updateProfile(request));
+    }
+
+    /**
+     * Permanently deletes the account of the currently authenticated user.
+     *
+     * <p>Requires password confirmation. All associated data is removed
+     * via cascading database constraints. Both HttpOnly session cookies
+     * are cleared after successful deletion.</p>
+     *
+     * @param request  the deletion confirmation data — user's current password
+     * @param response the HTTP response used to clear the session cookies
+     * @return {@code 204 No Content} on success,
+     *         {@code 400 Bad Request} if validation fails or password is incorrect,
+     *         or {@code 401 Unauthorized} if no valid JWT token is present
+     */
+    @Override
+    @DeleteMapping("/me")
+    public ResponseEntity<Void> deleteAccount(
+            @Valid @RequestBody DeleteAccountRequest request,
+            HttpServletResponse response) {
+        userService.deleteAccount(request, response);
+        return ResponseEntity.noContent().build();
     }
 }

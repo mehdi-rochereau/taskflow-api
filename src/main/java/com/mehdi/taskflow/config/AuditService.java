@@ -144,6 +144,18 @@ public class AuditService {
     }
 
     /**
+     * Logs a permanent account deletion event.
+     *
+     * <p>Called before the user's account is deleted from the database.
+     * Logged at WARN level given the irreversible nature of the operation.</p>
+     *
+     * @param username the username of the account being deleted
+     */
+    public void logAccountDeletion(String username) {
+        AUDIT.warn("[ACCOUNT_DELETE] username={} ip={}", username, extractIp());
+    }
+
+    /**
      * Extracts the client IP address from the current HTTP request context.
      *
      * <p>Checks the {@code X-Forwarded-For} header first to handle

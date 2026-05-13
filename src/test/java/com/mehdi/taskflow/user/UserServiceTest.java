@@ -445,4 +445,46 @@ class UserServiceTest {
         verify(userRepository, never()).save(any());
         verify(auditService, never()).logProfileUpdate(any());
     }
+
+    @Test
+    void deleteAccount_shouldDeleteAccount_whenPasswordIsCorrect() {
+        // GIVEN
+        when(securityUtils.getCurrentUser()).thenReturn(user);
+        when(passwordEncoder.matches("MyPassword@2026", "hashedPassword")).thenReturn(true);
+
+        DeleteAccountRequest request = new DeleteAccountRequest();
+        request.setPassword("MyPassword@2026");
+
+        // WHEN
+        userService.deleteAccount(request, httpServletResponse);
+
+        // THEN
+        verify(securityUtils).getCurrentUser();
+        verify(passwordEncoder).matches("MyPassword@2026", "hashedPassword");
+        verify(auditService).logAccountDeletion("mehdi");
+        verify(userRepository).delete(user);
+    }
+
+    @Test
+    void deleteAccount_shouldThrow_whenPasswordIsIncorrect() {
+        // GIVEN
+        when(securityUtils.getCurrentUser()).thenReturn(user);
+        when(passwordEncoder.matches("WrongPassword@2026", "hashedPassword")).thenReturn(false);
+        when(messageService.get("error.account.deletion.invalid.password"))
+                .thenReturn("Password is incorrect — account deletion cancelled");
+
+        DeleteAccountRequest request = new DeleteAccountRequest();
+        request.setPassword("WrongPassword@2026");
+
+        // WHEN
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+                () -> userService.deleteAccount(request, httpServletResponse));
+
+        // THEN
+        assertEquals("Password is incorrect — account deletion cancelled", ex.getMessage());
+        verify(securityUtils).getCurrentUser();
+        verify(passwordEncoder).matches("WrongPassword@2026", "hashedPassword");
+        verify(auditService, never()).logAccountDeletion(any());
+        verify(userRepository, never()).delete(any());
+    }
 }

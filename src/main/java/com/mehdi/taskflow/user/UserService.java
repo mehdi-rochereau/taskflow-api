@@ -282,4 +282,42 @@ public class UserService {
                 currentUser.getCreatedAt()
         );
     }
+
+    /**
+     * Permanently deletes the authenticated user's account.
+     *
+     * <p>Requires password confirmation to prevent accidental or unauthorized deletion.
+     * All associated data is permanently removed via cascading database constraints:</p>
+     * <ul>
+     *   <li>Projects owned by the user</li>
+     *   <li>Tasks belonging to those projects</li>
+     *   <li>Active refresh tokens</li>
+     * </ul>
+     *
+     * <p>Both HttpOnly cookies ({@code jwt} and {@code refreshToken}) are cleared
+     * from the response after successful deletion to invalidate the current session.</p>
+     *
+     * <p>This operation is irreversible.</p>
+     *
+     * @param request  the deletion confirmation data containing the user's current password
+     * @param response the HTTP response used to clear the JWT and refresh token cookies
+     * @throws IllegalArgumentException if the provided password does not match
+     *                                  the stored BCrypt hash
+     */
+    @PreAuthorize("isAuthenticated()")
+    @Transactional
+    public void deleteAccount(DeleteAccountRequest request, HttpServletResponse response) {
+        User currentUser = securityUtils.getCurrentUser();
+
+        if (!passwordEncoder.matches(request.getPassword(), currentUser.getPassword())) {
+            throw new IllegalArgumentException(
+                    messageService.get("error.account.deletion.invalid.password"));
+        }
+
+        auditService.logAccountDeletion(currentUser.getUsername());
+        userRepository.delete(currentUser);
+
+        CookieUtils.clearCookie(response, "jwt", "/api", cookieSecure);
+        CookieUtils.clearCookie(response, "refreshToken", "/api/auth", cookieSecure);
+    }
 }

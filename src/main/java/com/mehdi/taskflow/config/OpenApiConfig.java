@@ -100,6 +100,7 @@ import org.springframework.context.annotation.Configuration;
                 )
         ),
         servers = {
+                @Server(url = "http://localhost:8082", description = "Local development server"),
                 @Server(url = "https://api.taskflow.mehdi-rochereau.dev", description = "Production server")
         }
 )

@@ -1,6 +1,7 @@
 package com.mehdi.taskflow.user;
 
 import com.mehdi.taskflow.user.dto.ChangePasswordRequest;
+import com.mehdi.taskflow.user.dto.DeleteAccountRequest;
 import com.mehdi.taskflow.user.dto.UpdateProfileRequest;
 import com.mehdi.taskflow.user.dto.UserResponse;
 import io.swagger.v3.oas.annotations.Operation;
@@ -11,6 +12,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -312,4 +314,99 @@ public interface UserControllerApi {
             }
     )
     ResponseEntity<UserResponse> updateProfile(@Valid @RequestBody UpdateProfileRequest request);
+
+    @Operation(
+            summary = "Delete authenticated user account",
+            description = """
+                Permanently deletes the authenticated user's account and all associated data.
+                
+                **Requires password confirmation** to prevent accidental or unauthorized deletion.
+                
+                **Data removed:**
+                - User account
+                - All owned projects
+                - All tasks belonging to those projects
+                - All active refresh tokens
+                
+                **Session:** Both `jwt` and `refreshToken` HttpOnly cookies are cleared
+                after successful deletion.
+                
+                ⚠️ **This operation is irreversible.**
+                """,
+            parameters = {
+                    @Parameter(ref = "#/components/parameters/Accept-Language")
+            },
+            responses = {
+                    @ApiResponse(
+                            responseCode = "204",
+                            description = "Account permanently deleted — session cookies cleared",
+                            content = @Content
+                    ),
+                    @ApiResponse(
+                            responseCode = "400",
+                            description = "Validation failed or password incorrect",
+                            content = @Content(
+                                    mediaType = "application/json",
+                                    examples = {
+                                            @ExampleObject(
+                                                    name = "Validation error",
+                                                    value = """
+                                                        {
+                                                          "timestamp": "2026-04-18T10:00:00",
+                                                          "status": 400,
+                                                          "errors": {
+                                                            "password": ["Current password is required"]
+                                                          }
+                                                        }
+                                                        """
+                                            ),
+                                            @ExampleObject(
+                                                    name = "Incorrect password",
+                                                    value = """
+                                                        {
+                                                          "timestamp": "2026-04-18T10:00:00",
+                                                          "status": 400,
+                                                          "message": "Password is incorrect — account deletion cancelled"
+                                                        }
+                                                        """
+                                            )
+                                    }
+                            )
+                    ),
+                    @ApiResponse(
+                            responseCode = "401",
+                            description = "Missing or invalid JWT token",
+                            content = @Content(
+                                    mediaType = "application/json",
+                                    examples = @ExampleObject(
+                                            value = """
+                                                {
+                                                  "status": 401,
+                                                  "message": "Authentication required"
+                                                }
+                                                """
+                                    )
+                            )
+                    ),
+                    @ApiResponse(
+                            responseCode = "500",
+                            description = "Unexpected server error",
+                            content = @Content(
+                                    mediaType = "application/json",
+                                    examples = @ExampleObject(
+                                            value = """
+                                                {
+                                                  "timestamp": "2026-04-18T10:00:00",
+                                                  "status": 500,
+                                                  "message": "An unexpected error occurred"
+                                                }
+                                                """
+                                    )
+                            )
+                    )
+            }
+    )
+    ResponseEntity<Void> deleteAccount(
+            @Valid @RequestBody DeleteAccountRequest request,
+            HttpServletResponse response);
 }
