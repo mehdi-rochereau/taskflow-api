@@ -189,11 +189,13 @@ public class RefreshTokenService {
 
     /**
      * Revokes all active refresh tokens for the given user.
-     * Used during logout to invalidate all sessions.
      *
-     * @param user the user whose tokens should be revoked
+     * <p>Called after a password change or account deletion to invalidate
+     * all existing sessions and force re-authentication.</p>
+     *
+     * @param user the user whose active refresh tokens should be revoked
      */
-    private void revokeAllUserTokens(User user) {
+    public void revokeAllUserTokens(User user) {
         refreshTokenRepository.revokeAllByUser(user);
     }
 

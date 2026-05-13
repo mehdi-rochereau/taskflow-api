@@ -7,11 +7,11 @@ import com.mehdi.taskflow.config.CookieUtils;
 import com.mehdi.taskflow.config.MessageService;
 import com.mehdi.taskflow.config.SanitizationService;
 import com.mehdi.taskflow.security.JwtService;
-import com.mehdi.taskflow.user.dto.AuthResponse;
-import com.mehdi.taskflow.user.dto.LoginRequest;
-import com.mehdi.taskflow.user.dto.RegisterRequest;
+import com.mehdi.taskflow.security.SecurityUtils;
+import com.mehdi.taskflow.user.dto.*;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -42,6 +42,7 @@ public class UserService {
     private final AuditService auditService;
     private final RefreshTokenService refreshTokenService;
     private final SanitizationService sanitizationService;
+    private final SecurityUtils securityUtils;
 
     @Value("${application.jwt.expiration}")
     private long jwtExpiration;
@@ -56,19 +57,22 @@ public class UserService {
      * @param passwordEncoder       BCrypt encoder for password hashing
      * @param jwtService            service for JWT token generation
      * @param authenticationManager Spring Security authentication manager
-     * @param messageService utility component for resolving i18n messages based on the current request locale
-     * @param auditService   service for logging security audit events
-     * @param refreshTokenService service for refresh token generation and management
-     * @param sanitizationService service for sanitizing user-provided text input
+     * @param messageService        utility component for resolving i18n messages based on the current request locale
+     * @param auditService          service for logging security audit events
+     * @param refreshTokenService   service for refresh token generation and management
+     * @param sanitizationService   service for sanitizing user-provided text input
+     * @param securityUtils         utility for resolving the currently authenticated user
      */
-    public UserService(UserRepository userRepository,
-                       PasswordEncoder passwordEncoder,
-                       JwtService jwtService,
-                       AuthenticationManager authenticationManager,
-                       MessageService messageService,
-                       AuditService auditService,
-                       RefreshTokenService refreshTokenService,
-                       SanitizationService sanitizationService) {
+    public UserService(
+            UserRepository userRepository,
+            PasswordEncoder passwordEncoder,
+            JwtService jwtService,
+            AuthenticationManager authenticationManager,
+            MessageService messageService,
+            AuditService auditService,
+            RefreshTokenService refreshTokenService,
+            SanitizationService sanitizationService,
+            SecurityUtils securityUtils) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtService = jwtService;
@@ -77,6 +81,7 @@ public class UserService {
         this.auditService = auditService;
         this.refreshTokenService = refreshTokenService;
         this.sanitizationService = sanitizationService;
+        this.securityUtils = securityUtils;
     }
 
     /**
@@ -91,7 +96,7 @@ public class UserService {
      *
      * <p>The username is sanitized before persistence to prevent XSS attacks.</p>
      *
-     * @param request registration data containing username, email and password
+     * @param request  registration data containing username, email and password
      * @param response HTTP response used to write the JWT HttpOnly cookie
      * @return an {@link AuthResponse} containing the JWT token and user details
      * @throws IllegalArgumentException if the username or email is already in use
@@ -106,7 +111,8 @@ public class UserService {
         }
 
         User user = new User();
-        user.setUsername(sanitizationService.sanitizeAndLog(request.getUsername(), "username", auditService));        user.setEmail(request.getEmail());
+        user.setUsername(sanitizationService.sanitizeAndLog(request.getUsername(), "username", auditService));
+        user.setEmail(request.getEmail());
         user.setPassword(passwordEncoder.encode(request.getPassword()));
         user.setRole("ROLE_USER");
 
@@ -137,7 +143,7 @@ public class UserService {
      * if credentials are invalid, a {@code BadCredentialsException} is thrown
      * before any database lookup occurs.</p>
      *
-     * @param request login data containing the identifier (username or email) and password
+     * @param request  login data containing the identifier (username or email) and password
      * @param response HTTP response used to write the JWT HttpOnly cookie
      * @return an {@link AuthResponse} containing the JWT token and user details
      * @throws org.springframework.security.authentication.BadCredentialsException if the credentials are invalid
@@ -170,4 +176,148 @@ public class UserService {
         return authResponse;
     }
 
+
+    /**
+     * Returns the public profile of the currently authenticated user.
+     *
+     * <p>Resolves the authenticated user from the current
+     * {@link org.springframework.security.core.context.SecurityContext}
+     * via {@link SecurityUtils#getCurrentUser()} and maps it to a
+     * {@link UserResponse} DTO — password and sensitive fields are never exposed.</p>
+     *
+     * @return a {@link UserResponse} containing the authenticated user's public profile
+     * @throws org.springframework.security.access.AccessDeniedException if no authenticated user
+     *         is present in the current security context
+     */
+    @PreAuthorize("isAuthenticated()")
+    @Transactional(readOnly = true)
+    public UserResponse getUserProfile() {
+        User currentUser = securityUtils.getCurrentUser();
+        return new UserResponse(
+                currentUser.getId(),
+                currentUser.getUsername(),
+                currentUser.getEmail(),
+                currentUser.getRole(),
+                currentUser.getCreatedAt()
+        );
+    }
+
+    /**
+     * Changes the authenticated user's password.
+     *
+     * <p>Verifies the current password against the stored BCrypt hash before
+     * applying the new password. Rejects the change if the new password is
+     * identical to the current one.</p>
+     *
+     * <p>All active refresh tokens are revoked after a successful password change
+     * to invalidate all existing sessions — the user must re-authenticate.</p>
+     *
+     * @param request the change password data containing the current and new passwords
+     * @throws IllegalArgumentException if the current password is incorrect
+     *                                  or if the new password is identical to the current one
+     */
+    @PreAuthorize("isAuthenticated()")
+    @Transactional
+    public void changePassword(ChangePasswordRequest request) {
+        User currentUser = securityUtils.getCurrentUser();
+
+        if (!passwordEncoder.matches(request.getCurrentPassword(), currentUser.getPassword())) {
+            throw new IllegalArgumentException(messageService.get("error.password.incorrect"));
+        }
+
+        if (passwordEncoder.matches(request.getNewPassword(), currentUser.getPassword())) {
+            throw new IllegalArgumentException(messageService.get("error.password.same"));
+        }
+
+        currentUser.setPassword(passwordEncoder.encode(request.getNewPassword()));
+        userRepository.save(currentUser);
+
+        refreshTokenService.revokeAllUserTokens(currentUser);
+        auditService.logPasswordChange(currentUser.getUsername());
+    }
+
+    /**
+     * Updates the authenticated user's profile.
+     *
+     * <p>Validates that the new username and email are not already taken by another account
+     * before applying the changes. The current user's own username and email are excluded
+     * from the uniqueness check to allow re-submitting unchanged values.</p>
+     *
+     * <p>The new username is sanitized before persistence to prevent XSS attacks.</p>
+     *
+     * @param request the updated profile data containing the new username and email
+     * @return a {@link UserResponse} containing the updated user's public profile
+     * @throws IllegalArgumentException if the new username or email is already taken
+     *                                  by another account
+     */
+    @PreAuthorize("isAuthenticated()")
+    @Transactional
+    public UserResponse updateProfile(UpdateProfileRequest request) {
+        User currentUser = securityUtils.getCurrentUser();
+
+        String sanitizedUsername = sanitizationService.sanitizeAndLog(
+                request.getUsername(), "username", auditService);
+
+        if (!currentUser.getUsername().equals(sanitizedUsername)
+                && userRepository.existsByUsername(sanitizedUsername)) {
+            throw new IllegalArgumentException(messageService.get("error.username.taken.other"));
+        }
+
+        if (!currentUser.getEmail().equals(request.getEmail())
+                && userRepository.existsByEmail(request.getEmail())) {
+            throw new IllegalArgumentException(messageService.get("error.email.taken.other"));
+        }
+
+        currentUser.setUsername(sanitizedUsername);
+        currentUser.setEmail(request.getEmail());
+        userRepository.save(currentUser);
+
+        auditService.logProfileUpdate(currentUser.getUsername());
+
+        return new UserResponse(
+                currentUser.getId(),
+                currentUser.getUsername(),
+                currentUser.getEmail(),
+                currentUser.getRole(),
+                currentUser.getCreatedAt()
+        );
+    }
+
+    /**
+     * Permanently deletes the authenticated user's account.
+     *
+     * <p>Requires password confirmation to prevent accidental or unauthorized deletion.
+     * All associated data is permanently removed via cascading database constraints:</p>
+     * <ul>
+     *   <li>Projects owned by the user</li>
+     *   <li>Tasks belonging to those projects</li>
+     *   <li>Active refresh tokens</li>
+     * </ul>
+     *
+     * <p>Both HttpOnly cookies ({@code jwt} and {@code refreshToken}) are cleared
+     * from the response after successful deletion to invalidate the current session.</p>
+     *
+     * <p>This operation is irreversible.</p>
+     *
+     * @param request  the deletion confirmation data containing the user's current password
+     * @param response the HTTP response used to clear the JWT and refresh token cookies
+     * @throws IllegalArgumentException if the provided password does not match
+     *                                  the stored BCrypt hash
+     */
+    @PreAuthorize("isAuthenticated()")
+    @Transactional
+    public void deleteAccount(DeleteAccountRequest request, HttpServletResponse response) {
+        User currentUser = securityUtils.getCurrentUser();
+
+        if (!passwordEncoder.matches(request.getPassword(), currentUser.getPassword())) {
+            throw new IllegalArgumentException(
+                    messageService.get("error.account.deletion.invalid.password"));
+        }
+
+        auditService.logAccountDeletion(currentUser.getUsername());
+        userRepository.delete(currentUser);
+
+        CookieUtils.clearCookie(response, "jwt", "/api", cookieSecure);
+        CookieUtils.clearCookie(response, "refreshToken", "/api/auth", cookieSecure);
+    }
 }

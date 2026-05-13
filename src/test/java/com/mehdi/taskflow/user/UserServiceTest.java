@@ -6,9 +6,8 @@ import com.mehdi.taskflow.config.AuditService;
 import com.mehdi.taskflow.config.MessageService;
 import com.mehdi.taskflow.config.SanitizationService;
 import com.mehdi.taskflow.security.JwtService;
-import com.mehdi.taskflow.user.dto.AuthResponse;
-import com.mehdi.taskflow.user.dto.LoginRequest;
-import com.mehdi.taskflow.user.dto.RegisterRequest;
+import com.mehdi.taskflow.security.SecurityUtils;
+import com.mehdi.taskflow.user.dto.*;
 import jakarta.servlet.http.HttpServletResponse;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -20,6 +19,8 @@ import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.crypto.password.PasswordEncoder;
+
+import java.time.LocalDateTime;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
@@ -55,6 +56,9 @@ class UserServiceTest {
 
     @Mock
     private SanitizationService sanitizationService;
+
+    @Mock
+    private SecurityUtils securityUtils;
 
     @InjectMocks
     private UserService userService;
@@ -244,5 +248,243 @@ class UserServiceTest {
         assertEquals("Bad credentials", ex.getMessage());
         verify(userRepository, never()).findByUsername(anyString());
         verify(userRepository, never()).findByEmail(anyString());
+    }
+
+    @Test
+    void getUserProfile_shouldReturnUserProfile_whenAuthenticated() {
+        // GIVEN
+        LocalDateTime createdAt = LocalDateTime.of(2026, 1, 1, 0, 0);
+        user.setCreatedAt(createdAt);
+        when(securityUtils.getCurrentUser()).thenReturn(user);
+
+        // WHEN
+        UserResponse response = userService.getUserProfile();
+
+        // THEN
+        assertNotNull(response);
+        assertEquals(1L, response.getId());
+        assertEquals("mehdi", response.getUsername());
+        assertEquals("mehdi@test.com", response.getEmail());
+        assertEquals("ROLE_USER", response.getRole());
+        assertEquals(createdAt, response.getCreatedAt());
+        verify(securityUtils).getCurrentUser();
+    }
+
+    @Test
+    void changePassword_shouldChangePassword_whenCurrentPasswordIsCorrect() {
+        // GIVEN
+        when(securityUtils.getCurrentUser()).thenReturn(user);
+        when(passwordEncoder.matches("OldPassword@2026", "hashedPassword")).thenReturn(true);
+        when(passwordEncoder.matches("NewPassword@2026", "hashedPassword")).thenReturn(false);
+        when(passwordEncoder.encode("NewPassword@2026")).thenReturn("newHashedPassword");
+
+        ChangePasswordRequest request = new ChangePasswordRequest();
+        request.setCurrentPassword("OldPassword@2026");
+        request.setNewPassword("NewPassword@2026");
+
+        // WHEN
+        userService.changePassword(request);
+
+        // THEN
+        verify(securityUtils).getCurrentUser();
+        verify(passwordEncoder).matches("OldPassword@2026", "hashedPassword");
+        verify(passwordEncoder).matches("NewPassword@2026", "hashedPassword");
+        verify(passwordEncoder).encode("NewPassword@2026");
+        verify(userRepository).save(argThat(u -> u.getPassword().equals("newHashedPassword")));
+        verify(refreshTokenService).revokeAllUserTokens(user);
+        verify(auditService).logPasswordChange("mehdi");
+    }
+
+    @Test
+    void changePassword_shouldThrow_whenCurrentPasswordIsIncorrect() {
+        // GIVEN
+        when(securityUtils.getCurrentUser()).thenReturn(user);
+        when(passwordEncoder.matches("WrongPassword@2026", "hashedPassword")).thenReturn(false);
+        when(messageService.get("error.password.incorrect")).thenReturn("Current password is incorrect");
+
+        ChangePasswordRequest request = new ChangePasswordRequest();
+        request.setCurrentPassword("WrongPassword@2026");
+        request.setNewPassword("NewPassword@2026");
+
+        // WHEN
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+                () -> userService.changePassword(request));
+
+        // THEN
+        assertEquals("Current password is incorrect", ex.getMessage());
+        verify(securityUtils).getCurrentUser();
+        verify(passwordEncoder).matches("WrongPassword@2026", "hashedPassword");
+        verify(userRepository, never()).save(any());
+        verify(refreshTokenService, never()).revokeAllUserTokens(any());
+    }
+
+    @Test
+    void changePassword_shouldThrow_whenNewPasswordIsSameAsCurrent() {
+        // GIVEN
+        when(securityUtils.getCurrentUser()).thenReturn(user);
+        when(passwordEncoder.matches("SamePassword@2026", "hashedPassword")).thenReturn(true);
+        when(messageService.get("error.password.same"))
+                .thenReturn("New password must be different from the current password");
+
+        ChangePasswordRequest request = new ChangePasswordRequest();
+        request.setCurrentPassword("SamePassword@2026");
+        request.setNewPassword("SamePassword@2026");
+
+        // WHEN
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+                () -> userService.changePassword(request));
+
+        // THEN
+        assertEquals("New password must be different from the current password", ex.getMessage());
+        verify(securityUtils).getCurrentUser();
+        verify(passwordEncoder, times(2)).matches("SamePassword@2026", "hashedPassword");
+        verify(userRepository, never()).save(any());
+        verify(refreshTokenService, never()).revokeAllUserTokens(any());
+    }
+
+    @Test
+    void updateProfile_shouldUpdateAndReturnProfile_whenDataIsValid() {
+        // GIVEN
+        when(securityUtils.getCurrentUser()).thenReturn(user);
+        when(sanitizationService.sanitizeAndLog(any(), any(), any()))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+        when(userRepository.existsByUsername("mehdi_updated")).thenReturn(false);
+        when(userRepository.existsByEmail("mehdi.updated@test.com")).thenReturn(false);
+        when(userRepository.save(any(User.class))).thenReturn(user);
+
+        UpdateProfileRequest request = new UpdateProfileRequest();
+        request.setUsername("mehdi_updated");
+        request.setEmail("mehdi.updated@test.com");
+
+        // WHEN
+        UserResponse response = userService.updateProfile(request);
+
+        // THEN
+        assertNotNull(response);
+        assertEquals("mehdi_updated", response.getUsername());
+        assertEquals("mehdi.updated@test.com", response.getEmail());
+        verify(securityUtils).getCurrentUser();
+        verify(userRepository).existsByUsername("mehdi_updated");
+        verify(userRepository).existsByEmail("mehdi.updated@test.com");
+        verify(userRepository).save(argThat(u ->
+                u.getUsername().equals("mehdi_updated")
+                        && u.getEmail().equals("mehdi.updated@test.com")
+        ));
+        verify(auditService).logProfileUpdate("mehdi_updated");
+    }
+
+    @Test
+    void updateProfile_shouldUpdateAndReturnProfile_whenSameUsernameAndEmail() {
+        // GIVEN — user keeps the same username and email
+        when(securityUtils.getCurrentUser()).thenReturn(user);
+        when(sanitizationService.sanitizeAndLog(any(), any(), any()))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+        when(userRepository.save(any(User.class))).thenReturn(user);
+
+        UpdateProfileRequest request = new UpdateProfileRequest();
+        request.setUsername("mehdi");
+        request.setEmail("mehdi@test.com");
+
+        // WHEN
+        UserResponse response = userService.updateProfile(request);
+
+        // THEN
+        assertNotNull(response);
+        assertEquals("mehdi", response.getUsername());
+        assertEquals("mehdi@test.com", response.getEmail());
+        verify(userRepository, never()).existsByUsername(any());
+        verify(userRepository, never()).existsByEmail(any());
+        verify(userRepository).save(any(User.class));
+    }
+
+    @Test
+    void updateProfile_shouldThrow_whenUsernameAlreadyTakenByAnotherAccount() {
+        // GIVEN
+        when(securityUtils.getCurrentUser()).thenReturn(user);
+        when(sanitizationService.sanitizeAndLog(any(), any(), any()))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+        when(userRepository.existsByUsername("other_user")).thenReturn(true);
+        when(messageService.get("error.username.taken.other"))
+                .thenReturn("This username is already taken by another account");
+
+        UpdateProfileRequest request = new UpdateProfileRequest();
+        request.setUsername("other_user");
+        request.setEmail("mehdi@test.com");
+
+        // WHEN
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+                () -> userService.updateProfile(request));
+
+        // THEN
+        assertEquals("This username is already taken by another account", ex.getMessage());
+        verify(userRepository, never()).save(any());
+        verify(auditService, never()).logProfileUpdate(any());
+    }
+
+    @Test
+    void updateProfile_shouldThrow_whenEmailAlreadyTakenByAnotherAccount() {
+        // GIVEN
+        when(securityUtils.getCurrentUser()).thenReturn(user);
+        when(sanitizationService.sanitizeAndLog(any(), any(), any()))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+        when(userRepository.existsByUsername("mehdi_updated")).thenReturn(false);
+        when(userRepository.existsByEmail("other@test.com")).thenReturn(true);
+        when(messageService.get("error.email.taken.other"))
+                .thenReturn("This email is already in use by another account");
+
+        UpdateProfileRequest request = new UpdateProfileRequest();
+        request.setUsername("mehdi_updated");
+        request.setEmail("other@test.com");
+
+        // WHEN
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+                () -> userService.updateProfile(request));
+
+        // THEN
+        assertEquals("This email is already in use by another account", ex.getMessage());
+        verify(userRepository, never()).save(any());
+        verify(auditService, never()).logProfileUpdate(any());
+    }
+
+    @Test
+    void deleteAccount_shouldDeleteAccount_whenPasswordIsCorrect() {
+        // GIVEN
+        when(securityUtils.getCurrentUser()).thenReturn(user);
+        when(passwordEncoder.matches("MyPassword@2026", "hashedPassword")).thenReturn(true);
+
+        DeleteAccountRequest request = new DeleteAccountRequest();
+        request.setPassword("MyPassword@2026");
+
+        // WHEN
+        userService.deleteAccount(request, httpServletResponse);
+
+        // THEN
+        verify(securityUtils).getCurrentUser();
+        verify(passwordEncoder).matches("MyPassword@2026", "hashedPassword");
+        verify(auditService).logAccountDeletion("mehdi");
+        verify(userRepository).delete(user);
+    }
+
+    @Test
+    void deleteAccount_shouldThrow_whenPasswordIsIncorrect() {
+        // GIVEN
+        when(securityUtils.getCurrentUser()).thenReturn(user);
+        when(passwordEncoder.matches("WrongPassword@2026", "hashedPassword")).thenReturn(false);
+        when(messageService.get("error.account.deletion.invalid.password"))
+                .thenReturn("Password is incorrect — account deletion cancelled");
+
+        DeleteAccountRequest request = new DeleteAccountRequest();
+        request.setPassword("WrongPassword@2026");
+
+        // WHEN
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+                () -> userService.deleteAccount(request, httpServletResponse));
+
+        // THEN
+        assertEquals("Password is incorrect — account deletion cancelled", ex.getMessage());
+        verify(securityUtils).getCurrentUser();
+        verify(passwordEncoder).matches("WrongPassword@2026", "hashedPassword");
+        verify(auditService, never()).logAccountDeletion(any());
+        verify(userRepository, never()).delete(any());
     }
 }

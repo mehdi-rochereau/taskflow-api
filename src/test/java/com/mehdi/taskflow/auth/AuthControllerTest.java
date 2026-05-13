@@ -98,7 +98,7 @@ class AuthControllerTest {
         RegisterRequest request = new RegisterRequest();
         request.setUsername("mehdi");
         request.setEmail("mehdi@test.com");
-        request.setPassword("password123");
+        request.setPassword("Mehdi@2026");
 
         AuthResponse authResponse = new AuthResponse("fake-token", "mehdi", "mehdi@test.com");
         when(userService.register(any(RegisterRequest.class), any(HttpServletResponse.class)))
@@ -120,7 +120,7 @@ class AuthControllerTest {
         RegisterRequest request = new RegisterRequest();
         request.setUsername("");
         request.setEmail("mehdi@test.com");
-        request.setPassword("password123");
+        request.setPassword("Mehdi@2026");
 
         // WHEN & THEN
         mockMvc.perform(post("/api/auth/register")
@@ -140,7 +140,7 @@ class AuthControllerTest {
         RegisterRequest request = new RegisterRequest();
         request.setUsername("me");
         request.setEmail("mehdi@test.com");
-        request.setPassword("password123");
+        request.setPassword("Mehdi@2026");
 
         // WHEN & THEN
         mockMvc.perform(post("/api/auth/register")
@@ -161,7 +161,7 @@ class AuthControllerTest {
         RegisterRequest request = new RegisterRequest();
         request.setUsername("m".repeat(51));
         request.setEmail("mehdi@test.com");
-        request.setPassword("password123");
+        request.setPassword("Mehdi@2026");
 
         // WHEN & THEN
         mockMvc.perform(post("/api/auth/register")
@@ -182,7 +182,7 @@ class AuthControllerTest {
         RegisterRequest request = new RegisterRequest();
         request.setUsername("mehdi");
         request.setEmail("not-an-email");
-        request.setPassword("password123");
+        request.setPassword("Mehdi@2026");
 
         // WHEN & THEN
         mockMvc.perform(post("/api/auth/register")
@@ -203,7 +203,7 @@ class AuthControllerTest {
         RegisterRequest request = new RegisterRequest();
         request.setUsername("mehdi");
         request.setEmail("");
-        request.setPassword("password123");
+        request.setPassword("Mehdi@2026");
 
         // WHEN & THEN
         mockMvc.perform(post("/api/auth/register")
@@ -235,7 +235,7 @@ class AuthControllerTest {
                 .andExpect(jsonPath("$.errors.password").isArray())
                 .andExpect(jsonPath("$.errors.password",
                         Matchers.contains(
-                                "Password must be at least 8 characters")));
+                                "Password must be at least 8 characters and contain at least one uppercase letter, one digit and one special character")));
     }
 
     @Test
@@ -256,7 +256,7 @@ class AuthControllerTest {
                 .andExpect(jsonPath("$.errors.password",
                         Matchers.containsInAnyOrder(
                                 "Password is required",
-                                "Password must be at least 8 characters")));
+                                "Password must be at least 8 characters and contain at least one uppercase letter, one digit and one special character")));
     }
 
     @Test
@@ -265,7 +265,7 @@ class AuthControllerTest {
         RegisterRequest request = new RegisterRequest();
         request.setUsername("mehdi");
         request.setEmail("mehdi@test.com");
-        request.setPassword("password123");
+        request.setPassword("Mehdi@2026");
 
         when(userService.register(any(RegisterRequest.class), any(HttpServletResponse.class)))
                 .thenThrow(new IllegalArgumentException("This username is already taken"));
@@ -284,7 +284,7 @@ class AuthControllerTest {
         RegisterRequest request = new RegisterRequest();
         request.setUsername("mehdi");
         request.setEmail("mehdi@test.com");
-        request.setPassword("password123");
+        request.setPassword("Mehdi@2026");
         when(messageService.get("error.unexpected")).thenReturn("An unexpected error occurred");
         when(userService.register(any(RegisterRequest.class), any(HttpServletResponse.class)))
                 .thenThrow(new RuntimeException("unexpected"));
@@ -302,7 +302,7 @@ class AuthControllerTest {
         // GIVEN
         LoginRequest request = new LoginRequest();
         request.setIdentifier("mehdi");
-        request.setPassword("password123");
+        request.setPassword("Mehdi@2026");
 
         AuthResponse authResponse = new AuthResponse("fake-token", "mehdi", "mehdi@test.com");
         when(userService.login(any(LoginRequest.class), any(HttpServletResponse.class)))
@@ -323,7 +323,7 @@ class AuthControllerTest {
         // GIVEN
         LoginRequest request = new LoginRequest();
         request.setIdentifier("mehdi@test.com");
-        request.setPassword("password123");
+        request.setPassword("Mehdi@2026");
 
         AuthResponse authResponse = new AuthResponse("fake-token", "mehdi", "mehdi@test.com");
         when(userService.login(any(LoginRequest.class), any(HttpServletResponse.class)))
@@ -344,7 +344,7 @@ class AuthControllerTest {
         // GIVEN
         LoginRequest request = new LoginRequest();
         request.setIdentifier("");
-        request.setPassword("password123");
+        request.setPassword("Mehdi@2026");
 
         // WHEN & THEN
         mockMvc.perform(post("/api/auth/login")

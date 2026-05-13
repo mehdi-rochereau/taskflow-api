@@ -10,8 +10,8 @@ import jakarta.validation.constraints.NotBlank;
  * The {@code identifier} field accepts either a username or an email address,
  * supporting dual-identifier authentication.</p>
  *
- * @see com.mehdi.taskflow.auth.AuthController#login(LoginRequest)
- * @see com.mehdi.taskflow.user.UserService#login(LoginRequest)
+ * @see com.mehdi.taskflow.auth.AuthController#login(LoginRequest, jakarta.servlet.http.HttpServletResponse)
+ * @see com.mehdi.taskflow.user.UserService#login(LoginRequest, jakarta.servlet.http.HttpServletResponse)
  */
 @Schema(
         name = "LoginRequest",
@@ -37,7 +37,7 @@ public class LoginRequest {
      */
     @Schema(
             description = "Plain-text password to verify against the stored BCrypt hash.",
-            example = "password123",
+            example = "Mehdi@2026",
             requiredMode = Schema.RequiredMode.REQUIRED
     )
     @NotBlank(message = "{validation.password.required}")
