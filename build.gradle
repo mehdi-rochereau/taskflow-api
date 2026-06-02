@@ -48,6 +48,10 @@ dependencyCheck {
     }
 }
 
+tasks.named('dependencyCheckAnalyze') {
+    jvmArgs = ['-Xmx2g', '-Xms512m']
+}
+
 tasks.jacocoTestReport {
     dependsOn test  // ensures tests run before report generation
     reports {
