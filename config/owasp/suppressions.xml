@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<suppressions xmlns="https://jeremylong.github.io/DependencyCheck/dependency-suppression.1.3.xsd">
+
+    <!--
+        CVE-2026-34479 / CVE-2026-34477 — False positive on log4j-api and log4j-to-slf4j.
+        These CVEs affect log4j-1.2-api (the Log4j 1 compatibility bridge) exclusively.
+        TaskFlow does not use log4j-1.2-api or Log4j1XmlLayout.
+    -->
+    <suppress>
+        <notes>False positive — affects log4j-1.2-api bridge only, not log4j-api or log4j-to-slf4j</notes>
+        <packageUrl regex="true">^pkg:maven/org\.apache\.logging\.log4j/log4j.*$</packageUrl>
+        <cve>CVE-2026-34479</cve>
+    </suppress>
+    <suppress>
+        <notes>False positive — affects log4j-1.2-api bridge only, not log4j-api or log4j-to-slf4j</notes>
+        <packageUrl regex="true">^pkg:maven/org\.apache\.logging\.log4j/log4j.*$</packageUrl>
+        <cve>CVE-2026-34477</cve>
+    </suppress>
+
+    <!--
+        CVE-2026-40974 — Cassandra SSL hostname verification bypass.
+        CVE-2026-40971 — RabbitMQ SSL hostname verification bypass.
+        Fixed in Spring Boot 3.5.14. TaskFlow does not use Cassandra or RabbitMQ,
+        these auto-configurations are not active. Not exploitable in this project.
+        To be resolved by upgrading to Spring Boot 3.5.14 when released.
+    -->
+    <suppress until="2026-12-31">
+        <notes>Cassandra SSL — not exploitable, TaskFlow uses no Cassandra. Fix: upgrade to Spring Boot 3.5.14.</notes>
+        <packageUrl regex="true">^pkg:maven/org\.springframework\.boot/.*$</packageUrl>
+        <cve>CVE-2026-40974</cve>
+    </suppress>
+    <suppress until="2026-12-31">
+        <notes>RabbitMQ SSL — not exploitable, TaskFlow uses no RabbitMQ. Fix: upgrade to Spring Boot 3.5.14.</notes>
+        <packageUrl regex="true">^pkg:maven/org\.springframework\.boot/.*$</packageUrl>
+        <cve>CVE-2026-40971</cve>
+    </suppress>
+
+</suppressions>
