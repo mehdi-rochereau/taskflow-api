@@ -6,7 +6,7 @@ plugins {
     // Checkstyle — enforces Java code style conventions
     id 'checkstyle'
     // OWASP Dependency Check — scans dependencies for known CVEs
-    id 'org.owasp.dependencycheck' version '12.1.1'
+    id 'org.owasp.dependencycheck' version '12.2.2'
 }
 
 jacoco {
@@ -31,6 +31,9 @@ dependencyCheck {
     formats = ['HTML', 'JSON']
     // Skip test dependencies — they are not shipped to production
     skipTestGroups = true
+    // Suppression file — documents known false positives and non-exploitable CVEs
+    // Each suppression includes a justification and an expiry date for re-evaluation
+    suppressionFile = 'config/owasp/suppressions.xml'
     // NVD API key — speeds up CVE database updates significantly
     nvd {
         // API key read from environment variable — never hardcoded
@@ -88,7 +91,7 @@ repositories {
 
 ext {
     // Overriding Tomcat to ensure compatibility with Spring Boot 3.5.13
-    set('tomcat.version', '10.1.54')
+    set('tomcat.version', '10.1.55')
     // Forced to 3.18.0 to fix CVE-2025-48924 (StackOverflowError in ClassUtils)
     set('commons-lang3.version', '3.18.0')
 }

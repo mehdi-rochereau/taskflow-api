@@ -264,6 +264,7 @@ jobs:
         run: ./gradlew dependencyCheckAnalyze --no-daemon
         env:
           NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
+          GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx2g"
         continue-on-error: true
 
       - name: Upload OWASP report
