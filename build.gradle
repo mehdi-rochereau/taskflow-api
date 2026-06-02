@@ -31,6 +31,9 @@ dependencyCheck {
     formats = ['HTML', 'JSON']
     // Skip test dependencies — they are not shipped to production
     skipTestGroups = true
+    // Suppression file — documents known false positives and non-exploitable CVEs
+    // Each suppression includes a justification and an expiry date for re-evaluation
+    suppressionFile = 'config/owasp/suppressions.xml'
     // NVD API key — speeds up CVE database updates significantly
     nvd {
         // API key read from environment variable — never hardcoded
