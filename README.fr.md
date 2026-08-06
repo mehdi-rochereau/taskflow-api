@@ -270,6 +270,19 @@ Les erreurs de validation incluent le détail par champ :
 
 ---
 
+## Gestion de projet & Documentation
+
+Les trois dépôts TaskFlow sont pilotés depuis un
+[GitHub Project](https://github.com/users/mehdi-rochereau/projects/4) unique :
+issue d'abord, branche créée depuis l'issue, pull request, squash merge, avec un
+flux à cinq statuts (Backlog → In Progress → In Review → Verifying → Done).
+
+La documentation transverse vit dans
+[taskflow-deploy/docs](https://github.com/mehdi-rochereau/taskflow-deploy/tree/main/docs),
+dont le manuel complet de gestion de projet.
+
+---
+
 ## Écosystème
 
 | Dépôt                                                                                                 | Description |

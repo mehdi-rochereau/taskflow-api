@@ -272,6 +272,19 @@ Validation errors include field-level details:
 
 ---
 
+## Project Management & Documentation
+
+The three TaskFlow repositories are managed from a single
+[GitHub Project](https://github.com/users/mehdi-rochereau/projects/4):
+issue first, branch created from the issue, pull request, squash merge, with a
+five-status workflow (Backlog → In Progress → In Review → Verifying → Done).
+
+Cross-repository documentation lives in
+[taskflow-deploy/docs](https://github.com/mehdi-rochereau/taskflow-deploy/tree/main/docs),
+including the full project management manual.
+
+---
+
 ## Ecosystem
 
 | Repository | Description |
