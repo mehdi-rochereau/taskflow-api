@@ -10,7 +10,7 @@ A RESTful task management API built with Java 21 and Spring Boot 3.5, featuring 
 
 [![Java](https://img.shields.io/badge/Java-21-ED8B00?style=flat&logo=openjdk&logoColor=white)](https://openjdk.org/)
 [![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.5-6DB33F?style=flat&logo=springboot&logoColor=white)](https://spring.io/projects/spring-boot)
-[![MySQL](https://img.shields.io/badge/MySQL-8.4-4479A1?style=flat&logo=mysql&logoColor=white)](https://www.mysql.com/)
+[![MySQL](https://img.shields.io/badge/MySQL-8.0-4479A1?style=flat&logo=mysql&logoColor=white)](https://www.mysql.com/)
 [![CI/CD](https://github.com/mehdi-rochereau/taskflow-api/actions/workflows/ci-cd.yml/badge.svg)](https://github.com/mehdi-rochereau/taskflow-api/actions/workflows/ci-cd.yml)
 [![codecov](https://codecov.io/gh/mehdi-rochereau/taskflow-api/graph/badge.svg)](https://codecov.io/gh/mehdi-rochereau/taskflow-api)
 
@@ -32,7 +32,7 @@ For security details, see [SECURITY.md](SECURITY.md).
 | Framework | Spring Boot 3.5 |
 | Security | Spring Security + JWT (jjwt 0.12.6) |
 | Persistence | Spring Data JPA / Hibernate |
-| Database | MySQL 8.4 |
+| Database | MySQL 8.0 |
 | Migrations | Flyway |
 | Build tool | Gradle |
 | Testing | JUnit 5 + Mockito + MockMvc |
@@ -91,7 +91,7 @@ The application follows a standard layered architecture:
 ## Prerequisites
 
 - Java 21
-- MySQL 8.4 — either installed locally or via Docker
+- MySQL 8.0 — either installed locally or via Docker
 
 ---
 
@@ -129,7 +129,7 @@ docker run --name taskflow-mysql \
   -e MYSQL_ROOT_PASSWORD=root \
   -e MYSQL_DATABASE=taskflow \
   -p 3306:3306 \
-  -d mysql:8.4
+  -d mysql:8.0
 ```
 
 **3. Run the application**
@@ -294,4 +294,3 @@ including the full project management manual.
 | [taskflow-deploy](https://github.com/mehdi-rochereau/taskflow-deploy) | Docker Compose, Nginx, deployment scripts |
 | [SECURITY.md](SECURITY.md) | API security policy |
 | [taskflow-ui/SECURITY.md](https://github.com/mehdi-rochereau/taskflow-ui/blob/main/SECURITY.md) | Frontend security policy |
-```

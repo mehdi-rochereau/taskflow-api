@@ -224,4 +224,4 @@ de vraies données utilisateurs. Le délai de réponse peut varier.
 ## Liens
 
 - [taskflow-ui](https://github.com/mehdi-rochereau/taskflow-ui) — Frontend Angular
-- [taskflow-ui/SECURITY.md](https://github.com/mehdi-rochereau/taskflow-ui/blob/main/SECURITY.fr.md) — Politique de sécurité frontend
+- [taskflow-ui/SECURITY.fr.md](https://github.com/mehdi-rochereau/taskflow-ui/blob/main/SECURITY.fr.md) — Politique de sécurité frontend
