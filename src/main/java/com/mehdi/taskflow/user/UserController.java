@@ -42,7 +42,7 @@ public class UserController implements UserControllerApi {
      * the authenticated user from the current {@link org.springframework.security.core.context.SecurityContext}.</p>
      *
      * @return {@code 200 OK} with the authenticated user's public profile as {@link UserResponse},
-     *         or {@code 401 Unauthorized} if no valid JWT token is present
+     * or {@code 401 Unauthorized} if no valid JWT token is present
      */
     @Override
     @GetMapping("/me")
@@ -58,8 +58,8 @@ public class UserController implements UserControllerApi {
      *
      * @param request the change password data — current and new passwords
      * @return {@code 204 No Content} on success,
-     *         {@code 400 Bad Request} if validation fails or current password is incorrect,
-     *         or {@code 401 Unauthorized} if no valid JWT token is present
+     * {@code 400 Bad Request} if validation fails or current password is incorrect,
+     * or {@code 401 Unauthorized} if no valid JWT token is present
      */
     @Override
     @PostMapping("/me/password")
@@ -76,8 +76,8 @@ public class UserController implements UserControllerApi {
      *
      * @param request the updated profile data — new username and email
      * @return {@code 200 OK} with the updated user profile as {@link UserResponse},
-     *         {@code 400 Bad Request} if validation fails or username/email is already taken,
-     *         or {@code 401 Unauthorized} if no valid JWT token is present
+     * {@code 400 Bad Request} if validation fails or username/email is already taken,
+     * or {@code 401 Unauthorized} if no valid JWT token is present
      */
     @Override
     @PutMapping("/me")
@@ -89,15 +89,19 @@ public class UserController implements UserControllerApi {
     /**
      * Permanently deletes the account of the currently authenticated user.
      *
-     * <p>Requires password confirmation. All associated data is removed
-     * via cascading database constraints. Both HttpOnly session cookies
-     * are cleared after successful deletion.</p>
+     * <p>Requires password confirmation. Associated data is removed by the
+     * database itself through {@code ON DELETE} clauses declared on the foreign
+     * keys: owned projects, their tasks, refresh tokens and provider links.
+     * Tasks assigned to the user inside a project owned by someone else are
+     * preserved and become unassigned.</p>
+     *
+     * <p>Both HttpOnly session cookies are cleared after successful deletion.</p>
      *
      * @param request  the deletion confirmation data — user's current password
      * @param response the HTTP response used to clear the session cookies
      * @return {@code 204 No Content} on success,
-     *         {@code 400 Bad Request} if validation fails or password is incorrect,
-     *         or {@code 401 Unauthorized} if no valid JWT token is present
+     * {@code 400 Bad Request} if validation fails or password is incorrect,
+     * or {@code 401 Unauthorized} if no valid JWT token is present
      */
     @Override
     @DeleteMapping("/me")
