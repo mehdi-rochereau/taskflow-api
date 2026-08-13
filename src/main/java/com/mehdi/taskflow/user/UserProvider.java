@@ -76,8 +76,9 @@ public class UserProvider {
 
     /**
      * Timestamp when this provider was linked to the account.
+     * Set automatically on first persist. Cannot be updated afterwards.
      */
-    @Column(name = "linked_at", nullable = false)
+    @Column(name = "linked_at", nullable = false, updatable = false)
     private LocalDateTime linkedAt;
 
     /**
