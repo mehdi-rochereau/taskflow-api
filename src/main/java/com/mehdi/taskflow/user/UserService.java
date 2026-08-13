@@ -187,7 +187,7 @@ public class UserService {
      *
      * @return a {@link UserResponse} containing the authenticated user's public profile
      * @throws org.springframework.security.access.AccessDeniedException if no authenticated user
-     *         is present in the current security context
+     *                                                                   is present in the current security context
      */
     @PreAuthorize("isAuthenticated()")
     @Transactional(readOnly = true)
@@ -286,13 +286,23 @@ public class UserService {
     /**
      * Permanently deletes the authenticated user's account.
      *
-     * <p>Requires password confirmation to prevent accidental or unauthorized deletion.
-     * All associated data is permanently removed via cascading database constraints:</p>
+     * <p>Requires password confirmation to prevent accidental or unauthorized
+     * deletion. Associated data is removed by the database itself through
+     * {@code ON DELETE} clauses declared on the foreign keys, not by JPA
+     * cascading: no {@code @OneToMany} association is declared on {@link User}.</p>
+     *
+     * <p>Deleted along with the account:</p>
      * <ul>
-     *   <li>Projects owned by the user</li>
-     *   <li>Tasks belonging to those projects</li>
-     *   <li>Active refresh tokens</li>
+     *   <li>Projects owned by the user, via {@code fk_projects_owner ON DELETE CASCADE}</li>
+     *   <li>Tasks belonging to those projects, via {@code fk_tasks_project ON DELETE CASCADE}</li>
+     *   <li>Refresh tokens issued to the user, via {@code fk_refresh_tokens_user ON DELETE CASCADE}</li>
+     *   <li>Provider links, via {@code fk_user_providers_user ON DELETE CASCADE}</li>
      * </ul>
+     *
+     * <p>Not deleted: tasks assigned to the user inside a project owned by
+     * someone else. Their {@code assignee_id} is set to {@code NULL} via
+     * {@code fk_tasks_assignee ON DELETE SET NULL} — a task belongs to its
+     * project, not to its assignee.</p>
      *
      * <p>Both HttpOnly cookies ({@code jwt} and {@code refreshToken}) are cleared
      * from the response after successful deletion to invalidate the current session.</p>
