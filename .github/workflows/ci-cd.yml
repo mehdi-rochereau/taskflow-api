@@ -495,12 +495,18 @@ jobs:
             set -euo pipefail
 
             cd /opt/taskflow
-
+            
             # Immutable local image ID of the running container, kept for rollback.
+            # `{{.Image}}` returns the sha256 of the image the container was
+            # created from. `{{.Config.Image}}` was used before and returned the
+            # tag reference instead: by the time a rollback runs, `latest` already
+            # points at the new image, so restoring it would be a no-op.
             # The `|| echo ""` keeps the first deployment (no container yet) from
             # aborting the script under `set -e`.
-            PREVIOUS_IMAGE=$(docker inspect taskflow-api --format='{{.Config.Image}}' 2>/dev/null || echo "")
-            echo "previous_image=$PREVIOUS_IMAGE" > /tmp/taskflow_rollback.env
+                    PREVIOUS_IMAGE=$(docker inspect taskflow-api --format='{{.Image}}' 2>/dev/null || echo "")
+            # Variable name written here must match the one read by the rollback
+            # step after `source`. Shell variables are case sensitive.
+                    echo "PREVIOUS_IMAGE=$PREVIOUS_IMAGE" > /tmp/taskflow_rollback.env
 
             # Explicit guard rather than relying on `set -e` alone: it turns the
             # registry error into a labelled failure in the workflow logs.
@@ -606,17 +612,35 @@ jobs:
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
           script: |
+            set -euo pipefail
+            
             cd /opt/taskflow
-            source /tmp/taskflow_rollback.env
-            if [ -n "$PREVIOUS_IMAGE" ]; then
-              echo "⚠️ Rolling back to $PREVIOUS_IMAGE"
-              docker compose stop taskflow-api
-              docker tag $PREVIOUS_IMAGE ghcr.io/mehdi-rochereau/taskflow-api:latest
-              docker compose up -d taskflow-api
-              echo "✅ Rollback complete"
-            else
-              echo "❌ No previous image found, cannot rollback"
+            
+            # The file is written by the deploy step before the pull. If the
+            # deploy step never ran, there is nothing to restore.
+            if [ ! -f /tmp/taskflow_rollback.env ]; then
+              echo "No rollback file found, nothing to restore."
+              exit 0
             fi
+            
+            # `set -u` would abort on an undefined variable, so PREVIOUS_IMAGE
+            # is defaulted to empty before sourcing rather than after.
+            PREVIOUS_IMAGE=""
+            source /tmp/taskflow_rollback.env
+            
+            if [ -z "$PREVIOUS_IMAGE" ]; then
+              echo "No previous image recorded, cannot rollback."
+              echo "This is expected on a first deployment."
+              exit 0
+            fi
+            
+            echo "Rolling back to $PREVIOUS_IMAGE"
+            docker compose stop taskflow-api
+            # Re-point the tag docker-compose.yml resolves to the previous
+            # image ID, then let compose recreate the container from it.
+            docker tag "$PREVIOUS_IMAGE" ghcr.io/mehdi-rochereau/taskflow-api:latest
+            docker compose up -d taskflow-api
+            echo "Rollback complete, production runs $PREVIOUS_IMAGE"
 
       # ── Smoke tests ──────────────────────────────────────
       # Verifies that key public endpoints respond correctly after deploy.
