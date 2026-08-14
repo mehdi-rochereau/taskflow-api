@@ -468,10 +468,15 @@ jobs:
 
       # ── Deploy VPS ───────────────────────────────────────
       # Connects to the production VPS via SSH and deploys the new image.
-      # Before pulling the new image, the current container's image
-      # reference is saved to /tmp/taskflow_rollback.env.
-      # This allows the rollback step to restore the previous version
-      # if the health check fails after deployment.
+      #
+      # The script runs in strict mode: any failing command aborts the
+      # remote session with a non-zero status, which fails the step.
+      # Before this, a refused `docker compose pull` was followed by a
+      # no-op `up -d` and an unconditional success message, so the job
+      # reported green while production kept running the previous image.
+      #
+      # Before pulling, the current container's image ID is saved to
+      # /tmp/taskflow_rollback.env for the rollback step.
       #
       # VPS setup: Ubuntu 24.04 on Hetzner CPX22, Docker + Nginx + SSL.
       # SSH key: dedicated Ed25519 key generated for GitHub Actions only,
@@ -484,12 +489,86 @@ jobs:
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
           script: |
+            # -e  abort on the first failing command
+            # -u  abort on any undefined variable
+            # -o pipefail  a pipeline fails if any stage fails, not just the last
+            set -euo pipefail
+
             cd /opt/taskflow
+
+            # Immutable local image ID of the running container, kept for rollback.
+            # The `|| echo ""` keeps the first deployment (no container yet) from
+            # aborting the script under `set -e`.
             PREVIOUS_IMAGE=$(docker inspect taskflow-api --format='{{.Config.Image}}' 2>/dev/null || echo "")
             echo "previous_image=$PREVIOUS_IMAGE" > /tmp/taskflow_rollback.env
-            docker compose pull taskflow-api
+
+            # Explicit guard rather than relying on `set -e` alone: it turns the
+            # registry error into a labelled failure in the workflow logs.
+            echo "Pulling ghcr.io/mehdi-rochereau/taskflow-api:latest ..."
+            if ! docker compose pull taskflow-api; then
+              echo "Deployment aborted: docker compose pull was refused by the registry."
+              echo "Check the ghcr.io credentials stored on the VPS (docker login)."
+              exit 1
+            fi
+
+            # Recreates the container only if the resolved image changed.
             docker compose up -d taskflow-api
-            echo "✅ taskflow-api deployed"
+
+            echo "taskflow-api container started, digest verification pending"
+
+      # ── Verify deployed image digest ─────────────────────
+      # Proves that the running container was created from the image this
+      # job just pushed, instead of assuming it.
+      #
+      # `steps.build.outputs.digest` is the manifest digest returned by the
+      # registry on push. On the VPS, the container exposes a local image ID,
+      # which is not that digest; the registry digest is read from the image's
+      # RepoDigests entry matching our repository.
+      #
+      # The digest is passed through `envs` rather than interpolated into the
+      # script body, so the value is transported as data and never becomes
+      # part of the executed shell source.
+      - name: Verify deployed image digest
+        id: verify
+        uses: appleboy/ssh-action@v1
+        env:
+          EXPECTED_DIGEST: ${{ steps.build.outputs.digest }}
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          envs: EXPECTED_DIGEST
+          script: |
+            set -euo pipefail
+
+            # Local image ID the container was created from.
+            RUNNING_IMAGE_ID=$(docker inspect taskflow-api --format='{{.Image}}')
+
+            # RepoDigests lists every registry reference this image is known by.
+            # Captured into a variable first: piping `docker image inspect`
+            # directly into a filter that exits early can kill the producer with
+            # SIGPIPE, which `set -o pipefail` would report as a failure.
+            REPO_DIGESTS=$(docker image inspect "$RUNNING_IMAGE_ID" --format '{{range .RepoDigests}}{{println .}}{{end}}')
+
+            RUNNING_DIGEST=$(printf '%s\n' "$REPO_DIGESTS" \
+              | awk -F'@' '$0 ~ "^ghcr.io/mehdi-rochereau/taskflow-api@" { print $2; exit }')
+
+            echo "Expected digest : $EXPECTED_DIGEST"
+            echo "Running digest  : ${RUNNING_DIGEST:-<none>}"
+
+            # An empty result means the image carries no registry digest at all,
+            # typically a locally built or retagged image. That is a mismatch too.
+            if [ -z "$RUNNING_DIGEST" ]; then
+              echo "Deployment verification failed: the running image has no ghcr.io digest."
+              exit 1
+            fi
+
+            if [ "$RUNNING_DIGEST" != "$EXPECTED_DIGEST" ]; then
+              echo "Deployment verification failed: the running container does not use the image published by this run."
+              exit 1
+            fi
+
+            echo "Digest verified, production runs the image published by this run"
 
       # ── Health check ─────────────────────────────────────
       # Polls /actuator/health every 10 seconds for up to 3 minutes (18 attempts).
@@ -582,6 +661,7 @@ jobs:
           echo "| 🐳 Docker Build & Push | ${{ steps.build.outcome == 'success' && '✅' || '❌' }} |" >> $GITHUB_STEP_SUMMARY
           echo "| 🔒 Trivy Scan | ${{ steps.trivy.outcome == 'success' && '✅ No critical vulnerabilities' || '❌ Critical CVE detected' }} |" >> $GITHUB_STEP_SUMMARY
           echo "| 🚀 Deploy to VPS | ${{ steps.deploy.outcome == 'success' && '✅' || '❌' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| 🔎 Digest Verification | ${{ steps.verify.outcome == 'success' && '✅ Digest matches' || '❌ Mismatch or not verified' }} |" >> $GITHUB_STEP_SUMMARY
           echo "| ❤️ Health Check | ${{ steps.health.outcome == 'success' && '✅ API is UP' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
           echo "| 🧪 Smoke Tests | ${{ steps.smoke.outcome == 'success' && '✅ All passed' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
