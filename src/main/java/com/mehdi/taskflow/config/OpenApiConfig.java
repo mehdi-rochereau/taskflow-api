@@ -1,11 +1,9 @@
 package com.mehdi.taskflow.config;
 
 import io.swagger.v3.oas.annotations.OpenAPIDefinition;
-import io.swagger.v3.oas.annotations.enums.SecuritySchemeType;
 import io.swagger.v3.oas.annotations.info.Contact;
 import io.swagger.v3.oas.annotations.info.Info;
 import io.swagger.v3.oas.annotations.info.License;
-import io.swagger.v3.oas.annotations.security.SecurityScheme;
 import io.swagger.v3.oas.annotations.servers.Server;
 import io.swagger.v3.oas.models.Components;
 import io.swagger.v3.oas.models.OpenAPI;
@@ -17,9 +15,10 @@ import org.springframework.context.annotation.Configuration;
 /**
  * OpenAPI 3.1 documentation configuration for the TaskFlow API.
  *
- * <p>Configures the Swagger UI metadata via {@link OpenAPIDefinition}
- * and registers a global Bearer token security scheme via {@link SecurityScheme},
- * allowing JWT authentication directly from the Swagger UI interface.</p>
+ * <p>Configures the Swagger UI metadata via {@link OpenAPIDefinition}.
+ * No security scheme is declared: authentication travels in the {@code jwt}
+ * HttpOnly cookie, which the browser attaches on its own, so there is nothing
+ * for the reader to paste into an {@code Authorize} dialog.</p>
  *
  * <p>The Swagger UI is accessible at {@code /swagger-ui/index.html}, served from
  * {@code http://localhost:8082} locally and from
@@ -45,16 +44,11 @@ import org.springframework.context.annotation.Configuration;
                         
                         ### Authentication
                         
-                        All protected endpoints require a valid JWT token passed as a Bearer token in the `Authorization` header:
-                        ```
-                        Authorization: Bearer <your-token>
-                        ```
+                        Authentication travels in HttpOnly cookies, set by the API and sent back automatically by any client that keeps a cookie jar: browsers, Postman, curl with `-c` and `-b`. There is nothing to copy and no header to set.
                         
-                        To obtain a token:
-                        1. Register a new account via `POST /api/auth/register`
-                        2. Or login via `POST /api/auth/login`
-                        3. Copy the `token` from the response
-                        4. Click the **Authorize** button above and paste the token
+                        1. Register via `POST /api/auth/register`, or login via `POST /api/auth/login`
+                        2. The response sets the `jwt` and `refreshToken` cookies
+                        3. Every subsequent call is authenticated, including `Try it out` below
                         
                         ### Internationalization (i18n)
                         
@@ -88,7 +82,7 @@ import org.springframework.context.annotation.Configuration;
                         
                         ### Token expiration
                         
-                        JWT tokens are valid for **15 minutes**. After expiration, the client automatically refreshes the token using the `refreshToken` HttpOnly cookie via `POST /api/auth/refresh`.
+                        The `jwt` cookie is valid for **15 minutes**, scoped to `/api`. After expiration, the client calls `POST /api/auth/refresh`, which reads the `refreshToken` cookie, scoped to `/api/auth` and valid for 7 days, and issues a new pair.
                         """,
                 contact = @Contact(
                         name = "Mehdi Rochereau",
@@ -106,13 +100,6 @@ import org.springframework.context.annotation.Configuration;
                 @Server(url = "https://api.taskflow.mehdi-rochereau.dev", description = "Production server"),
                 @Server(url = "http://localhost:8082", description = "Local development server")
         }
-)
-@SecurityScheme(
-        name = "bearerAuth",
-        type = SecuritySchemeType.HTTP,
-        scheme = "bearer",
-        bearerFormat = "JWT",
-        description = "JWT Bearer token obtained from POST /api/auth/login or POST /api/auth/register"
 )
 public class OpenApiConfig {
 

@@ -20,14 +20,13 @@ import java.io.IOException;
 /**
  * JWT authentication filter executed once per HTTP request.
  *
- * <p>Intercepts incoming requests and validates the JWT token present
- * in the {@code Authorization: Bearer <token>} header.
- * If the token is valid, the authenticated user is stored in the
- * {@link SecurityContextHolder} for the duration of the request.</p>
+ * <p>Intercepts incoming requests and validates the JWT token carried by the
+ * {@code jwt} HttpOnly cookie. If the token is valid, the authenticated user is
+ * stored in the {@link SecurityContextHolder} for the duration of the request.</p>
  *
  * <p>Filter execution flow:</p>
  * <ol>
- *   <li>Extract the {@code Authorization} header — skip if absent or not Bearer</li>
+ *   <li>Extract the {@code jwt} cookie — continue the chain untouched if absent</li>
  *   <li>Extract the username from the JWT token</li>
  *   <li>Load the user from the database via {@link UserDetailsServiceImpl}</li>
  *   <li>Validate the token against the loaded user</li>
@@ -68,12 +67,12 @@ public class JwtFilter extends OncePerRequestFilter {
     /**
      * Processes the JWT token from the request and sets the authentication context.
      *
-     * <p>Extracts the JWT token from either the {@code Authorization: Bearer} header
-     * or the {@code jwt} HttpOnly cookie — header takes precedence.</p>
+     * <p>Extracts the JWT token from the {@code jwt} HttpOnly cookie.</p>
      *
-     * <p>Requests without a valid {@code Authorization: Bearer} header are passed
-     * through without modification — Spring Security will handle authorization
-     * based on the endpoint configuration.</p>
+     * <p>Requests without that cookie are passed through unmodified — Spring
+     * Security then applies the authorization rules of the endpoint, which will
+     * reject the request through the configured authentication entry point if
+     * the endpoint is protected.</p>
      *
      * <p>If the user is already authenticated in the current security context,
      * no re-authentication is performed.</p>
@@ -142,21 +141,19 @@ public class JwtFilter extends OncePerRequestFilter {
     }
 
     /**
-     * Extracts the JWT token from the request.
+     * Extracts the JWT token from the {@code jwt} HttpOnly cookie.
      *
-     * <p>Checks the {@code Authorization: Bearer} header first,
-     * then falls back to the {@code jwt} HttpOnly cookie.
-     * This dual strategy allows testing via Swagger/Postman with the header
-     * while using the secure cookie in production with Angular.</p>
+     * <p>The cookie is the only accepted transport. The
+     * {@code Authorization: Bearer} header used to be read first, a leftover
+     * from the period when the token was stored client-side. Browsers, Postman
+     * and curl all keep a cookie jar and send the cookie back automatically,
+     * so the header carried no capability the cookie does not already provide,
+     * while keeping a token value in reach of page JavaScript.</p>
      *
      * @param request the incoming HTTP request
-     * @return the JWT token string, or {@code null} if not found
+     * @return the JWT token string, or {@code null} if the cookie is absent
      */
     private String extractToken(HttpServletRequest request) {
-        String authHeader = request.getHeader("Authorization");
-        if (authHeader != null && authHeader.startsWith("Bearer ")) {
-            return authHeader.substring(7);
-        }
         if (request.getCookies() != null) {
             for (Cookie cookie : request.getCookies()) {
                 if ("jwt".equals(cookie.getName())) {

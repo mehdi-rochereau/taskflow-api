@@ -87,7 +87,7 @@ class UserServiceTest {
     }
 
     @Test
-    void register_shouldCreateUserAndReturnToken() {
+    void register_shouldCreateUserAndIssueCookies() {
         // GIVEN
         RefreshToken mockRefreshToken = new RefreshToken();
         mockRefreshToken.setToken("fake-refresh-token");
@@ -105,7 +105,6 @@ class UserServiceTest {
 
         // THEN
         assertNotNull(response);
-        assertEquals("fake-jwt-token", response.getToken());
         assertEquals("mehdi", response.getUsername());
         assertEquals("mehdi@test.com", response.getEmail());
         verify(userRepository).existsByUsername("mehdi");
@@ -120,6 +119,9 @@ class UserServiceTest {
         verify(jwtService).generateToken(argThat(u ->
                 u.getUsername().equals("mehdi")
                         && u.getPassword().equals("hashedPassword")));
+        // The JWT must not leak into the response body: AuthResponse carries the
+        // user's identity only, the token travels in the HttpOnly cookie.
+        verify(httpServletResponse).addHeader(eq("Set-Cookie"), contains("jwt="));
     }
 
     @Test
@@ -167,7 +169,7 @@ class UserServiceTest {
     }
 
     @Test
-    void login_shouldReturnToken_whenLoginWithUsername() {
+    void login_shouldAuthenticate_whenLoginWithUsername() {
         // GIVEN
         RefreshToken mockRefreshToken = new RefreshToken();
         mockRefreshToken.setToken("fake-refresh-token");
@@ -182,7 +184,6 @@ class UserServiceTest {
 
         // THEN
         assertNotNull(response);
-        assertEquals("fake-jwt-token", response.getToken());
         assertEquals("mehdi", response.getUsername());
         assertEquals("mehdi@test.com", response.getEmail());
         verify(userRepository).findByUsername("mehdi");
@@ -191,7 +192,7 @@ class UserServiceTest {
     }
 
     @Test
-    void login_shouldReturnToken_whenLoginWithEmail() {
+    void login_shouldAuthenticate_whenLoginWithEmail() {
         // GIVEN
         loginRequest.setIdentifier("mehdi@test.com");
         RefreshToken mockRefreshToken = new RefreshToken();
@@ -208,7 +209,6 @@ class UserServiceTest {
 
         // THEN
         assertNotNull(response);
-        assertEquals("fake-jwt-token", response.getToken());
         assertEquals("mehdi", response.getUsername());
         assertEquals("mehdi@test.com", response.getEmail());
         verify(userRepository).findByUsername("mehdi@test.com");

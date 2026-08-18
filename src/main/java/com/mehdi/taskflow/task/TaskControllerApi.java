@@ -8,7 +8,6 @@ import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.ExampleObject;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
-import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
@@ -24,7 +23,8 @@ import java.util.List;
  * <p>Declares all Swagger/OpenAPI annotations for task endpoints,
  * keeping {@link TaskController} clean and focused on business logic.</p>
  *
- * <p>All endpoints require a valid JWT Bearer token.</p>
+ * <p>All endpoints require the {@code jwt} HttpOnly cookie, which the client
+ * receives on login and sends back automatically.</p>
  *
  * @see TaskController
  */
@@ -32,7 +32,6 @@ import java.util.List;
         name = "Tasks",
         description = "Task management endpoints within projects. All operations require project ownership."
 )
-@SecurityRequirement(name = "bearerAuth")
 public interface TaskControllerApi {
 
     @Operation(

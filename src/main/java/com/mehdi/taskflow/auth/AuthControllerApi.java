@@ -39,7 +39,7 @@ public interface AuthControllerApi {
                     
                     The JWT token is also set as an **HttpOnly cookie** named `jwt` for secure browser storage.
                     
-                    Returns a signed JWT token valid for **24 hours** upon successful registration.
+                    Sets the `jwt` cookie, valid for **15 minutes**, upon successful registration.
                     
                     **Constraints:**
                     - `username` must be between 3 and 50 characters and unique
@@ -60,7 +60,6 @@ public interface AuthControllerApi {
                                             name = "Success",
                                             value = """
                                                     {
-                                                      "token": "eyJhbGciOiJIUzUxMiJ9.eyJzdWIiOiJtZWhkaSIsImlhdCI6MTc...",
                                                       "username": "mehdi",
                                                       "email": "mehdi@example.com"
                                                     }
@@ -149,16 +148,11 @@ public interface AuthControllerApi {
     @Operation(
             summary = "Login",
             description = """
-                    Authenticates a user and returns a signed JWT token valid for **24 hours**.
-                    
-                    The JWT token is also set as an **HttpOnly cookie** named `jwt` for secure browser storage.
-                    
+                    Authenticates a user and sets the `jwt` HttpOnly cookie, valid for **15 minutes**, alongside the `refreshToken` cookie.
+
                     The `identifier` field accepts either a **username** or an **email address**.
-                    
-                    Use the returned `token` as a Bearer token in the `Authorization` header for all protected endpoints:
-                    ```
-                    Authorization: Bearer <token>
-                    ```
+
+                    Nothing needs to be copied: any client keeping a cookie jar sends the cookie back automatically on protected endpoints.
                     """,
             parameters = {
                     @Parameter(ref = "#/components/parameters/Accept-Language")
@@ -174,7 +168,6 @@ public interface AuthControllerApi {
                                             name = "Success",
                                             value = """
                                                     {
-                                                      "token": "eyJhbGciOiJIUzUxMiJ9.eyJzdWIiOiJtZWhkaSIsImlhdCI6MTc...",
                                                       "username": "mehdi",
                                                       "email": "mehdi@example.com"
                                                     }
@@ -274,7 +267,6 @@ public interface AuthControllerApi {
                                     examples = @ExampleObject(
                                             value = """
                                                 {
-                                                  "token": "eyJhbGciOiJIUzUxMiJ9.eyJzdWIiOiJtZWhkaSIsImlhdCI6MTc...",
                                                   "username": "mehdi",
                                                   "email": "mehdi@example.com"
                                                 }

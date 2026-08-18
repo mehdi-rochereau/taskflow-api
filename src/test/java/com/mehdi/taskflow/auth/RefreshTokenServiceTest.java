@@ -170,7 +170,6 @@ public class RefreshTokenServiceTest {
                 AuthResponse result = refreshTokenService.refresh(request, response);
 
                 // THEN
-                assertEquals("new-jwt-token", result.getToken());
                 assertEquals("mehdi", result.getUsername());
                 assertEquals("mehdi@example.com", result.getEmail());
                 verify(refreshTokenRepository).findByToken("valid-uuid-token");
@@ -342,7 +341,6 @@ public class RefreshTokenServiceTest {
                 AuthResponse result = refreshTokenService.refresh(request, response);
 
                 // THEN
-                assertEquals("new-jwt", result.getToken());
                 verify(refreshTokenRepository).findByToken("valid-uuid-token");
                 verify(messageService, never()).get(any());
             }

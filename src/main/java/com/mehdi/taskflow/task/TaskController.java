@@ -12,8 +12,7 @@ import java.util.List;
 /**
  * REST controller handling task management operations within projects.
  *
- * <p>All endpoints require a valid JWT token passed as a
- * {@code Authorization: Bearer <token>} header.
+ * <p>All endpoints require a valid JWT carried by the {@code jwt} HttpOnly cookie.
  * Task mutations (create, update, delete) are restricted to the owner
  * of the associated project.</p>
  *

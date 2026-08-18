@@ -3,6 +3,7 @@ package com.mehdi.taskflow.security;
 import com.mehdi.taskflow.config.MessageService;
 import io.jsonwebtoken.ExpiredJwtException;
 import jakarta.servlet.FilterChain;
+import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.junit.jupiter.api.BeforeEach;
@@ -24,6 +25,15 @@ import java.util.Collections;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
+/**
+ * Unit tests for {@link JwtFilter}.
+ *
+ * <p>Every case drives the filter through the {@code jwt} cookie, which is the
+ * only transport accepted since the {@code Authorization: Bearer} header was
+ * removed. The two entry cases that used to cover an absent header and a
+ * non-Bearer header are kept in their cookie form: no cookie at all, and a
+ * cookie jar holding some other cookie.</p>
+ */
 @ExtendWith(MockitoExtension.class)
 class JwtFilterTest {
 
@@ -52,15 +62,26 @@ class JwtFilterTest {
     private StringWriter responseWriter;
 
     @BeforeEach
-    void setUp() throws Exception {
+    void setUp() {
         userDetails = new User("mehdi", "password", Collections.emptyList());
         SecurityContextHolder.clearContext();
     }
 
+    /**
+     * Places a {@code jwt} cookie in the request, alongside an unrelated cookie
+     * so that the extraction is proven to select by name and not by position.
+     */
+    private void givenJwtCookie(String value) {
+        when(request.getCookies()).thenReturn(new Cookie[]{
+                new Cookie("theme", "dark"),
+                new Cookie("jwt", value)
+        });
+    }
+
     @Test
-    void doFilterInternal_shouldContinueChain_whenNoAuthHeader() throws Exception {
+    void doFilterInternal_shouldContinueChain_whenNoCookieAtAll() throws Exception {
         // GIVEN
-        when(request.getHeader("Authorization")).thenReturn(null);
+        when(request.getCookies()).thenReturn(null);
 
         // WHEN
         jwtFilter.doFilterInternal(request, response, filterChain);
@@ -77,9 +98,12 @@ class JwtFilterTest {
     }
 
     @Test
-    void doFilterInternal_shouldContinueChain_whenAuthHeaderIsNotBearer() throws Exception {
-        // GIVEN
-        when(request.getHeader("Authorization")).thenReturn("Basic sometoken");
+    void doFilterInternal_shouldContinueChain_whenJwtCookieIsAbsentAmongOthers() throws Exception {
+        // GIVEN — a cookie jar that holds no jwt cookie
+        when(request.getCookies()).thenReturn(new Cookie[]{
+                new Cookie("theme", "dark"),
+                new Cookie("refreshToken", "some-uuid")
+        });
 
         // WHEN
         jwtFilter.doFilterInternal(request, response, filterChain);
@@ -98,7 +122,7 @@ class JwtFilterTest {
     @Test
     void doFilterInternal_shouldNotAuthenticate_whenUsernameIsNull() throws Exception {
         // GIVEN
-        when(request.getHeader("Authorization")).thenReturn("Bearer some-token");
+        givenJwtCookie("some-token");
         when(jwtService.extractUsername("some-token")).thenReturn(null);
 
         // WHEN
@@ -118,10 +142,9 @@ class JwtFilterTest {
     @Test
     void doFilterInternal_shouldSkipAuthentication_whenAlreadyAuthenticated() throws Exception {
         // GIVEN
-        when(request.getHeader("Authorization")).thenReturn("Bearer valid-token");
+        givenJwtCookie("valid-token");
         when(jwtService.extractUsername("valid-token")).thenReturn("mehdi");
 
-        // Simule un utilisateur déjà authentifié dans le contexte
         UsernamePasswordAuthenticationToken existingAuth =
                 new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
         SecurityContextHolder.getContext().setAuthentication(existingAuth);
@@ -148,7 +171,7 @@ class JwtFilterTest {
     @Test
     void doFilterInternal_shouldAuthenticateUser_whenTokenIsValid() throws Exception {
         // GIVEN
-        when(request.getHeader("Authorization")).thenReturn("Bearer valid-token");
+        givenJwtCookie("valid-token");
         when(jwtService.extractUsername("valid-token")).thenReturn("mehdi");
         when(userDetailsService.loadUserByUsername("mehdi")).thenReturn(userDetails);
         when(jwtService.isTokenValid("valid-token", userDetails)).thenReturn(true);
@@ -175,7 +198,7 @@ class JwtFilterTest {
     @Test
     void doFilterInternal_shouldNotAuthenticate_whenTokenIsInvalid() throws Exception {
         // GIVEN
-        when(request.getHeader("Authorization")).thenReturn("Bearer invalid-token");
+        givenJwtCookie("invalid-token");
         when(jwtService.extractUsername("invalid-token")).thenReturn("mehdi");
         when(userDetailsService.loadUserByUsername("mehdi")).thenReturn(userDetails);
         when(jwtService.isTokenValid("invalid-token", userDetails)).thenReturn(false);
@@ -199,7 +222,7 @@ class JwtFilterTest {
         // GIVEN
         responseWriter = new StringWriter();
         when(response.getWriter()).thenReturn(new PrintWriter(responseWriter));
-        when(request.getHeader("Authorization")).thenReturn("Bearer expired-token");
+        givenJwtCookie("expired-token");
         when(jwtService.extractUsername("expired-token"))
                 .thenThrow(new ExpiredJwtException(null, null, "Token expired"));
         when(messageService.get("error.jwt.expired")).thenReturn("Token expired");
@@ -226,7 +249,7 @@ class JwtFilterTest {
         // GIVEN
         responseWriter = new StringWriter();
         when(response.getWriter()).thenReturn(new PrintWriter(responseWriter));
-        when(request.getHeader("Authorization")).thenReturn("Bearer bad-format-token");
+        givenJwtCookie("bad-format-token");
         when(jwtService.extractUsername("bad-format-token"))
                 .thenThrow(new RuntimeException("Invalid token"));
         when(messageService.get("error.jwt.invalid")).thenReturn("Invalid token");
