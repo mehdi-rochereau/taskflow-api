@@ -1,6 +1,12 @@
 plugins {
     id 'java'
-    id 'org.springframework.boot' version '3.5.13'
+    // Spring Boot 3.5.16, dernière version OSS de la ligne 3.5 (25 juin 2026).
+    // La branche 3.5 est en fin de vie open source depuis le 30 juin 2026 :
+    // aucun correctif supplémentaire ne sera publié sur Maven Central. Maintien
+    // volontaire en 3.x, passer en 4.x implique Spring Framework 7 et relève
+    // d'une issue dédiée. Ce BOM apporte Spring Framework 6.2.19 (corrige
+    // CVE-2026-41855) et Spring Security 6.5.11 (série d'avis de juin 2026).
+    id 'org.springframework.boot' version '3.5.16'
     id 'io.spring.dependency-management' version '1.1.7'
     id 'jacoco'
     // Checkstyle — enforces Java code style conventions
@@ -90,8 +96,22 @@ repositories {
 }
 
 ext {
-    // Overriding Tomcat to ensure compatibility with Spring Boot 3.5.13
-    set('tomcat.version', '10.1.55')
+    // Forcé à 10.1.57 : le BOM 3.5.16 gère encore Tomcat 10.1.55, affecté par
+    // CVE-2026-53434 (CRL invalides silencieusement ignorées sur un connecteur
+    // FFM). Corrigé en 10.1.56, 10.1.57 est la version 10.1.x courante.
+    // Non exploitable ici, le connecteur FFM exige Java 22+ et nous tournons en
+    // Java 21 sur le connecteur NIO par défaut, mais la NVD le score à 9.1, ce
+    // qui déclenche failBuildOnCVSS = 9. Surcharge à retirer seulement si le
+    // projet passe un jour sur un BOM gérant 10.1.56 ou supérieur.
+    set('tomcat.version', '10.1.57')
+    // Forcé à 2.21.5 : le BOM 3.5.16 gère jackson-bom 2.21.2, affecté par la
+    // série databind de juin 2026, CVE-2026-54512 (contournement du
+    // PolymorphicTypeValidator), CVE-2026-54513, CVE-2026-54514 et
+    // CVE-2026-54515. La 2.21.4 couvre les trois premières, la 2.21.5 est
+    // nécessaire pour CVE-2026-54515. Surcharger la propriété du BOM plutôt
+    // qu'un artefact isolé garde tous les modules Jackson alignés.
+    // À retirer dès qu'un BOM géré livre 2.21.5 ou supérieur.
+    set('jackson-bom.version', '2.21.5')
     // Forced to 3.18.0 to fix CVE-2025-48924 (StackOverflowError in ClassUtils)
     set('commons-lang3.version', '3.18.0')
 }
