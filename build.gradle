@@ -123,8 +123,15 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
     // Spring Security
     implementation 'org.springframework.boot:spring-boot-starter-security'
-    // MySQL
-    runtimeOnly 'com.mysql:mysql-connector-j'
+    // MySQL JDBC driver, pinned to 26.7.0 rather than the version managed by the
+    // Spring Boot BOM (9.7.0), which is affected by four Connector/J advisories:
+    // CVE-2026-60586, CVE-2026-60623, CVE-2026-60624 and CVE-2026-61082, all
+    // covering 9.7.0 to 9.7.1. Oracle switched to calendar versioning after the
+    // 9.7 LTS series, so 26.7.0 is the next release, not a major rewrite.
+    // Supported against MySQL Server 8.4 and later, which is what production and
+    // the Testcontainers suite now run. Remove this pin once a managed BOM ships
+    // 26.7.0 or later.
+    runtimeOnly 'com.mysql:mysql-connector-j:26.7.0'
     // Flyway
     implementation 'org.flywaydb:flyway-core'
     implementation 'org.flywaydb:flyway-mysql'
