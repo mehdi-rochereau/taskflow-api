@@ -21,13 +21,13 @@ import org.springframework.context.annotation.Configuration;
  * and registers a global Bearer token security scheme via {@link SecurityScheme},
  * allowing JWT authentication directly from the Swagger UI interface.</p>
  *
- * <p>The Swagger UI is accessible at:
- * <a href="http://localhost:8082/swagger-ui/index.html">
- * http://localhost:8082/swagger-ui/index.html</a></p>
+ * <p>The Swagger UI is accessible at {@code /swagger-ui/index.html}, served from
+ * {@code http://localhost:8082} locally and from
+ * {@code https://api.taskflow.mehdi-rochereau.dev} in production.</p>
  *
- * <p>The API documentation (Redoc) is accessible at:
- * <a href="http://localhost:4200/api-docs">
- * http://localhost:4200/api-docs</a> (requires Angular frontend)</p>
+ * <p>The API documentation (Redoc) is served by the Angular frontend at
+ * {@code /api-docs}: {@code http://localhost:4200} locally,
+ * {@code https://taskflow.mehdi-rochereau.dev} in production.</p>
  *
  * @see <a href="https://swagger.io/specification/">OpenAPI Specification</a>
  */
@@ -100,8 +100,11 @@ import org.springframework.context.annotation.Configuration;
                 )
         ),
         servers = {
-                @Server(url = "http://localhost:8082", description = "Local development server"),
-                @Server(url = "https://api.taskflow.mehdi-rochereau.dev", description = "Production server")
+                // Production first: Swagger UI selects the first entry by default.
+                // With localhost first, the public documentation targeted the
+                // visitor's own machine over plain HTTP from an HTTPS page.
+                @Server(url = "https://api.taskflow.mehdi-rochereau.dev", description = "Production server"),
+                @Server(url = "http://localhost:8082", description = "Local development server")
         }
 )
 @SecurityScheme(

@@ -613,7 +613,9 @@ jobs:
       # ── Smoke tests ──────────────────────────────────────
       # Verifies that key public endpoints respond correctly after deploy.
       # Tests three endpoints:
-      # - /swagger-ui/index.html : Springdoc OpenAPI UI (follows redirect with -L)
+      # - /swagger-ui/index.html : Springdoc OpenAPI UI. -L is kept as a safety
+      #   net: springdoc.swagger-ui.path drives a redirect, and a change to that
+      #   property would otherwise turn this check into a silent 3xx failure.
       # - /v3/api-docs           : OpenAPI JSON spec
       # - /actuator/health       : Spring Boot health endpoint
       # All three must return HTTP 200 for the smoke test to pass.
