@@ -61,9 +61,19 @@ application:
 
 springdoc:
   api-docs:
+    # Path of the generated OpenAPI document consumed by Swagger UI and Redoc.
     path: /v3/api-docs
   swagger-ui:
-    path: /swagger-ui/index.html
+    # Redirection path, not the resource path. Springdoc registers a redirect
+    # from this value to the bundled webjar, resolving it relatively. Setting it
+    # to /swagger-ui/index.html made the effective URL
+    # /swagger-ui/swagger-ui/index.html. /swagger-ui is the correct value.
+    path: /swagger-ui
+    # Makes Swagger UI send credentials on Try it out requests, which is what
+    # attaches the HttpOnly jwt and refreshToken cookies. Without it the request
+    # goes out unauthenticated and every protected endpoint answers 401, even
+    # once CORS accepts the origin.
+    with-credentials: true
 
 # ── CORS ───────────────────────────────────────────────────
 cors:

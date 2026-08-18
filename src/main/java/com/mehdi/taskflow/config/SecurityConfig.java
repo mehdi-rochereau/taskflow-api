@@ -27,6 +27,7 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
+import java.util.Arrays;
 import java.util.List;
 
 /**
@@ -216,21 +217,39 @@ public class SecurityConfig {
     }
 
     /**
-     * Configures CORS to allow requests from the Angular frontend.
+     * Configures CORS for the Angular frontend and the Swagger UI.
      *
-     * <p>Allowed origins are loaded from the {@code cors.allowed-origins} property,
-     * which is bound to the {@code CORS_ALLOWED_ORIGINS} environment variable.
-     * Defaults to {@code http://localhost:4200} in development.</p>
+     * <p>Allowed origins are read from the {@code cors.allowed-origins} property,
+     * bound to the {@code CORS_ALLOWED_ORIGINS} environment variable. The value
+     * is a comma-separated list and must be split before being handed to
+     * {@link CorsConfiguration#setAllowedOrigins(List)}: wrapping the raw string
+     * in a single-element list would compare the whole property value against a
+     * single {@code Origin} header, which can never match once a second origin
+     * is declared.</p>
      *
-     * <p>Allows all headers and the standard HTTP methods used by the API.
-     * Credentials are allowed to support HttpOnly cookie transmission.</p>
+     * <p>Two origins are expected in production: the frontend, and the API's own
+     * origin. Swagger UI is served from the API host, so its {@code Try it out}
+     * requests carry {@code Origin: https://api.taskflow.mehdi-rochereau.dev}.
+     * Since Spring Framework 5.3 the presence of that header makes the request a
+     * CORS request even when origin and target share the same host.</p>
+     *
+     * <p>Credentials are allowed so that the HttpOnly {@code jwt} and
+     * {@code refreshToken} cookies are transmitted. This forbids the
+     * {@code *} wildcard on origins, which is why they are enumerated.</p>
      *
      * @return the CORS configuration source
      */
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
-        config.setAllowedOrigins(List.of(allowedOrigins));
+        // Split on commas and trim: the property arrives as one string, and a
+        // stray space around a separator would silently break the match.
+        config.setAllowedOrigins(
+                Arrays.stream(allowedOrigins.split(","))
+                        .map(String::trim)
+                        .filter(origin -> !origin.isEmpty())
+                        .toList()
+        );
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(List.of("*"));
         config.setExposedHeaders(List.of("Authorization"));
