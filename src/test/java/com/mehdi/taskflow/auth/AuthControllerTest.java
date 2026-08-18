@@ -100,7 +100,7 @@ class AuthControllerTest {
         request.setEmail("mehdi@test.com");
         request.setPassword("Mehdi@2026");
 
-        AuthResponse authResponse = new AuthResponse("fake-token", "mehdi", "mehdi@test.com");
+        AuthResponse authResponse = new AuthResponse("mehdi", "mehdi@test.com");
         when(userService.register(any(RegisterRequest.class), any(HttpServletResponse.class)))
                 .thenReturn(authResponse);
 
@@ -109,7 +109,7 @@ class AuthControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.token").value("fake-token"))
+                .andExpect(jsonPath("$.token").doesNotExist())
                 .andExpect(jsonPath("$.username").value("mehdi"))
                 .andExpect(jsonPath("$.email").value("mehdi@test.com"));
     }
@@ -304,7 +304,7 @@ class AuthControllerTest {
         request.setIdentifier("mehdi");
         request.setPassword("Mehdi@2026");
 
-        AuthResponse authResponse = new AuthResponse("fake-token", "mehdi", "mehdi@test.com");
+        AuthResponse authResponse = new AuthResponse("mehdi", "mehdi@test.com");
         when(userService.login(any(LoginRequest.class), any(HttpServletResponse.class)))
                 .thenReturn(authResponse);
 
@@ -313,7 +313,7 @@ class AuthControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.token").value("fake-token"))
+                .andExpect(jsonPath("$.token").doesNotExist())
                 .andExpect(jsonPath("$.username").value("mehdi"))
                 .andExpect(jsonPath("$.email").value("mehdi@test.com"));
     }
@@ -325,7 +325,7 @@ class AuthControllerTest {
         request.setIdentifier("mehdi@test.com");
         request.setPassword("Mehdi@2026");
 
-        AuthResponse authResponse = new AuthResponse("fake-token", "mehdi", "mehdi@test.com");
+        AuthResponse authResponse = new AuthResponse("mehdi", "mehdi@test.com");
         when(userService.login(any(LoginRequest.class), any(HttpServletResponse.class)))
                 .thenReturn(authResponse);
 
@@ -334,7 +334,7 @@ class AuthControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.token").value("fake-token"))
+                .andExpect(jsonPath("$.token").doesNotExist())
                 .andExpect(jsonPath("$.username").value("mehdi"))
                 .andExpect(jsonPath("$.email").value("mehdi@test.com"));
     }

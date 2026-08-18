@@ -12,8 +12,7 @@ import java.util.List;
 /**
  * REST controller handling project management operations.
  *
- * <p>All endpoints require a valid JWT token passed as a
- * {@code Authorization: Bearer <token>} header.
+ * <p>All endpoints require a valid JWT carried by the {@code jwt} HttpOnly cookie.
  * Operations are automatically scoped to the authenticated user —
  * only projects owned by the current user are accessible.</p>
  *

@@ -35,7 +35,11 @@ import java.util.List;
  *
  * <p>Configures a stateless JWT-based authentication mechanism with rate limiting
  * on authentication endpoints to prevent brute force attacks.
- * CSRF protection is disabled as the API is stateless and does not use session cookies.
+ * CSRF protection is disabled: the JWT travels in a cookie, but that cookie is
+ * scoped with {@code SameSite=Strict}, so a third-party site cannot make the
+ * browser attach it to a cross-site request, and the CORS policy enumerates the
+ * two origins allowed to call the API with credentials. No server-side session
+ * is created either, so there is no session fixation surface to protect.
  * Method-level security is enabled via {@link EnableMethodSecurity} to support
  * {@code @PreAuthorize} annotations on service methods.</p>
  *
@@ -49,8 +53,8 @@ import java.util.List;
  *   <li>{@code /v3/api-docs/**}</li>
  * </ul>
  *
- * <p>All other endpoints require a valid JWT token passed as a
- * {@code Authorization: Bearer <token>} header, validated by {@link JwtFilter}.</p>
+ * <p>All other endpoints require a valid JWT token carried by the {@code jwt}
+ * HttpOnly cookie, validated by {@link JwtFilter}.</p>
  *
  * @see JwtFilter
  * @see RateLimitFilter
@@ -92,13 +96,14 @@ public class SecurityConfig {
      *
      * <p>Applies the following configuration:</p>
      * <ul>
-     *   <li>CORS — allowed origins loaded from {@code cors.allowed-origins} property,
-     *     configured via {@code CORS_ALLOWED_ORIGINS} environment variable</li>
+     *   <li>CORS — allowed origins loaded from the {@code cors.allowed-origins} property,
+     *     configured via the {@code CORS_ALLOWED_ORIGINS} environment variable.
+     *     Credentials are allowed so the browser attaches the authentication cookies</li>
      *   <li>Security headers — {@code X-Frame-Options: DENY}, {@code X-Content-Type-Options: nosniff},
      *     {@code Strict-Transport-Security},
      *     {@code Content-Security-Policy: default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; frame-ancestors 'none'},
      *     {@code Referrer-Policy: no-referrer}</li>
-     *   <li>CSRF disabled — not needed for stateless REST APIs</li>
+     *   <li>CSRF disabled — see the class Javadoc for the rationale</li>
      *   <li>Public routes: {@code /api/auth/**}, {@code /swagger-ui/**},
      *       {@code /v3/api-docs/**}</li>
      *   <li>All other routes require authentication</li>
@@ -109,7 +114,7 @@ public class SecurityConfig {
      *   <li>{@link RateLimitFilter} inserted before {@link UsernamePasswordAuthenticationFilter}
      *       — limits login to 5 attempts/minute and registration to 3 attempts/hour per IP</li>
      *   <li>{@link JwtFilter} inserted before {@link UsernamePasswordAuthenticationFilter}
-     *       — validates JWT tokens on every protected request</li>
+     *       — validates the {@code jwt} cookie on every protected request</li>
      * </ul>
      *
      * @param http the {@link HttpSecurity} to configure
@@ -252,7 +257,6 @@ public class SecurityConfig {
         );
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(List.of("*"));
-        config.setExposedHeaders(List.of("Authorization"));
         config.setAllowCredentials(true);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();

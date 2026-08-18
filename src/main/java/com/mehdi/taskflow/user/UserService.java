@@ -23,7 +23,9 @@ import org.springframework.transaction.annotation.Transactional;
  *
  * <p>Provides user registration and login functionality.
  * Passwords are encoded using BCrypt before persistence.
- * A signed JWT token is returned upon successful authentication.</p>
+ * On successful authentication a signed JWT is written to the {@code jwt}
+ * HttpOnly cookie, alongside a {@code refreshToken} cookie; neither value
+ * appears in the response body.</p>
  *
  * <p>Login accepts either a username or an email address as identifier,
  * delegating credential verification to {@link AuthenticationManager}.</p>
@@ -91,14 +93,15 @@ public class UserService {
      * as an HttpOnly cookie named {@code refreshToken}.</p>
      *
      * <p>Validates that the username and email are not already taken,
-     * encodes the password with BCrypt, persists the user,
-     * and returns a JWT token valid for 24 hours.</p>
+     * encodes the password with BCrypt, persists the user, and writes a JWT
+     * valid for 15 minutes to the {@code jwt} HttpOnly cookie.</p>
      *
      * <p>The username is sanitized before persistence to prevent XSS attacks.</p>
      *
      * @param request  registration data containing username, email and password
      * @param response HTTP response used to write the JWT HttpOnly cookie
-     * @return an {@link AuthResponse} containing the JWT token and user details
+     * @return an {@link AuthResponse} carrying the user's identity. The JWT is
+     *         written to the {@code jwt} cookie, not returned in the body
      * @throws IllegalArgumentException if the username or email is already in use
      */
     @Transactional
@@ -126,11 +129,11 @@ public class UserService {
         RefreshToken refreshToken = refreshTokenService.generateRefreshToken(user);
         refreshTokenService.addRefreshTokenCookie(response, refreshToken.getToken());
 
-        return new AuthResponse(token, user.getUsername(), user.getEmail());
+        return new AuthResponse(user.getUsername(), user.getEmail());
     }
 
     /**
-     * Authenticates a user and returns a JWT token.
+     * Authenticates a user and issues the authentication cookies.
      *
      * <p>This method is annotated with {@code @Transactional} (not read-only)
      * because it generates and persists a refresh token in the database.</p>
@@ -145,7 +148,8 @@ public class UserService {
      *
      * @param request  login data containing the identifier (username or email) and password
      * @param response HTTP response used to write the JWT HttpOnly cookie
-     * @return an {@link AuthResponse} containing the JWT token and user details
+     * @return an {@link AuthResponse} carrying the user's identity. The JWT is
+     *         written to the {@code jwt} cookie, not returned in the body
      * @throws org.springframework.security.authentication.BadCredentialsException if the credentials are invalid
      * @throws IllegalArgumentException                                            if no user matches the provided identifier
      */
@@ -164,7 +168,7 @@ public class UserService {
                         messageService.get("error.user.not.found")));
 
         String token = jwtService.generateToken(user);
-        AuthResponse authResponse = new AuthResponse(token, user.getUsername(), user.getEmail());
+        AuthResponse authResponse = new AuthResponse(user.getUsername(), user.getEmail());
 
         CookieUtils.addCookie(response, "jwt", token, "/api", (int) (jwtExpiration / 1000), cookieSecure);
 

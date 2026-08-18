@@ -21,8 +21,9 @@ import org.springframework.web.bind.annotation.RestController;
  * token refresh and logout.</p>
  *
  * <p>All responses are produced in {@code application/json} format.
- * Successful authentication returns an {@link AuthResponse} containing
- * a signed JWT token valid for 24 hours.</p>
+ * Successful authentication sets the {@code jwt} and {@code refreshToken}
+ * HttpOnly cookies and returns an {@link AuthResponse} carrying the user's
+ * identity only.</p>
  *
  * @see UserService
  */
@@ -48,11 +49,11 @@ public class AuthController implements AuthControllerApi {
      * Registers a new user account.
      *
      * <p>Validates the request body, creates the account with a BCrypt-encoded password,
-     * and returns a JWT token upon successful registration.</p>
+     * and sets the authentication cookies upon successful registration.</p>
      *
      * @param request the registration data — username, email and password
      * @param response the HTTP response used to write the JWT HttpOnly cookie
-     * @return {@code 201 Created} with the JWT token and user details,
+     * @return {@code 201 Created} with the user's identity,
      * or {@code 400 Bad Request} if validation fails or the username/email is already taken
      */
     @Override
@@ -65,7 +66,7 @@ public class AuthController implements AuthControllerApi {
     }
 
     /**
-     * Authenticates a user and returns a JWT token.
+     * Authenticates a user and issues the authentication cookies.
      *
      * <p>Accepts either a username or an email address as identifier.
      * Delegates credential verification to Spring Security's
@@ -73,7 +74,7 @@ public class AuthController implements AuthControllerApi {
      *
      * @param request the login data — identifier (username or email) and password
      * @param response the HTTP response used to write the JWT HttpOnly cookie
-     * @return {@code 200 OK} with the JWT token and user details,
+     * @return {@code 200 OK} with the user's identity,
      * {@code 400 Bad Request} if required fields are missing or blank,
      * or {@code 401 Unauthorized} if the credentials are invalid
      */
@@ -93,7 +94,8 @@ public class AuthController implements AuthControllerApi {
      *
      * @param request  the HTTP request containing the {@code refreshToken} cookie
      * @param response the HTTP response used to write the new cookies
-     * @return {@code 200 OK} with the new JWT token and user details,
+     * @return {@code 200 OK} with the user's identity, the new JWT being written
+     *         to the {@code jwt} cookie,
      *         or {@code 401 Unauthorized} if the refresh token is missing, revoked or expired
      */
     @Override

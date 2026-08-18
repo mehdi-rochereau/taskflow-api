@@ -8,7 +8,6 @@ import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.ExampleObject;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
-import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
@@ -23,7 +22,8 @@ import java.util.List;
  * <p>Declares all Swagger/OpenAPI annotations for project endpoints,
  * keeping {@link ProjectController} clean and focused on business logic.</p>
  *
- * <p>All endpoints require a valid JWT Bearer token.</p>
+ * <p>All endpoints require the {@code jwt} HttpOnly cookie, which the client
+ * receives on login and sends back automatically.</p>
  *
  * @see ProjectController
  */
@@ -31,7 +31,6 @@ import java.util.List;
         name = "Projects",
         description = "Project management endpoints. All operations are scoped to the authenticated user."
 )
-@SecurityRequirement(name = "bearerAuth")
 public interface ProjectControllerApi {
 
     @Operation(

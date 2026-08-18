@@ -92,7 +92,8 @@ public class RefreshTokenService {
      *
      * @param request  the HTTP request containing the {@code refreshToken} cookie
      * @param response the HTTP response used to write the new cookies
-     * @return an {@link AuthResponse} containing the new JWT token and user details
+     * @return an {@link AuthResponse} carrying the user's identity. The new JWT
+     *         is written to the {@code jwt} cookie, not returned in the body
      * @throws IllegalArgumentException  if the refresh token cookie is missing
      * @throws ResourceNotFoundException if the refresh token does not exist
      * @throws IllegalArgumentException  if the refresh token is revoked or expired
@@ -116,7 +117,7 @@ public class RefreshTokenService {
         CookieUtils.addCookie(response, "jwt", newJwt, "/api", (int) (jwtExpiration / 1000), cookieSecure);
         addRefreshTokenCookie(response, newRefreshToken.getToken());
 
-        return new AuthResponse(newJwt, user.getUsername(), user.getEmail());
+        return new AuthResponse(user.getUsername(), user.getEmail());
     }
 
     /**

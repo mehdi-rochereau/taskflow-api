@@ -10,7 +10,6 @@ import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.ExampleObject;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
-import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
@@ -25,8 +24,7 @@ import org.springframework.web.bind.annotation.RequestBody;
  * This separation follows the Interface Segregation Principle — documentation
  * concerns are isolated from routing and delegation logic.</p>
  *
- * <p>All endpoints defined here require a valid JWT token passed as a Bearer token
- * in the {@code Authorization} header or via the {@code jwt} HttpOnly cookie.</p>
+ * <p>All endpoints defined here require the {@code jwt} HttpOnly cookie.</p>
  *
  * @see UserController
  * @see UserService
@@ -35,7 +33,6 @@ import org.springframework.web.bind.annotation.RequestBody;
         name = "User",
         description = "Endpoints for managing the authenticated user's profile. All endpoints require a valid JWT token."
 )
-@SecurityRequirement(name = "bearerAuth")
 public interface UserControllerApi {
 
     @Operation(

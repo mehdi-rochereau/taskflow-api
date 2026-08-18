@@ -1,31 +1,27 @@
+// src/main/java/com/mehdi/taskflow/user/dto/AuthResponse.java
 package com.mehdi.taskflow.user.dto;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 
 /**
- * DTO returned after successful authentication (register or login).
+ * DTO returned after successful authentication (register, login or refresh).
  *
- * <p>Contains the signed JWT token and basic user information.
- * The token is valid for 24 hours and must be passed as a
- * {@code Authorization: Bearer <token>} header on all protected endpoints.</p>
+ * <p>Carries the authenticated user's identity only. The JWT itself is never
+ * exposed here: it is written to the {@code jwt} HttpOnly cookie by
+ * {@link com.mehdi.taskflow.config.CookieUtils}, scoped to {@code /api} and
+ * valid for 15 minutes. A token placed in a response body ends up in access
+ * logs, proxy caches and screenshots, which is exactly what the HttpOnly cookie
+ * is there to prevent.</p>
  *
  * @see com.mehdi.taskflow.auth.AuthController
  * @see com.mehdi.taskflow.user.UserService
  */
 @Schema(
         name = "AuthResponse",
-        description = "Response returned after successful registration or login"
+        description = "Response returned after successful registration or login. "
+                + "Authentication itself travels in the jwt and refreshToken HttpOnly cookies."
 )
 public class AuthResponse {
-
-    /**
-     * Signed JWT token valid for 24 hours.
-     */
-    @Schema(
-            description = "Signed JWT token valid for 24 hours. Pass as Authorization: Bearer <token> on all protected endpoints.",
-            example = "eyJhbGciOiJIUzUxMiJ9.eyJzdWIiOiJtZWhkaSIsImlhdCI6MTcx..."
-    )
-    private String token;
 
     /**
      * Username of the authenticated user.
@@ -53,21 +49,13 @@ public class AuthResponse {
     /**
      * Constructs a fully populated authentication response.
      *
-     * @param token    the signed JWT token
      * @param username the authenticated user's username
      * @param email    the authenticated user's email address
      */
-    public AuthResponse(String token, String username, String email) {
-        this.token = token;
+    public AuthResponse(String username, String email) {
         this.username = username;
         this.email = email;
     }
-
-    /** @return the signed JWT token */
-    public String getToken() { return token; }
-
-    /** @param token the signed JWT token */
-    public void setToken(String token) { this.token = token; }
 
     /** @return the authenticated user's username */
     public String getUsername() { return username; }
