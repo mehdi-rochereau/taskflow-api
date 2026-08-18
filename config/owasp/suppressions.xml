@@ -1,10 +1,14 @@
 <?xml version="1.0" encoding="UTF-8"?>
+<!-- config/owasp/suppressions.xml -->
 <suppressions xmlns="https://jeremylong.github.io/DependencyCheck/dependency-suppression.1.3.xsd">
 
     <!--
-        CVE-2026-34479 / CVE-2026-34477 — False positive on log4j-api and log4j-to-slf4j.
-        These CVEs affect log4j-1.2-api (the Log4j 1 compatibility bridge) exclusively.
-        TaskFlow does not use log4j-1.2-api or Log4j1XmlLayout.
+        ═══════════════════════════════════════════════════════════════════════
+        1. Log4j — bridge only, no Log4j implementation on the classpath
+        ═══════════════════════════════════════════════════════════════════════
+        spring-boot-starter-logging pulls log4j-to-slf4j, which routes Log4j API
+        calls to SLF4J and therefore to Logback. log4j-core is absent, so none of
+        the Log4j layouts or appenders exist at runtime.
     -->
     <suppress>
         <notes>False positive — affects log4j-1.2-api bridge only, not log4j-api or log4j-to-slf4j</notes>
@@ -16,21 +20,112 @@
         <packageUrl regex="true">^pkg:maven/org\.apache\.logging\.log4j/log4j.*$</packageUrl>
         <cve>CVE-2026-34477</cve>
     </suppress>
+    <suppress until="2027-06-30">
+        <notes>
+            Not exploitable — requires JsonTemplateLayout or MapMessage.asJson(),
+            both provided by log4j-core, which is not on the classpath. TaskFlow
+            logs through Logback via the log4j-to-slf4j bridge and never builds a
+            MapMessage. Lift when the Spring Boot BOM ships a log4j2 version above
+            2.26.0, or when log4j-core is ever introduced, whichever comes first.
+        </notes>
+        <packageUrl regex="true">^pkg:maven/org\.apache\.logging\.log4j/log4j.*$</packageUrl>
+        <cve>CVE-2026-49844</cve>
+    </suppress>
 
     <!--
-        CVE-2026-40974 — Cassandra SSL hostname verification bypass.
-        CVE-2026-40971 — RabbitMQ SSL hostname verification bypass.
-        Fixed in Spring Boot 3.5.14. TaskFlow does not use Cassandra or RabbitMQ,
-        these auto-configurations are not active. Not exploitable in this project.
-        To be resolved by upgrading to Spring Boot 3.5.14 when released.
+        ═══════════════════════════════════════════════════════════════════════
+        2. MySQL Connector/Net — wrong product, shared CPE identifier
+        ═══════════════════════════════════════════════════════════════════════
+        Oracle publishes every MySQL driver under the same
+        cpe:oracle:mysql_connectors identifier, so Dependency-Check attributes
+        Connector/Net advisories to the Java driver. These three target the .NET
+        driver, which this project does not embed. The four genuine Connector/J
+        advisories were resolved by upgrading to 26.7.0 in this same change.
+    -->
+    <suppress>
+        <notes>Wrong product — targets Connector/Net (.NET driver), not Connector/J</notes>
+        <packageUrl regex="true">^pkg:maven/com\.mysql/mysql-connector-j@.*$</packageUrl>
+        <cve>CVE-2026-60193</cve>
+    </suppress>
+    <suppress>
+        <notes>Wrong product — targets Connector/Net (.NET driver), not Connector/J</notes>
+        <packageUrl regex="true">^pkg:maven/com\.mysql/mysql-connector-j@.*$</packageUrl>
+        <cve>CVE-2026-60192</cve>
+    </suppress>
+    <suppress>
+        <notes>Wrong product — targets Connector/Net (.NET driver), not Connector/J</notes>
+        <packageUrl regex="true">^pkg:maven/com\.mysql/mysql-connector-j@.*$</packageUrl>
+        <cve>CVE-2026-60317</cve>
+    </suppress>
+
+    <!--
+        ═══════════════════════════════════════════════════════════════════════
+        3. Tomcat examples web application — absent from an embedded Tomcat
+        ═══════════════════════════════════════════════════════════════════════
     -->
     <suppress until="2026-12-31">
-        <notes>Cassandra SSL — not exploitable, TaskFlow uses no Cassandra. Fix: upgrade to Spring Boot 3.5.14.</notes>
+        <notes>
+            Not applicable — targets the WebSocket chat example web application,
+            which ships with the standalone Tomcat distribution and not with
+            tomcat-embed-core. Fixed in Tomcat 10.1.58, unreleased as of
+            18 Aug 2026. Lift once the tomcat.version override in build.gradle
+            reaches 10.1.58 or later.
+        </notes>
+        <packageUrl regex="true">^pkg:maven/org\.apache\.tomcat\.embed/.*$</packageUrl>
+        <cve>CVE-2026-66299</cve>
+    </suppress>
+
+    <!--
+        ═══════════════════════════════════════════════════════════════════════
+        4. Gradle plugin classpath — never shipped to production
+        ═══════════════════════════════════════════════════════════════════════
+        These four artifacts belong to the build tooling, mostly to the
+        Dependency-Check plugin itself. Verified on 18 Aug 2026 by running the
+        Gradle dependencyInsight task against the runtimeClasspath configuration
+        for each of them: no match is returned, so they are absent from the
+        application runtime classpath and from the Docker image. Their versions
+        are controlled by the plugins, not by this project, so an upgrade is not
+        available as a remediation path.
+    -->
+    <suppress until="2027-06-30">
+        <notes>Build tooling only — not on runtimeClasspath. Also limited to the async HttpClient, unused here.</notes>
+        <packageUrl regex="true">^pkg:maven/org\.apache\.httpcomponents\.client5/httpclient5@.*$</packageUrl>
+        <cve>CVE-2026-71290</cve>
+        <cve>CVE-2026-64607</cve>
+    </suppress>
+    <suppress until="2027-06-30">
+        <notes>Build tooling only — not on runtimeClasspath, no HTTP server exposed by the build</notes>
+        <packageUrl regex="true">^pkg:maven/org\.apache\.httpcomponents\.core5/httpcore5.*$</packageUrl>
+        <cve>CVE-2026-54399</cve>
+        <cve>CVE-2026-54428</cve>
+    </suppress>
+    <suppress until="2027-06-30">
+        <notes>Build tooling only — not on runtimeClasspath, no archive extracted from an untrusted source</notes>
+        <packageUrl regex="true">^pkg:maven/org\.codehaus\.plexus/plexus-utils@.*$</packageUrl>
+        <cve>CVE-2025-67030</cve>
+    </suppress>
+    <suppress until="2027-06-30">
+        <notes>Build tooling only — not on runtimeClasspath, no external property path reaches PropertyUtilsBean</notes>
+        <packageUrl regex="true">^pkg:maven/commons-beanutils/commons-beanutils@.*$</packageUrl>
+        <cve>CVE-2025-48734</cve>
+    </suppress>
+
+    <!--
+        ═══════════════════════════════════════════════════════════════════════
+        5. Spring Boot — Cassandra and RabbitMQ SSL, likely obsolete
+        ═══════════════════════════════════════════════════════════════════════
+        Both were documented as fixed in Spring Boot 3.5.14. The project now runs
+        3.5.16, so these two suppressions are probably dead weight. They are kept
+        for one report cycle only: removing them is the way to find out, since a
+        suppressed finding never appears in the report and absence proves nothing.
+    -->
+    <suppress until="2026-12-31">
+        <notes>Cassandra SSL — not exploitable, TaskFlow uses no Cassandra. Verify removal against a 3.5.16 report.</notes>
         <packageUrl regex="true">^pkg:maven/org\.springframework\.boot/.*$</packageUrl>
         <cve>CVE-2026-40974</cve>
     </suppress>
     <suppress until="2026-12-31">
-        <notes>RabbitMQ SSL — not exploitable, TaskFlow uses no RabbitMQ. Fix: upgrade to Spring Boot 3.5.14.</notes>
+        <notes>RabbitMQ SSL — not exploitable, TaskFlow uses no RabbitMQ. Verify removal against a 3.5.16 report.</notes>
         <packageUrl regex="true">^pkg:maven/org\.springframework\.boot/.*$</packageUrl>
         <cve>CVE-2026-40971</cve>
     </suppress>
