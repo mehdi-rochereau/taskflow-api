@@ -467,16 +467,28 @@ jobs:
           fi
 
       # ── Deploy VPS ───────────────────────────────────────
-      # Connects to the production VPS via SSH and deploys the new image.
+      # Connects to the production VPS via SSH and delegates the deployment
+      # to scripts/deploy.sh, maintained in taskflow-deploy. The procedure
+      # used to live here as an inline script, duplicated with taskflow-ui
+      # and already divergent from it; a single entry point removes the
+      # duplication and the drift.
       #
-      # The script runs in strict mode: any failing command aborts the
-      # remote session with a non-zero status, which fails the step.
-      # Before this, a refused `docker compose pull` was followed by a
-      # no-op `up -d` and an unconditional success message, so the job
-      # reported green while production kept running the previous image.
+      # What the script owns: saving the running container's image ID for
+      # rollback, guarding the registry pull, and recreating the named
+      # service. What stays here: updating the deployment working copy, and
+      # everything from the digest verification onwards.
       #
-      # Before pulling, the current container's image ID is saved to
-      # /tmp/taskflow_rollback.env for the rollback step.
+      # The repository update stays on this side on purpose. Bash reads a
+      # script incrementally, keeping a byte offset into the file; a script
+      # that replaces itself mid-run resumes at the wrong offset and executes
+      # a truncated line instead of failing outright.
+      #
+      # --ff-only rather than a plain pull: a manual modification made on the
+      # VPS fails the deployment instead of producing a merge commit on a
+      # production server.
+      #
+      # set -euo pipefail is kept in this block so that a refused pull aborts
+      # before the script is ever invoked. The script sets it again for itself.
       #
       # VPS setup: Ubuntu 24.04 on Hetzner CPX22, Docker + Nginx + SSL.
       # SSH key: dedicated Ed25519 key generated for GitHub Actions only,
@@ -489,38 +501,12 @@ jobs:
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
           script: |
-            # -e  abort on the first failing command
-            # -u  abort on any undefined variable
-            # -o pipefail  a pipeline fails if any stage fails, not just the last
             set -euo pipefail
 
             cd /opt/taskflow
-            
-            # Immutable local image ID of the running container, kept for rollback.
-            # `{{.Image}}` returns the sha256 of the image the container was
-            # created from. `{{.Config.Image}}` was used before and returned the
-            # tag reference instead: by the time a rollback runs, `latest` already
-            # points at the new image, so restoring it would be a no-op.
-            # The `|| echo ""` keeps the first deployment (no container yet) from
-            # aborting the script under `set -e`.
-                    PREVIOUS_IMAGE=$(docker inspect taskflow-api --format='{{.Image}}' 2>/dev/null || echo "")
-            # Variable name written here must match the one read by the rollback
-            # step after `source`. Shell variables are case sensitive.
-                    echo "PREVIOUS_IMAGE=$PREVIOUS_IMAGE" > /tmp/taskflow_rollback.env
+            git pull --ff-only
 
-            # Explicit guard rather than relying on `set -e` alone: it turns the
-            # registry error into a labelled failure in the workflow logs.
-            echo "Pulling ghcr.io/mehdi-rochereau/taskflow-api:latest ..."
-            if ! docker compose pull taskflow-api; then
-              echo "Deployment aborted: docker compose pull was refused by the registry."
-              echo "Check the ghcr.io credentials stored on the VPS (docker login)."
-              exit 1
-            fi
-
-            # Recreates the container only if the resolved image changed.
-            docker compose up -d taskflow-api
-
-            echo "taskflow-api container started, digest verification pending"
+            /opt/taskflow/scripts/deploy.sh taskflow-api
 
       # ── Verify deployed image digest ─────────────────────
       # Proves that the running container was created from the image this
@@ -599,11 +585,19 @@ jobs:
           exit 1
 
       # ── Rollback on failure ──────────────────────────────
-      # Triggered only if the health check step failed (not skipped).
-      # Reads the previous image reference saved before deployment
-      # and restores it by re-tagging and restarting the container.
-      # This ensures the production API is never left in a broken state
-      # after a failed deployment.
+      # Triggered only if the health check step failed, never when it was
+      # skipped. Restores the image the service was running before this
+      # deployment, so production is not left on a broken version.
+      #
+      # The restore point is written by the script during the deploy step,
+      # under /tmp/taskflow-deploy-rollback-taskflow-api.env. The script exits
+      # 0 with an explicit message when no reference is recorded, which is the
+      # expected state on the first run after this change: the previous
+      # workflow wrote a different path, /tmp/taskflow_rollback.env.
+      #
+      # No git pull here. The working copy was brought up to date by the
+      # deploy step minutes earlier, and a repository update that fails at
+      # this point would block the recovery it is supposed to enable.
       - name: Rollback on health check failure
         if: failure() && steps.health.outcome == 'failure'
         uses: appleboy/ssh-action@v1
@@ -613,34 +607,8 @@ jobs:
           key: ${{ secrets.VPS_SSH_KEY }}
           script: |
             set -euo pipefail
-            
-            cd /opt/taskflow
-            
-            # The file is written by the deploy step before the pull. If the
-            # deploy step never ran, there is nothing to restore.
-            if [ ! -f /tmp/taskflow_rollback.env ]; then
-              echo "No rollback file found, nothing to restore."
-              exit 0
-            fi
-            
-            # `set -u` would abort on an undefined variable, so PREVIOUS_IMAGE
-            # is defaulted to empty before sourcing rather than after.
-            PREVIOUS_IMAGE=""
-            source /tmp/taskflow_rollback.env
-            
-            if [ -z "$PREVIOUS_IMAGE" ]; then
-              echo "No previous image recorded, cannot rollback."
-              echo "This is expected on a first deployment."
-              exit 0
-            fi
-            
-            echo "Rolling back to $PREVIOUS_IMAGE"
-            docker compose stop taskflow-api
-            # Re-point the tag docker-compose.yml resolves to the previous
-            # image ID, then let compose recreate the container from it.
-            docker tag "$PREVIOUS_IMAGE" ghcr.io/mehdi-rochereau/taskflow-api:latest
-            docker compose up -d taskflow-api
-            echo "Rollback complete, production runs $PREVIOUS_IMAGE"
+
+            /opt/taskflow/scripts/deploy.sh taskflow-api --rollback
 
       # ── Smoke tests ──────────────────────────────────────
       # Verifies that key public endpoints respond correctly after deploy.
