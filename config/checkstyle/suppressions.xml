@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- config/checkstyle/suppressions.xml -->
+<!DOCTYPE suppressions PUBLIC
+        "-//Checkstyle//DTD SuppressionFilter Configuration 1.2//EN"
+        "https://checkstyle.org/dtds/suppressions_1_2.dtd">
+
+<!--
+    Checkstyle suppressions for TaskFlow API.
+
+    This file is NOT config/owasp/suppressions.xml. That one silences CVE
+    findings for Dependency-Check. This one silences style rules for
+    Checkstyle. Same name, unrelated tooling.
+
+    Scope rule: a suppression here must name the source tree it applies to.
+    A suppression without a `files` attribute would disable the rule
+    project-wide, which is never the intent.
+-->
+<suppressions>
+
+    <!--
+        MethodName on test sources.
+
+        The default format ^[a-z][a-zA-Z0-9]*$ rejects underscores. Test
+        methods are named shouldDoSomething_whenCondition, where the
+        underscore separates the expected behaviour from the precondition.
+        That separator is what makes a failing test report readable without
+        opening the file.
+
+        Kept on src/main, where a method name is part of the public API and
+        plain camel case is the Java convention.
+
+        Lift condition: none foreseen. Would only apply if the project moved
+        to a naming style carrying no separator, which would trade report
+        readability for nothing.
+    -->
+    <suppress files="[\\/]src[\\/]test[\\/]" checks="MethodName"/>
+
+    <!--
+        MagicNumber on test sources.
+
+        Test fixtures carry literal identifiers, counts and expected values.
+        Extracting 1L into a constant named USER_ID moves the value away from
+        the assertion that reads it, so the reader has to jump to check what
+        the test actually asserts. A test is read top to bottom, once, and
+        inlined values serve that.
+
+        Kept on src/main, where a literal in business logic hides an
+        undocumented rule.
+
+        Lift condition: none foreseen.
+    -->
+    <suppress files="[\\/]src[\\/]test[\\/]" checks="MagicNumber"/>
+
+</suppressions>
