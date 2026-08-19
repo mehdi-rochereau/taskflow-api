@@ -31,6 +31,25 @@
         <property name="ignorePattern" value="^import .*|.*https?://.*"/>
     </module>
 
+    <!-- ── Suppressions ───────────────────────────────── -->
+
+    <!-- Rule exemptions scoped to a source tree, see the file itself for the
+         reason of each one. Declared on Checker and not on TreeWalker: a
+         SuppressionFilter placed inside TreeWalker would only reach the rules
+         TreeWalker owns, leaving the file-level checks above it unfilterable.
+         ${config_loc} is set by the Gradle Checkstyle plugin to the value of
+         its configDirectory property, config/checkstyle by default. Writing
+         the path relative to the project root instead would break as soon as
+         the task runs from another working directory. -->
+    <module name="SuppressionFilter">
+        <property name="file" value="${config_loc}/suppressions.xml"/>
+        <!-- optional=false — a missing suppression file fails the build rather
+             than silently applying every rule everywhere. A filter that
+             disappears without a sound is how an exemption becomes a surprise
+             on someone else's branch. -->
+        <property name="optional" value="false"/>
+    </module>
+
     <module name="TreeWalker">
 
         <!-- ── Naming conventions ─────────────────────── -->
