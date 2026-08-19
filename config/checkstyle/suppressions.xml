@@ -51,4 +51,40 @@
     -->
     <suppress files="[\\/]src[\\/]test[\\/]" checks="MagicNumber"/>
 
+    <!--
+        LineLength on the OpenAPI documentation sources.
+
+        These files carry the API documentation rendered by Swagger UI: Markdown text
+        blocks and long description strings, not code.
+
+        A line break inside a Java text block is a real newline in the rendered output,
+        which Markdown reads as a paragraph break, so wrapping those at 120 columns
+        changes the published page. The description strings could be split by string
+        concatenation without changing their value, but the split would exist only to
+        satisfy a counter and would leave the sentence harder to read in the source,
+        with a trailing-space trap on every fragment.
+
+        Scope is deliberately narrow: the *ControllerApi interfaces hold annotations
+        only, no logic, and OpenApiConfig and TaskRequest are named individually rather
+        than by pattern. Every other source file is still checked at 120.
+
+        Lift condition: none while the API documentation lives in annotations. Moving
+        the descriptions into an external resource bundle would remove the need.
+    -->
+    <suppress files="ControllerApi\.java$" checks="LineLength"/>
+    <suppress files="OpenApiConfig\.java$" checks="LineLength"/>
+    <suppress files="TaskRequest\.java$" checks="LineLength"/>
+
+    <!--
+        LineLength on JPQL queries.
+
+        A @Query string split across lines needs a trailing space on each fragment.
+        Omitting one joins two keywords, producing a query that fails at application
+        startup when Hibernate validates it. The risk is real and the readability gain
+        is nil: a JPQL clause reads as a single statement.
+
+        Lift condition: none.
+    -->
+    <suppress files="TaskRepository\.java$" checks="LineLength"/>
+
 </suppressions>
