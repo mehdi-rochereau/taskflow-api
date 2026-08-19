@@ -10,7 +10,7 @@ A RESTful task management API built with Java 21 and Spring Boot 3.5, featuring 
 
 [![Java](https://img.shields.io/badge/Java-21-ED8B00?style=flat&logo=openjdk&logoColor=white)](https://openjdk.org/)
 [![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.5-6DB33F?style=flat&logo=springboot&logoColor=white)](https://spring.io/projects/spring-boot)
-[![MySQL](https://img.shields.io/badge/MySQL-8.0-4479A1?style=flat&logo=mysql&logoColor=white)](https://www.mysql.com/)
+[![MySQL](https://img.shields.io/badge/MySQL-8.4-4479A1?style=flat&logo=mysql&logoColor=white)](https://www.mysql.com/)
 [![CI/CD](https://github.com/mehdi-rochereau/taskflow-api/actions/workflows/ci-cd.yml/badge.svg)](https://github.com/mehdi-rochereau/taskflow-api/actions/workflows/ci-cd.yml)
 [![codecov](https://codecov.io/gh/mehdi-rochereau/taskflow-api/graph/badge.svg)](https://codecov.io/gh/mehdi-rochereau/taskflow-api)
 
@@ -32,10 +32,10 @@ For security details, see [SECURITY.md](SECURITY.md).
 | Framework | Spring Boot 3.5 |
 | Security | Spring Security + JWT (jjwt 0.12.6) |
 | Persistence | Spring Data JPA / Hibernate |
-| Database | MySQL 8.0 |
+| Database | MySQL 8.4 |
 | Migrations | Flyway |
 | Build tool | Gradle |
-| Testing | JUnit 5 + Mockito + MockMvc |
+| Testing | JUnit 5 + Mockito + MockMvc + Testcontainers |
 | Coverage | JaCoCo |
 | Documentation | Springdoc OpenAPI / Swagger UI |
 | Rate Limiting | Bucket4j |
@@ -57,7 +57,7 @@ src/main/java/com/mehdi/taskflow/
 ├── project/            # Project entity, repository, service, controller, DTOs
 ├── security/           # JWT filter, JWT service, Rate limit filter, UserDetailsService
 ├── task/               # Task entity, repository, service, controller, DTOs
-└── user/               # User entity, repository, service, DTOs
+└── user/               # User entity, repository, service, controller, DTOs
 ```
 
 The application follows a standard layered architecture:
@@ -65,6 +65,9 @@ The application follows a standard layered architecture:
 - **Services** encapsulate business logic and ownership enforcement
 - **Repositories** provide data access via Spring Data JPA
 - **DTOs** decouple the API contract from internal entities
+
+OpenAPI annotations live in dedicated `*ControllerApi` interfaces, which the
+controllers implement. Documentation concerns stay out of the routing code.
 
 ---
 
@@ -74,6 +77,7 @@ The application follows a standard layered architecture:
 - HttpOnly cookie-based session management — JWT (15 min) + Refresh Token (7 days)
 - Refresh token rotation — single-use tokens, automatic renewal
 - Full CRUD on projects and tasks
+- Account management — profile update, password change, account deletion
 - Ownership-based access control — users can only access their own resources
 - Task filtering by status and priority
 - Input sanitization via OWASP Java HTML Sanitizer — XSS prevention
@@ -83,15 +87,18 @@ The application follows a standard layered architecture:
 - Centralized error handling with structured JSON responses
 - i18n error messages — English and French
 - Database schema versioning with Flyway
+- Referential integrity enforced at database level — cascade rules and CHECK
+  constraints, not application-side conventions
 - Interactive API documentation via Swagger UI
-- 80%+ coverage (JUnit 5 + Mockito + MockMvc)
+- 80%+ coverage (JUnit 5 + Mockito + MockMvc + Testcontainers)
 
 ---
 
 ## Prerequisites
 
 - Java 21
-- MySQL 8.0 — either installed locally or via Docker
+- MySQL 8.4 — either installed locally or via Docker
+- Docker — required to run the integration test suite
 
 ---
 
@@ -111,6 +118,7 @@ cp .env.example .env
 | `JWT_EXPIRATION` | JWT expiry in milliseconds | `900000` (15 min) |
 | `COOKIE_SECURE` | Enable `Secure` flag on cookies | `false` |
 | `REFRESH_TOKEN_EXPIRATION_DAYS` | Refresh token validity in days | `7` |
+| `CORS_ALLOWED_ORIGINS` | Comma-separated list of origins allowed to call the API with credentials | `http://localhost:4200` |
 | `DB_USERNAME` | MySQL username | `root` |
 | `DB_PASSWORD` | MySQL password | `root` |
 
@@ -129,7 +137,7 @@ docker run --name taskflow-mysql \
   -e MYSQL_ROOT_PASSWORD=root \
   -e MYSQL_DATABASE=taskflow \
   -p 3306:3306 \
-  -d mysql:8.0
+  -d mysql:8.4
 ```
 
 **3. Run the application**
@@ -159,6 +167,21 @@ http://localhost:8082/swagger-ui/index.html
 | POST | `/api/auth/refresh` | Refresh JWT using refresh token cookie | No |
 | POST | `/api/auth/logout` | Log out — revokes refresh token, clears cookies | No |
 
+### User
+
+| Method | Endpoint | Description | Auth required |
+|--------|----------|-------------|---------------|
+| GET | `/api/users/me` | Get my profile | Yes |
+| PUT | `/api/users/me` | Update my username and email | Yes |
+| POST | `/api/users/me/password` | Change my password — revokes all sessions | Yes |
+| DELETE | `/api/users/me` | Delete my account permanently | Yes |
+
+Account deletion requires password confirmation and is irreversible. It removes
+the account, the projects it owns, the tasks inside those projects, the refresh
+tokens and the linked authentication providers. Tasks merely assigned to the
+deleted user inside someone else's project are preserved and become unassigned:
+a task belongs to its project, not to its assignee.
+
 ### Projects
 
 | Method | Endpoint | Description | Auth required |
@@ -179,9 +202,11 @@ http://localhost:8082/swagger-ui/index.html
 | PUT | `/api/projects/{projectId}/tasks/{id}` | Update a task | Yes |
 | DELETE | `/api/projects/{projectId}/tasks/{id}` | Delete a task | Yes |
 
-Protected endpoints accept authentication via:
-- `Authorization: Bearer <token>` header — for Swagger UI and Postman
-- `jwt` HttpOnly cookie — for Angular (sent automatically by the browser)
+Protected endpoints authenticate through the `jwt` HttpOnly cookie, and through
+nothing else. The browser sends it automatically, and so do Postman and the
+Swagger UI, both of which keep a cookie jar: `Try it out` works with no
+`Authorize` step. The `Authorization: Bearer` header was accepted until August
+2026 and no longer is.
 
 ---
 
@@ -209,6 +234,41 @@ see [SECURITY.md](SECURITY.md).
 ./gradlew test
 ```
 
+The suite is organised in three layers:
+
+| Layer | Annotation | What it proves |
+|-------|------------|----------------|
+| Unit | none — Mockito only | Business logic of each service in isolation |
+| Web slice | `@WebMvcTest` | Routing, validation, status codes, security rules |
+| Integration | `@DataJpaTest` + Testcontainers | Behaviour owned by the database engine |
+
+Integration tests (`*IT`) start a disposable MySQL 8.4 container matching the
+production engine, and let Flyway replay every migration against it. They cover
+what no mock can prove: foreign key `ON DELETE` rules, `CHECK` constraints, and
+the agreement between the schema and the JPA entities under `ddl-auto=validate`.
+
+**Docker must be running** for these tests to execute.
+
+### Test naming conventions
+
+Test methods are named `shouldExpectedBehaviour_whenPrecondition`. The
+underscore separates what is asserted from the condition under which it holds,
+so a failing build names the broken rule without anyone opening the file.
+Fixture values are written as literals rather than extracted into named
+constants, which keeps the value next to the assertion that reads it.
+
+Both conventions break a rule that applies to production sources, `MethodName`
+and `MagicNumber` respectively. They are exempted for `src/test` only, in
+`config/checkstyle/suppressions.xml`, where each exemption carries its reason.
+That file is unrelated to `config/owasp/suppressions.xml`, which silences CVE
+findings for Dependency-Check.
+
+To run only the fast tests:
+
+```bash
+./gradlew test --tests "*Test"
+```
+
 The JaCoCo coverage report is generated at:
 
 ```
@@ -225,15 +285,33 @@ Every push triggers an automated pipeline:
 |------|------|---------|
 | Secret scanning | GitLeaks | Full history scan |
 | Code style | Checkstyle | Google Style variant |
-| Tests | JUnit 5 + Mockito | 159 tests |
+| Tests | JUnit 5 + Mockito + Testcontainers | Unit, web slice and integration layers |
 | Coverage | JaCoCo + Codecov | 80% threshold |
 | Dependency CVEs | OWASP Dependency Check | NVD database |
 | Docker image scan | Trivy | Blocks on CRITICAL CVEs |
-| Deployment | SSH + Docker Compose | Hetzner VPS |
+| Deployment | SSH + shared deployment script | Hetzner VPS, single script shared with the frontend pipeline, aborts on registry refusal |
+| Deploy verification | Image digest | Running container compared to published image |
 | Health check | Spring Actuator | 3 min retry |
 | Rollback | Automatic | On health check failure |
 
 Push to `main` → CI passes → Docker image built → deployed to production automatically.
+
+---
+
+## Database Migrations
+
+Schema changes are versioned with Flyway and applied automatically at startup.
+`spring.jpa.hibernate.ddl-auto` is set to `validate`: Hibernate never alters the
+schema, it only checks that the entities match it, and refuses to start if they
+diverge.
+
+| Version | Contents |
+|---------|----------|
+| V1 | Initial schema — users, projects, tasks |
+| V2 | OAuth2 groundwork — `user_providers` table |
+| V3 | Cascade deletion of tasks with their project |
+| V4 | Refresh token table |
+| V5 | Referential integrity fixes, enum `CHECK` constraints, microsecond timestamps |
 
 ---
 
@@ -265,8 +343,10 @@ Validation errors include field-level details:
 
 ## Planned Improvements
 
-- [ ] OAuth2 login (Google / GitHub)
-- [ ] Angular frontend integration
+- [ ] Password reset via email
+- [ ] Project sharing between users
+- [ ] Third-party sign-in (Google / GitHub)
+- [ ] Angular frontend integration for account management
 - [ ] Prometheus + Grafana monitoring
 - [ ] Redis-based rate limiting
 
