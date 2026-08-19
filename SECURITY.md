@@ -84,6 +84,20 @@ with Spring Boot 3.5, JWT authentication, HttpOnly cookies and MySQL.
 | `Content-Security-Policy` | `default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; frame-ancestors 'none'` |
 | `Referrer-Policy` | `no-referrer` |
 
+`X-XSS-Protection` is deliberately not enabled. The header switched on a
+heuristic filter in older browsers that tried to detect reflected script in a
+response. The filter turned out to be an attack surface of its own: it could be
+tricked into stripping legitimate content and into leaking information across
+origins. Chrome removed it, Firefox never shipped it, Edge dropped it. The
+value `0`, which is what Spring Security sets by default, tells the browser not
+to use it.
+
+XSS is addressed here by three controls instead. The Content Security Policy
+above refuses to execute any script whose origin is not this host. The OWASP
+sanitizer strips markup from user text before persistence, so a payload is never
+stored and therefore never returned. And the API answers in JSON only, never in
+HTML, which removes the reflected vector at the source.
+
 ### Rate Limiting
 
 Rate limiting is enforced via Bucket4j (Token Bucket algorithm) per IP address:
