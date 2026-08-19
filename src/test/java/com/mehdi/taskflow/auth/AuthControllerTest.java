@@ -233,7 +233,9 @@ class AuthControllerTest {
                         jsonPath(
                                 "$.errors.password",
                                 Matchers.contains(
-                                        "Password must be at least 8 characters and contain at least one uppercase letter, one digit and one special character")));
+                                        "Password must be at least 8 characters and contain at"
+                                                + " least one uppercase letter, one digit and one"
+                                                + " special character")));
     }
 
     @Test
@@ -257,7 +259,9 @@ class AuthControllerTest {
                                 "$.errors.password",
                                 Matchers.containsInAnyOrder(
                                         "Password is required",
-                                        "Password must be at least 8 characters and contain at least one uppercase letter, one digit and one special character")));
+                                        "Password must be at least 8 characters and contain at"
+                                                + " least one uppercase letter, one digit and one"
+                                                + " special character")));
     }
 
     @Test
