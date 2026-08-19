@@ -13,6 +13,11 @@ plugins {
     id 'checkstyle'
     // OWASP Dependency Check — scans dependencies for known CVEs
     id 'org.owasp.dependencycheck' version '12.2.2'
+    // Spotless — rewrites source files to a fixed format. Checkstyle only
+    // reports, it never corrects; this is the tool that does the correcting.
+    // The two must agree on the same convention, otherwise each undoes the
+    // other's work on every build.
+    id 'com.diffplug.spotless' version '7.0.2'
 }
 
 jacoco {
@@ -28,6 +33,38 @@ checkstyle {
     ignoreFailures = true
     // Show violations in the console output
     showViolations = true
+}
+
+spotless {
+    java {
+        // Restricted to our own sources. Without this, Spotless would also
+        // pick up anything generated under build/, rewriting files that are
+        // regenerated on the next build.
+        target 'src/**/*.java'
+
+        // AOSP variant of google-java-format, not the Google variant.
+        // google-java-format takes no configuration options by design: the
+        // only choice is which of the two variants to apply. Google indents
+        // with 2 spaces, AOSP with 4. The existing sources are indented with
+        // 4, so the Google variant would reindent all 62 Java files and make
+        // every line of the project point at a single formatting commit in
+        // git blame.
+        // Both wrap at 100 columns, where checkstyle.xml allows 120. Keeping
+        // Checkstyle at 120 leaves the formatter stricter than the checker,
+        // which is stable. The reverse, a formatter more permissive than the
+        // checker, would loop forever: the formatter would produce lines the
+        // checker rejects, on every run.
+        googleJavaFormat('1.25.2').aosp()
+
+        // Removes unused imports and expands star imports, which
+        // AvoidStarImport, UnusedImports and RedundantImport all report.
+        removeUnusedImports()
+
+        // Trailing whitespace and a final newline, which NewlineAtEndOfFile
+        // reports on 34 files.
+        trimTrailingWhitespace()
+        endWithNewline()
+    }
 }
 
 dependencyCheck {
