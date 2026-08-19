@@ -1,5 +1,12 @@
 package com.mehdi.taskflow.task;
 
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.*;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mehdi.taskflow.config.AuditService;
 import com.mehdi.taskflow.config.MessageService;
@@ -12,6 +19,9 @@ import com.mehdi.taskflow.security.UserDetailsServiceImpl;
 import com.mehdi.taskflow.task.dto.TaskRequest;
 import com.mehdi.taskflow.user.User;
 import jakarta.servlet.FilterChain;
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Locale;
 import org.hamcrest.Matchers;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -26,48 +36,28 @@ import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
-import java.time.LocalDateTime;
-import java.util.List;
-import java.util.Locale;
-
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.*;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
-
 @WebMvcTest(TaskController.class)
 @Import(SecurityConfig.class)
 @WithMockUser(username = "mehdi")
 public class TaskControllerTest {
 
-    @Autowired
-    private MockMvc mockMvc;
+    @Autowired private MockMvc mockMvc;
 
-    @Autowired
-    private ObjectMapper objectMapper;
+    @Autowired private ObjectMapper objectMapper;
 
-    @MockitoBean
-    private TaskService taskService;
+    @MockitoBean private TaskService taskService;
 
-    @MockitoBean
-    private JwtService jwtService;
+    @MockitoBean private JwtService jwtService;
 
-    @MockitoBean
-    private JwtFilter jwtFilter;
+    @MockitoBean private JwtFilter jwtFilter;
 
-    @MockitoBean
-    private UserDetailsServiceImpl userDetailsService;
+    @MockitoBean private UserDetailsServiceImpl userDetailsService;
 
-    @MockitoBean
-    private PasswordEncoder passwordEncoder;
+    @MockitoBean private PasswordEncoder passwordEncoder;
 
-    @MockitoBean
-    private MessageService messageService;
+    @MockitoBean private MessageService messageService;
 
-    @MockitoBean
-    private AuditService auditService;
+    @MockitoBean private AuditService auditService;
 
     private Task task;
     private TaskRequest taskRequest;
@@ -100,18 +90,20 @@ public class TaskControllerTest {
         taskRequest.setStatus(TaskStatus.TODO);
         taskRequest.setPriority(TaskPriority.MEDIUM);
 
-        doAnswer(invocation -> {
-            FilterChain chain = invocation.getArgument(2);
-            chain.doFilter(invocation.getArgument(0), invocation.getArgument(1));
-            return null;
-        }).when(jwtFilter).doFilter(any(), any(), any());
+        doAnswer(
+                        invocation -> {
+                            FilterChain chain = invocation.getArgument(2);
+                            chain.doFilter(invocation.getArgument(0), invocation.getArgument(1));
+                            return null;
+                        })
+                .when(jwtFilter)
+                .doFilter(any(), any(), any());
     }
 
     @Test
     void getTasksByProject_shouldReturn200_withTaskList() throws Exception {
         // GIVEN
-        when(taskService.getTasksByProject(1L, null, null))
-                .thenReturn(List.of(task));
+        when(taskService.getTasksByProject(1L, null, null)).thenReturn(List.of(task));
 
         // WHEN & THEN
         mockMvc.perform(get("/api/projects/1/tasks"))
@@ -128,8 +120,7 @@ public class TaskControllerTest {
     @Test
     void getTasksByProject_shouldReturn200_withEmptyList() throws Exception {
         // GIVEN
-        when(taskService.getTasksByProject(1L, null, null))
-                .thenReturn(List.of());
+        when(taskService.getTasksByProject(1L, null, null)).thenReturn(List.of());
 
         // WHEN & THEN
         mockMvc.perform(get("/api/projects/1/tasks"))
@@ -140,8 +131,7 @@ public class TaskControllerTest {
     @Test
     void getTasksByProject_shouldFilterByStatus() throws Exception {
         // GIVEN
-        when(taskService.getTasksByProject(1L, TaskStatus.TODO, null))
-                .thenReturn(List.of(task));
+        when(taskService.getTasksByProject(1L, TaskStatus.TODO, null)).thenReturn(List.of(task));
 
         // WHEN & THEN
         mockMvc.perform(get("/api/projects/1/tasks?status=TODO"))
@@ -200,7 +190,9 @@ public class TaskControllerTest {
         // WHEN & THEN
         mockMvc.perform(get("/api/projects/1/tasks?status=INVALID"))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.message").value("Parameter 'status' must be of type TaskStatus"));
+                .andExpect(
+                        jsonPath("$.message")
+                                .value("Parameter 'status' must be of type TaskStatus"));
     }
 
     @Test
@@ -212,7 +204,9 @@ public class TaskControllerTest {
         // WHEN & THEN
         mockMvc.perform(get("/api/projects/1/tasks?priority=INVALID"))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.message").value("Parameter 'priority' must be of type TaskPriority"));
+                .andExpect(
+                        jsonPath("$.message")
+                                .value("Parameter 'priority' must be of type TaskPriority"));
     }
 
     @Test
@@ -224,7 +218,8 @@ public class TaskControllerTest {
         // WHEN & THEN
         mockMvc.perform(get("/api/projects/abc/tasks"))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.message").value("Parameter 'projectId' must be of type Long"));
+                .andExpect(
+                        jsonPath("$.message").value("Parameter 'projectId' must be of type Long"));
     }
 
     @Test
@@ -273,8 +268,7 @@ public class TaskControllerTest {
     void getTaskById_shouldReturn403_whenNotProjectOwner() throws Exception {
         // GIVEN
         when(messageService.get("error.access.denied")).thenReturn("Access denied");
-        when(taskService.getTaskById(1L))
-                .thenThrow(new AccessDeniedException("Access denied"));
+        when(taskService.getTaskById(1L)).thenThrow(new AccessDeniedException("Access denied"));
 
         // WHEN & THEN
         mockMvc.perform(get("/api/projects/1/tasks/1"))
@@ -303,7 +297,8 @@ public class TaskControllerTest {
         // WHEN & THEN
         mockMvc.perform(get("/api/projects/abc/tasks/1"))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.message").value("Parameter 'projectId' must be of type Long"));
+                .andExpect(
+                        jsonPath("$.message").value("Parameter 'projectId' must be of type Long"));
     }
 
     @Test
@@ -325,9 +320,10 @@ public class TaskControllerTest {
         when(taskService.createTask(eq(1L), any(TaskRequest.class))).thenReturn(task);
 
         // WHEN & THEN
-        mockMvc.perform(post("/api/projects/1/tasks")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(taskRequest)))
+        mockMvc.perform(
+                        post("/api/projects/1/tasks")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(taskRequest)))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.id").value(1L))
                 .andExpect(jsonPath("$.title").value("My task"))
@@ -344,14 +340,14 @@ public class TaskControllerTest {
         taskRequest.setTitle("");
 
         // WHEN & THEN
-        mockMvc.perform(post("/api/projects/1/tasks")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(taskRequest)))
+        mockMvc.perform(
+                        post("/api/projects/1/tasks")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(taskRequest)))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.errors.title").exists())
                 .andExpect(jsonPath("$.errors.title").isArray())
-                .andExpect(jsonPath("$.errors.title",
-                        Matchers.contains("Task title is required")));
+                .andExpect(jsonPath("$.errors.title", Matchers.contains("Task title is required")));
     }
 
     @Test
@@ -360,14 +356,17 @@ public class TaskControllerTest {
         taskRequest.setTitle("a".repeat(201));
 
         // WHEN & THEN
-        mockMvc.perform(post("/api/projects/1/tasks")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(taskRequest)))
+        mockMvc.perform(
+                        post("/api/projects/1/tasks")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(taskRequest)))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.errors.title").exists())
                 .andExpect(jsonPath("$.errors.title").isArray())
-                .andExpect(jsonPath("$.errors.title",
-                        Matchers.contains("Task title must not exceed 200 characters")));
+                .andExpect(
+                        jsonPath(
+                                "$.errors.title",
+                                Matchers.contains("Task title must not exceed 200 characters")));
     }
 
     @Test
@@ -376,14 +375,18 @@ public class TaskControllerTest {
         taskRequest.setDescription("a".repeat(1001));
 
         // WHEN & THEN
-        mockMvc.perform(post("/api/projects/1/tasks")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(taskRequest)))
+        mockMvc.perform(
+                        post("/api/projects/1/tasks")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(taskRequest)))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.errors.description").exists())
                 .andExpect(jsonPath("$.errors.description").isArray())
-                .andExpect(jsonPath("$.errors.description",
-                        Matchers.contains("Task description must not exceed 1000 characters")));
+                .andExpect(
+                        jsonPath(
+                                "$.errors.description",
+                                Matchers.contains(
+                                        "Task description must not exceed 1000 characters")));
     }
 
     @Test
@@ -392,14 +395,15 @@ public class TaskControllerTest {
         taskRequest.setStatus(null);
 
         // WHEN & THEN
-        mockMvc.perform(post("/api/projects/1/tasks")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(taskRequest)))
+        mockMvc.perform(
+                        post("/api/projects/1/tasks")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(taskRequest)))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.errors.status").exists())
                 .andExpect(jsonPath("$.errors.status").isArray())
-                .andExpect(jsonPath("$.errors.status",
-                        Matchers.contains("Task status is required")));
+                .andExpect(
+                        jsonPath("$.errors.status", Matchers.contains("Task status is required")));
     }
 
     @Test
@@ -408,14 +412,17 @@ public class TaskControllerTest {
         taskRequest.setPriority(null);
 
         // WHEN & THEN
-        mockMvc.perform(post("/api/projects/1/tasks")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(taskRequest)))
+        mockMvc.perform(
+                        post("/api/projects/1/tasks")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(taskRequest)))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.errors.priority").exists())
                 .andExpect(jsonPath("$.errors.priority").isArray())
-                .andExpect(jsonPath("$.errors.priority",
-                        Matchers.contains("Task priority is required")));
+                .andExpect(
+                        jsonPath(
+                                "$.errors.priority",
+                                Matchers.contains("Task priority is required")));
     }
 
     @Test
@@ -425,9 +432,10 @@ public class TaskControllerTest {
                 .thenThrow(new ResourceNotFoundException("Project not found"));
 
         // WHEN & THEN
-        mockMvc.perform(post("/api/projects/999/tasks")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(taskRequest)))
+        mockMvc.perform(
+                        post("/api/projects/999/tasks")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(taskRequest)))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.message").value("Project not found"));
     }
@@ -440,9 +448,10 @@ public class TaskControllerTest {
                 .thenThrow(new ResourceNotFoundException("Assignee not found"));
 
         // WHEN & THEN
-        mockMvc.perform(post("/api/projects/1/tasks")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(taskRequest)))
+        mockMvc.perform(
+                        post("/api/projects/1/tasks")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(taskRequest)))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.message").value("Assignee not found"));
     }
@@ -455,9 +464,10 @@ public class TaskControllerTest {
                 .thenThrow(new AccessDeniedException("Access denied"));
 
         // WHEN & THEN
-        mockMvc.perform(post("/api/projects/2/tasks")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(taskRequest)))
+        mockMvc.perform(
+                        post("/api/projects/2/tasks")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(taskRequest)))
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.message").value("Access denied"));
     }
@@ -471,7 +481,8 @@ public class TaskControllerTest {
         // WHEN & THEN
         mockMvc.perform(post("/api/projects/abc/tasks"))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.message").value("Parameter 'projectId' must be of type Long"));
+                .andExpect(
+                        jsonPath("$.message").value("Parameter 'projectId' must be of type Long"));
     }
 
     @Test
@@ -493,9 +504,10 @@ public class TaskControllerTest {
         when(taskService.updateTask(eq(1L), any(TaskRequest.class))).thenReturn(task);
 
         // WHEN & THEN
-        mockMvc.perform(put("/api/projects/1/tasks/1")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(taskRequest)))
+        mockMvc.perform(
+                        put("/api/projects/1/tasks/1")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(taskRequest)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(1L))
                 .andExpect(jsonPath("$.title").value("My task"))
@@ -512,9 +524,10 @@ public class TaskControllerTest {
         taskRequest.setTitle("");
 
         // WHEN & THEN
-        mockMvc.perform(put("/api/projects/1/tasks/1")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(taskRequest)))
+        mockMvc.perform(
+                        put("/api/projects/1/tasks/1")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(taskRequest)))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.errors.title").exists())
                 .andExpect(jsonPath("$.errors.title").isArray())
@@ -527,13 +540,17 @@ public class TaskControllerTest {
         taskRequest.setTitle("a".repeat(201));
 
         // WHEN & THEN
-        mockMvc.perform(put("/api/projects/1/tasks/1")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(taskRequest)))
+        mockMvc.perform(
+                        put("/api/projects/1/tasks/1")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(taskRequest)))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.errors.title").exists())
                 .andExpect(jsonPath("$.errors.title").isArray())
-                .andExpect(jsonPath("$.errors.title", Matchers.contains("Task title must not exceed 200 characters")));
+                .andExpect(
+                        jsonPath(
+                                "$.errors.title",
+                                Matchers.contains("Task title must not exceed 200 characters")));
     }
 
     @Test
@@ -542,13 +559,18 @@ public class TaskControllerTest {
         taskRequest.setDescription("a".repeat(1001));
 
         // WHEN & THEN
-        mockMvc.perform(put("/api/projects/1/tasks/1")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(taskRequest)))
+        mockMvc.perform(
+                        put("/api/projects/1/tasks/1")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(taskRequest)))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.errors.description").exists())
                 .andExpect(jsonPath("$.errors.description").isArray())
-                .andExpect(jsonPath("$.errors.description", Matchers.contains("Task description must not exceed 1000 characters")));
+                .andExpect(
+                        jsonPath(
+                                "$.errors.description",
+                                Matchers.contains(
+                                        "Task description must not exceed 1000 characters")));
     }
 
     @Test
@@ -557,13 +579,15 @@ public class TaskControllerTest {
         taskRequest.setStatus(null);
 
         // WHEN & THEN
-        mockMvc.perform(put("/api/projects/1/tasks/1")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(taskRequest)))
+        mockMvc.perform(
+                        put("/api/projects/1/tasks/1")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(taskRequest)))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.errors.status").exists())
                 .andExpect(jsonPath("$.errors.status").isArray())
-                .andExpect(jsonPath("$.errors.status", Matchers.contains("Task status is required")));
+                .andExpect(
+                        jsonPath("$.errors.status", Matchers.contains("Task status is required")));
     }
 
     @Test
@@ -572,13 +596,17 @@ public class TaskControllerTest {
         taskRequest.setPriority(null);
 
         // WHEN & THEN
-        mockMvc.perform(put("/api/projects/1/tasks/1")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(taskRequest)))
+        mockMvc.perform(
+                        put("/api/projects/1/tasks/1")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(taskRequest)))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.errors.priority").exists())
                 .andExpect(jsonPath("$.errors.priority").isArray())
-                .andExpect(jsonPath("$.errors.priority", Matchers.contains("Task priority is required")));
+                .andExpect(
+                        jsonPath(
+                                "$.errors.priority",
+                                Matchers.contains("Task priority is required")));
     }
 
     @Test
@@ -589,9 +617,10 @@ public class TaskControllerTest {
                 .thenThrow(new AccessDeniedException("Access denied"));
 
         // WHEN & THEN
-        mockMvc.perform(put("/api/projects/1/tasks/1")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(taskRequest)))
+        mockMvc.perform(
+                        put("/api/projects/1/tasks/1")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(taskRequest)))
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.message").value("Access denied"));
     }
@@ -603,9 +632,10 @@ public class TaskControllerTest {
                 .thenThrow(new ResourceNotFoundException("Task not found"));
 
         // WHEN & THEN
-        mockMvc.perform(put("/api/projects/1/tasks/999")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(taskRequest)))
+        mockMvc.perform(
+                        put("/api/projects/1/tasks/999")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(taskRequest)))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.message").value("Task not found"));
     }
@@ -618,9 +648,10 @@ public class TaskControllerTest {
                 .thenThrow(new ResourceNotFoundException("Assignee not found"));
 
         // WHEN & THEN
-        mockMvc.perform(put("/api/projects/1/tasks/1")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(taskRequest)))
+        mockMvc.perform(
+                        put("/api/projects/1/tasks/1")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(taskRequest)))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.message").value("Assignee not found"));
     }
@@ -632,9 +663,10 @@ public class TaskControllerTest {
                 .thenReturn("Parameter 'id' must be of type Long");
 
         // WHEN & THEN
-        mockMvc.perform(put("/api/projects/1/tasks/abc")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(taskRequest)))
+        mockMvc.perform(
+                        put("/api/projects/1/tasks/abc")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(taskRequest)))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.message").value("Parameter 'id' must be of type Long"));
     }
@@ -646,11 +678,13 @@ public class TaskControllerTest {
                 .thenReturn("Parameter 'projectId' must be of type Long");
 
         // WHEN & THEN
-        mockMvc.perform(put("/api/projects/abc/tasks/1")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(taskRequest)))
+        mockMvc.perform(
+                        put("/api/projects/abc/tasks/1")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(taskRequest)))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.message").value("Parameter 'projectId' must be of type Long"));
+                .andExpect(
+                        jsonPath("$.message").value("Parameter 'projectId' must be of type Long"));
     }
 
     @Test
@@ -669,16 +703,14 @@ public class TaskControllerTest {
     @Test
     void deleteTask_shouldDeleteAndReturn204() throws Exception {
         // WHEN & THEN
-        mockMvc.perform(delete("/api/projects/1/tasks/1"))
-                .andExpect(status().isNoContent());
+        mockMvc.perform(delete("/api/projects/1/tasks/1")).andExpect(status().isNoContent());
     }
 
     @Test
     void deleteTask_shouldReturn403_whenNotOwner() throws Exception {
         // GIVEN
         when(messageService.get("error.access.denied")).thenReturn("Access denied");
-        doThrow(new AccessDeniedException("Access denied"))
-                .when(taskService).deleteTask(1L);
+        doThrow(new AccessDeniedException("Access denied")).when(taskService).deleteTask(1L);
 
         // WHEN & THEN
         mockMvc.perform(delete("/api/projects/1/tasks/1"))
@@ -689,8 +721,7 @@ public class TaskControllerTest {
     @Test
     void deleteTask_shouldReturn404_whenNotFound() throws Exception {
         // GIVEN
-        doThrow(new ResourceNotFoundException("Task not found"))
-                .when(taskService).deleteTask(1L);
+        doThrow(new ResourceNotFoundException("Task not found")).when(taskService).deleteTask(1L);
 
         // WHEN & THEN
         mockMvc.perform(delete("/api/projects/1/tasks/1"))
@@ -719,7 +750,8 @@ public class TaskControllerTest {
         // WHEN & THEN
         mockMvc.perform(delete("/api/projects/abc/tasks/1"))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.message").value("Parameter 'projectId' must be of type Long"));
+                .andExpect(
+                        jsonPath("$.message").value("Parameter 'projectId' must be of type Long"));
     }
 
     @Test

@@ -9,42 +9,37 @@ import jakarta.validation.constraints.Size;
 /**
  * DTO carrying user registration data.
  *
- * <p>Used as the request body for {@code POST /api/auth/register}.
- * All fields are validated before processing — see constraint annotations for details.</p>
+ * <p>Used as the request body for {@code POST /api/auth/register}. All fields are validated before
+ * processing — see constraint annotations for details.
  *
- * @see com.mehdi.taskflow.auth.AuthController#register(RegisterRequest, jakarta.servlet.http.HttpServletResponse)
- * @see com.mehdi.taskflow.user.UserService#register(RegisterRequest, jakarta.servlet.http.HttpServletResponse)
+ * @see com.mehdi.taskflow.auth.AuthController#register(RegisterRequest,
+ *     jakarta.servlet.http.HttpServletResponse)
+ * @see com.mehdi.taskflow.user.UserService#register(RegisterRequest,
+ *     jakarta.servlet.http.HttpServletResponse)
  */
-@Schema(
-        name = "RegisterRequest",
-        description = "Request body for creating a new user account"
-)
+@Schema(name = "RegisterRequest", description = "Request body for creating a new user account")
 public class RegisterRequest {
 
     /**
-     * Unique username for the new account.
-     * Must be between 3 and 50 characters and must not be blank.
+     * Unique username for the new account. Must be between 3 and 50 characters and must not be
+     * blank.
      */
     @Schema(
-            description = "Unique username for the new account. Must be between 3 and 50 characters.",
+            description =
+                    "Unique username for the new account. Must be between 3 and 50 characters.",
             example = "mehdi",
             minLength = 3,
             maxLength = 50,
-            requiredMode = Schema.RequiredMode.REQUIRED
-    )
+            requiredMode = Schema.RequiredMode.REQUIRED)
     @NotBlank(message = "{validation.username.required}")
     @Size(min = 3, max = 50, message = "{validation.username.size}")
     private String username;
 
-    /**
-     * Email address for the new account.
-     * Must be a valid email format and must not be blank.
-     */
+    /** Email address for the new account. Must be a valid email format and must not be blank. */
     @Schema(
             description = "Valid email address for the new account. Must be unique.",
             example = "mehdi@example.com",
-            requiredMode = Schema.RequiredMode.REQUIRED
-    )
+            requiredMode = Schema.RequiredMode.REQUIRED)
     @Email(message = "{validation.email.invalid}")
     @NotBlank(message = "{validation.email.required}")
     private String email;
@@ -52,18 +47,20 @@ public class RegisterRequest {
     /**
      * Plain-text password for the new account.
      *
-     * <p>Must meet the following strength requirements:</p>
+     * <p>Must meet the following strength requirements:
+     *
      * <ul>
-     *   <li>At least 8 characters</li>
-     *   <li>At least one uppercase letter (A-Z)</li>
-     *   <li>At least one digit (0-9)</li>
-     *   <li>At least one special character</li>
+     *   <li>At least 8 characters
+     *   <li>At least one uppercase letter (A-Z)
+     *   <li>At least one digit (0-9)
+     *   <li>At least one special character
      * </ul>
      *
-     * <p>Encoded with BCrypt before persistence — never stored in plain text.</p>
+     * <p>Encoded with BCrypt before persistence — never stored in plain text.
      */
     @Schema(
-            description = """
+            description =
+                    """
             Plain-text password. Must contain at least:
             - 8 characters
             - 1 uppercase letter (A-Z)
@@ -73,34 +70,55 @@ public class RegisterRequest {
             """,
             example = "Mehdi@2026",
             minLength = 8,
-            requiredMode = Schema.RequiredMode.REQUIRED
-    )
+            requiredMode = Schema.RequiredMode.REQUIRED)
     @NotBlank(message = "{validation.password.required}")
     @Pattern(
             regexp = "^(?=.*[A-Z])(?=.*[0-9])(?=.*[^a-zA-Z0-9]).{8,}$",
-            message = "{validation.password.strength}"
-    )    private String password;
+            message = "{validation.password.strength}")
+    private String password;
 
-    /**
-     * Default constructor required for JSON deserialization.
-     */
+    /** Default constructor required for JSON deserialization. */
     public RegisterRequest() {}
 
-    /** @return the requested username */
-    public String getUsername() { return username; }
+    /**
+     * @return the requested username
+     */
+    public String getUsername() {
+        return username;
+    }
 
-    /** @param username the requested username */
-    public void setUsername(String username) { this.username = username; }
+    /**
+     * @param username the requested username
+     */
+    public void setUsername(String username) {
+        this.username = username;
+    }
 
-    /** @return the email address */
-    public String getEmail() { return email; }
+    /**
+     * @return the email address
+     */
+    public String getEmail() {
+        return email;
+    }
 
-    /** @param email the email address */
-    public void setEmail(String email) { this.email = email; }
+    /**
+     * @param email the email address
+     */
+    public void setEmail(String email) {
+        this.email = email;
+    }
 
-    /** @return the plain-text password */
-    public String getPassword() { return password; }
+    /**
+     * @return the plain-text password
+     */
+    public String getPassword() {
+        return password;
+    }
 
-    /** @param password the plain-text password */
-    public void setPassword(String password) { this.password = password; }
+    /**
+     * @param password the plain-text password
+     */
+    public void setPassword(String password) {
+        this.password = password;
+    }
 }

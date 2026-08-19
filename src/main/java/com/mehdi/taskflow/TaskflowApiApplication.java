@@ -8,7 +8,7 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 @EnableScheduling
 public class TaskflowApiApplication {
 
-	public static void main(String[] args) {
-		SpringApplication.run(TaskflowApiApplication.class, args);
-	}
+    public static void main(String[] args) {
+        SpringApplication.run(TaskflowApiApplication.class, args);
+    }
 }

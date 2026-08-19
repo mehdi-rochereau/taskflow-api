@@ -1,8 +1,12 @@
 package com.mehdi.taskflow.security;
 
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.*;
+
 import com.mehdi.taskflow.config.MessageService;
 import com.mehdi.taskflow.user.User;
 import com.mehdi.taskflow.user.UserRepository;
+import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -12,22 +16,14 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 
-import java.util.Optional;
-
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.Mockito.*;
-
 @ExtendWith(MockitoExtension.class)
 class UserDetailsServiceImplTest {
 
-    @Mock
-    private UserRepository userRepository;
+    @Mock private UserRepository userRepository;
 
-    @Mock
-    private MessageService messageService;
+    @Mock private MessageService messageService;
 
-    @InjectMocks
-    private UserDetailsServiceImpl userDetailsService;
+    @InjectMocks private UserDetailsServiceImpl userDetailsService;
 
     private User user;
 
@@ -85,8 +81,10 @@ class UserDetailsServiceImplTest {
                 .thenReturn("No user found with identifier: unknown");
 
         // WHEN
-        UsernameNotFoundException ex = assertThrows(UsernameNotFoundException.class,
-                () -> userDetailsService.loadUserByUsername("unknown"));
+        UsernameNotFoundException ex =
+                assertThrows(
+                        UsernameNotFoundException.class,
+                        () -> userDetailsService.loadUserByUsername("unknown"));
 
         // THEN
         assertEquals("No user found with identifier: unknown", ex.getMessage());

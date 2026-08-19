@@ -3,8 +3,8 @@ package com.mehdi.taskflow.task;
 /**
  * Enumeration of possible task statuses.
  *
- * <p>Stored as a string in the database via {@code @Enumerated(EnumType.STRING)}
- * for readability and resilience to enum reordering.</p>
+ * <p>Stored as a string in the database via {@code @Enumerated(EnumType.STRING)} for readability
+ * and resilience to enum reordering.
  *
  * @see com.mehdi.taskflow.task.Task
  * @see com.mehdi.taskflow.task.dto.TaskRequest

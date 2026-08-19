@@ -8,30 +8,32 @@ import org.springframework.stereotype.Service;
 /**
  * Service responsible for sanitizing user-provided text input.
  *
- * <p>Applies a strict HTML sanitization policy using the
- * <a href="https://github.com/OWASP/java-html-sanitizer">OWASP Java HTML Sanitizer</a>
- * to strip all HTML tags and potentially malicious content from user input
- * before it is persisted to the database.</p>
+ * <p>Applies a strict HTML sanitization policy using the <a
+ * href="https://github.com/OWASP/java-html-sanitizer">OWASP Java HTML Sanitizer</a> to strip all
+ * HTML tags and potentially malicious content from user input before it is persisted to the
+ * database.
  *
- * <p>This service implements a defense-in-depth strategy against XSS attacks —
- * even if a client fails to escape output correctly, the stored data
- * will never contain executable scripts or malicious HTML.</p>
+ * <p>This service implements a defense-in-depth strategy against XSS attacks — even if a client
+ * fails to escape output correctly, the stored data will never contain executable scripts or
+ * malicious HTML.
  *
- * <p>After sanitization, HTML entities (e.g. {@code &#39;}, {@code &amp;}) are decoded
- * back to their plain text equivalents using Apache Commons Text
- * {@link org.apache.commons.text.StringEscapeUtils#unescapeHtml4(String)}.</p>
+ * <p>After sanitization, HTML entities (e.g. {@code &#39;}, {@code &amp;}) are decoded back to
+ * their plain text equivalents using Apache Commons Text {@link
+ * org.apache.commons.text.StringEscapeUtils#unescapeHtml4(String)}.
  *
- * <p>Applied on the following fields:</p>
+ * <p>Applied on the following fields:
+ *
  * <ul>
- *   <li>{@code Project.name} and {@code Project.description}</li>
- *   <li>{@code Task.title} and {@code Task.description}</li>
- *   <li>{@code User.username}</li>
+ *   <li>{@code Project.name} and {@code Project.description}
+ *   <li>{@code Task.title} and {@code Task.description}
+ *   <li>{@code User.username}
  * </ul>
  *
- * <p>Fields explicitly excluded from sanitization:</p>
+ * <p>Fields explicitly excluded from sanitization:
+ *
  * <ul>
- *   <li>Passwords — handled by BCrypt</li>
- *   <li>Emails — validated by {@code @Email}</li>
+ *   <li>Passwords — handled by BCrypt
+ *   <li>Emails — validated by {@code @Email}
  * </ul>
  *
  * @see AuditService#logSanitizationAttempt(String, String, String)
@@ -40,20 +42,19 @@ import org.springframework.stereotype.Service;
 public class SanitizationService {
 
     /**
-     * Strict policy that strips all HTML tags and attributes.
-     * No formatting, no links, no images — plain text only.
+     * Strict policy that strips all HTML tags and attributes. No formatting, no links, no images —
+     * plain text only.
      */
     private static final PolicyFactory POLICY = new HtmlPolicyBuilder().toFactory();
-
 
     /**
      * Sanitizes a user-provided text input and logs a warning if HTML content was detected.
      *
-     * <p>Combines sanitization and audit logging in a single call to avoid
-     * duplication across service classes.</p>
+     * <p>Combines sanitization and audit logging in a single call to avoid duplication across
+     * service classes.
      *
-     * @param input        the raw user input to sanitize
-     * @param field        the name of the field being sanitized — used in the audit log
+     * @param input the raw user input to sanitize
+     * @param field the name of the field being sanitized — used in the audit log
      * @param auditService the audit service used to log sanitization attempts
      * @return the sanitized plain text, or {@code null} if input is {@code null}
      */
@@ -68,13 +69,14 @@ public class SanitizationService {
     /**
      * Sanitizes a user-provided text input by stripping all HTML content.
      *
-     * <p>Returns {@code null} if the input is {@code null} — allowing
-     * optional fields to remain unset without modification.</p>
+     * <p>Returns {@code null} if the input is {@code null} — allowing optional fields to remain
+     * unset without modification.
      *
-     * <p>The sanitization is intentionally strict — all HTML tags are removed.
-     * Plain text is preserved as-is.</p>
+     * <p>The sanitization is intentionally strict — all HTML tags are removed. Plain text is
+     * preserved as-is.
      *
-     * <p>Examples:</p>
+     * <p>Examples:
+     *
      * <pre>
      * sanitize("Hello World)                                       → "Hello World"
      * sanitize("'<'script'>''alert('XSS')''<'/script'>''Hello")    → "Hello"
@@ -93,13 +95,13 @@ public class SanitizationService {
     }
 
     /**
-     * Checks whether the given input contains HTML content that would be
-     * stripped by the sanitization policy.
+     * Checks whether the given input contains HTML content that would be stripped by the
+     * sanitization policy.
      *
-     * <p>Used to determine whether a sanitization attempt should be logged
-     * as a potential XSS attempt.</p>
+     * <p>Used to determine whether a sanitization attempt should be logged as a potential XSS
+     * attempt.
      *
-     * @param original  the original input before sanitization
+     * @param original the original input before sanitization
      * @param sanitized the sanitized output after sanitization
      * @return {@code true} if the sanitized output differs from the original
      */

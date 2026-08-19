@@ -2,6 +2,11 @@ package com.mehdi.taskflow.exception;
 
 import com.mehdi.taskflow.config.AuditService;
 import com.mehdi.taskflow.config.MessageService;
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
@@ -12,19 +17,14 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
-import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-
 /**
  * Centralized exception handler for the entire REST API.
  *
- * <p>Intercepts exceptions thrown by controllers and services,
- * and transforms them into structured JSON HTTP responses.</p>
+ * <p>Intercepts exceptions thrown by controllers and services, and transforms them into structured
+ * JSON HTTP responses.
  *
- * <p>Standard error response structure:</p>
+ * <p>Standard error response structure:
+ *
  * <pre>{@code
  * {
  *   "timestamp": "2026-04-08T10:00:00",
@@ -33,7 +33,8 @@ import java.util.Map;
  * }
  * }</pre>
  *
- * <p>Validation error response structure ({@code 400}):</p>
+ * <p>Validation error response structure ({@code 400}):
+ *
  * <pre>{@code
  * {
  *   "timestamp": "2026-04-08T10:00:00",
@@ -55,8 +56,9 @@ public class GlobalExceptionHandler {
     /**
      * Constructs a new {@code GlobalExceptionHandler} with its required dependencies.
      *
-     * @param messageService utility component for resolving i18n messages based on the current request locale
-     * @param auditService   service for logging security audit events on authentication failures
+     * @param messageService utility component for resolving i18n messages based on the current
+     *     request locale
+     * @param auditService service for logging security audit events on authentication failures
      */
     public GlobalExceptionHandler(MessageService messageService, AuditService auditService) {
         this.messageService = messageService;
@@ -93,8 +95,7 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(BadCredentialsException.class)
     public ResponseEntity<Map<String, Object>> handleBadCredentials() {
         auditService.logLoginFailure("credentials-invalid");
-        return buildResponse(HttpStatus.UNAUTHORIZED,
-                messageService.get("error.bad.credentials"));
+        return buildResponse(HttpStatus.UNAUTHORIZED, messageService.get("error.bad.credentials"));
     }
 
     /**
@@ -104,14 +105,13 @@ public class GlobalExceptionHandler {
      * @return {@code 400 Bad Request} response with the error message
      */
     @ExceptionHandler(IllegalArgumentException.class)
-    public ResponseEntity<Map<String, Object>> handleIllegalArgument(
-            IllegalArgumentException ex) {
+    public ResponseEntity<Map<String, Object>> handleIllegalArgument(IllegalArgumentException ex) {
         return buildResponse(HttpStatus.BAD_REQUEST, ex.getMessage());
     }
 
     /**
-     * Handles validation errors for DTOs annotated with {@code @Valid}.
-     * Returns a detailed map of field-level constraint violations.
+     * Handles validation errors for DTOs annotated with {@code @Valid}. Returns a detailed map of
+     * field-level constraint violations.
      *
      * @param ex exception containing the list of constraint violations
      * @return {@code 400 Bad Request} response with a map of field errors
@@ -120,11 +120,14 @@ public class GlobalExceptionHandler {
     public ResponseEntity<Map<String, Object>> handleValidation(
             MethodArgumentNotValidException ex) {
         Map<String, List<String>> errors = new HashMap<>();
-        ex.getBindingResult().getAllErrors().forEach(error -> {
-            String field = ((FieldError) error).getField();
-            String message = error.getDefaultMessage();
-            errors.computeIfAbsent(field, k -> new ArrayList<>()).add(message);
-        });
+        ex.getBindingResult()
+                .getAllErrors()
+                .forEach(
+                        error -> {
+                            String field = ((FieldError) error).getField();
+                            String message = error.getDefaultMessage();
+                            errors.computeIfAbsent(field, k -> new ArrayList<>()).add(message);
+                        });
         Map<String, Object> body = new HashMap<>();
         body.put("timestamp", LocalDateTime.now());
         body.put("status", HttpStatus.BAD_REQUEST.value());
@@ -133,8 +136,8 @@ public class GlobalExceptionHandler {
     }
 
     /**
-     * Handles type mismatch errors in path variables or request parameters.
-     * For example, passing a non-numeric value where a {@code Long} is expected.
+     * Handles type mismatch errors in path variables or request parameters. For example, passing a
+     * non-numeric value where a {@code Long} is expected.
      *
      * @param ex exception containing the mismatched parameter details
      * @return {@code 400 Bad Request} response with a descriptive error message
@@ -142,17 +145,19 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(MethodArgumentTypeMismatchException.class)
     public ResponseEntity<Map<String, Object>> handleTypeMismatch(
             MethodArgumentTypeMismatchException ex) {
-        String message = messageService.get(
-                "error.parameter.type.mismatch",
-                ex.getName(),
-                ex.getRequiredType() != null ? ex.getRequiredType().getSimpleName() : "unknown"
-        );
+        String message =
+                messageService.get(
+                        "error.parameter.type.mismatch",
+                        ex.getName(),
+                        ex.getRequiredType() != null
+                                ? ex.getRequiredType().getSimpleName()
+                                : "unknown");
         return buildResponse(HttpStatus.BAD_REQUEST, message);
     }
 
     /**
-     * Fallback handler for any unexpected exception not covered by other handlers.
-     * Prevents internal error details from being exposed to the client.
+     * Fallback handler for any unexpected exception not covered by other handlers. Prevents
+     * internal error details from being exposed to the client.
      *
      * @param ex unexpected exception — logged internally for debugging
      * @return {@code 500 Internal Server Error} response with a generic message
@@ -160,19 +165,18 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(Exception.class)
     public ResponseEntity<Map<String, Object>> handleGeneric(Exception ex) {
         auditService.logUnexpectedError(ex);
-        return buildResponse(HttpStatus.INTERNAL_SERVER_ERROR,
-                messageService.get("error.unexpected"));
+        return buildResponse(
+                HttpStatus.INTERNAL_SERVER_ERROR, messageService.get("error.unexpected"));
     }
 
     /**
      * Builds a standardized error response body.
      *
-     * @param status  HTTP status code
+     * @param status HTTP status code
      * @param message error message to include in the response body
      * @return {@link ResponseEntity} with the structured error body
      */
-    private ResponseEntity<Map<String, Object>> buildResponse(
-            HttpStatus status, String message) {
+    private ResponseEntity<Map<String, Object>> buildResponse(HttpStatus status, String message) {
         Map<String, Object> body = new HashMap<>();
         body.put("timestamp", LocalDateTime.now());
         body.put("status", status.value());

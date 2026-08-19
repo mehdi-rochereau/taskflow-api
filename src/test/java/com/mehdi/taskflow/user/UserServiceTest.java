@@ -1,5 +1,10 @@
 package com.mehdi.taskflow.user;
 
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.*;
+
 import com.mehdi.taskflow.auth.RefreshToken;
 import com.mehdi.taskflow.auth.RefreshTokenService;
 import com.mehdi.taskflow.config.AuditService;
@@ -9,6 +14,7 @@ import com.mehdi.taskflow.security.JwtService;
 import com.mehdi.taskflow.security.SecurityUtils;
 import com.mehdi.taskflow.user.dto.*;
 import jakarta.servlet.http.HttpServletResponse;
+import java.time.LocalDateTime;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -20,48 +26,30 @@ import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
-import java.time.LocalDateTime;
-
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.Mockito.*;
-
 @ExtendWith(MockitoExtension.class)
 class UserServiceTest {
 
-    @Mock
-    private UserRepository userRepository;
+    @Mock private UserRepository userRepository;
 
-    @Mock
-    private PasswordEncoder passwordEncoder;
+    @Mock private PasswordEncoder passwordEncoder;
 
-    @Mock
-    private JwtService jwtService;
+    @Mock private JwtService jwtService;
 
-    @Mock
-    private AuthenticationManager authenticationManager;
+    @Mock private AuthenticationManager authenticationManager;
 
-    @Mock
-    private HttpServletResponse httpServletResponse;
+    @Mock private HttpServletResponse httpServletResponse;
 
-    @Mock
-    private MessageService messageService;
+    @Mock private MessageService messageService;
 
-    @Mock
-    private AuditService auditService;
+    @Mock private AuditService auditService;
 
-    @Mock
-    private RefreshTokenService refreshTokenService;
+    @Mock private RefreshTokenService refreshTokenService;
 
-    @Mock
-    private SanitizationService sanitizationService;
+    @Mock private SanitizationService sanitizationService;
 
-    @Mock
-    private SecurityUtils securityUtils;
+    @Mock private SecurityUtils securityUtils;
 
-    @InjectMocks
-    private UserService userService;
+    @InjectMocks private UserService userService;
 
     private RegisterRequest registerRequest;
     private LoginRequest loginRequest;
@@ -91,7 +79,8 @@ class UserServiceTest {
         // GIVEN
         RefreshToken mockRefreshToken = new RefreshToken();
         mockRefreshToken.setToken("fake-refresh-token");
-        when(refreshTokenService.generateRefreshToken(any(User.class))).thenReturn(mockRefreshToken);
+        when(refreshTokenService.generateRefreshToken(any(User.class)))
+                .thenReturn(mockRefreshToken);
         when(userRepository.existsByUsername("mehdi")).thenReturn(false);
         when(userRepository.existsByEmail("mehdi@test.com")).thenReturn(false);
         when(sanitizationService.sanitizeAndLog(any(), any(), any()))
@@ -110,15 +99,20 @@ class UserServiceTest {
         verify(userRepository).existsByUsername("mehdi");
         verify(userRepository).existsByEmail("mehdi@test.com");
         verify(passwordEncoder).encode("password123");
-        verify(userRepository).save(argThat(u ->
-                u.getUsername().equals("mehdi")
-                        && u.getEmail().equals("mehdi@test.com")
-                        && u.getPassword().equals("hashedPassword")
-                        && u.getRole().equals("ROLE_USER")
-        ));
-        verify(jwtService).generateToken(argThat(u ->
-                u.getUsername().equals("mehdi")
-                        && u.getPassword().equals("hashedPassword")));
+        verify(userRepository)
+                .save(
+                        argThat(
+                                u ->
+                                        u.getUsername().equals("mehdi")
+                                                && u.getEmail().equals("mehdi@test.com")
+                                                && u.getPassword().equals("hashedPassword")
+                                                && u.getRole().equals("ROLE_USER")));
+        verify(jwtService)
+                .generateToken(
+                        argThat(
+                                u ->
+                                        u.getUsername().equals("mehdi")
+                                                && u.getPassword().equals("hashedPassword")));
         // The JWT must not leak into the response body: AuthResponse carries the
         // user's identity only, the token travels in the HttpOnly cookie.
         verify(httpServletResponse).addHeader(eq("Set-Cookie"), contains("jwt="));
@@ -128,11 +122,14 @@ class UserServiceTest {
     void register_shouldThrowException_whenUsernameAlreadyExists() {
         // GIVEN
         when(userRepository.existsByUsername("mehdi")).thenReturn(true);
-        when(messageService.get("error.username.taken")).thenReturn("This username is already taken");
+        when(messageService.get("error.username.taken"))
+                .thenReturn("This username is already taken");
 
         // WHEN & THEN
-        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
-                () -> userService.register(registerRequest, httpServletResponse));
+        IllegalArgumentException ex =
+                assertThrows(
+                        IllegalArgumentException.class,
+                        () -> userService.register(registerRequest, httpServletResponse));
         assertEquals("This username is already taken", ex.getMessage());
         verify(messageService).get("error.username.taken");
         verify(userRepository, never()).save(any(User.class));
@@ -145,10 +142,11 @@ class UserServiceTest {
         when(userRepository.existsByEmail("mehdi@test.com")).thenReturn(true);
         when(messageService.get("error.email.taken")).thenReturn("This email is already in use");
 
-
         // WHEN & THEN
-        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
-                () -> userService.register(registerRequest, httpServletResponse));
+        IllegalArgumentException ex =
+                assertThrows(
+                        IllegalArgumentException.class,
+                        () -> userService.register(registerRequest, httpServletResponse));
         assertEquals("This email is already in use", ex.getMessage());
         verify(messageService).get("error.email.taken");
         verify(userRepository, never()).save(any(User.class));
@@ -158,10 +156,12 @@ class UserServiceTest {
     void register_shouldNotCheckEmailUniqueness_whenUsernameAlreadyExists() {
         // GIVEN
         when(userRepository.existsByUsername("mehdi")).thenReturn(true);
-        when(messageService.get("error.username.taken")).thenReturn("This username is already taken");
+        when(messageService.get("error.username.taken"))
+                .thenReturn("This username is already taken");
 
         // WHEN
-        assertThrows(IllegalArgumentException.class,
+        assertThrows(
+                IllegalArgumentException.class,
                 () -> userService.register(registerRequest, httpServletResponse));
 
         // THEN — email check should never be called if username is already taken
@@ -173,7 +173,8 @@ class UserServiceTest {
         // GIVEN
         RefreshToken mockRefreshToken = new RefreshToken();
         mockRefreshToken.setToken("fake-refresh-token");
-        when(refreshTokenService.generateRefreshToken(any(User.class))).thenReturn(mockRefreshToken);
+        when(refreshTokenService.generateRefreshToken(any(User.class)))
+                .thenReturn(mockRefreshToken);
         when(authenticationManager.authenticate(any(UsernamePasswordAuthenticationToken.class)))
                 .thenReturn(null);
         when(userRepository.findByUsername("mehdi")).thenReturn(java.util.Optional.of(user));
@@ -197,10 +198,12 @@ class UserServiceTest {
         loginRequest.setIdentifier("mehdi@test.com");
         RefreshToken mockRefreshToken = new RefreshToken();
         mockRefreshToken.setToken("fake-refresh-token");
-        when(refreshTokenService.generateRefreshToken(any(User.class))).thenReturn(mockRefreshToken);
+        when(refreshTokenService.generateRefreshToken(any(User.class)))
+                .thenReturn(mockRefreshToken);
         when(authenticationManager.authenticate(any(UsernamePasswordAuthenticationToken.class)))
                 .thenReturn(null);
-        when(userRepository.findByUsername("mehdi@test.com")).thenReturn(java.util.Optional.empty());
+        when(userRepository.findByUsername("mehdi@test.com"))
+                .thenReturn(java.util.Optional.empty());
         when(userRepository.findByEmail("mehdi@test.com")).thenReturn(java.util.Optional.of(user));
         when(jwtService.generateToken(any(User.class))).thenReturn("fake-jwt-token");
 
@@ -226,8 +229,10 @@ class UserServiceTest {
         when(messageService.get("error.user.not.found")).thenReturn("User not found");
 
         // WHEN & THEN
-        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
-                () -> userService.login(loginRequest, httpServletResponse));
+        IllegalArgumentException ex =
+                assertThrows(
+                        IllegalArgumentException.class,
+                        () -> userService.login(loginRequest, httpServletResponse));
         assertEquals("User not found", ex.getMessage());
         verify(messageService).get("error.user.not.found");
         verify(userRepository).findByUsername("mehdi");
@@ -242,8 +247,10 @@ class UserServiceTest {
                 .thenThrow(new BadCredentialsException("Bad credentials"));
 
         // WHEN & THEN
-        BadCredentialsException ex = assertThrows(BadCredentialsException.class,
-                () -> userService.login(loginRequest, httpServletResponse));
+        BadCredentialsException ex =
+                assertThrows(
+                        BadCredentialsException.class,
+                        () -> userService.login(loginRequest, httpServletResponse));
 
         assertEquals("Bad credentials", ex.getMessage());
         verify(userRepository, never()).findByUsername(anyString());
@@ -300,15 +307,17 @@ class UserServiceTest {
         // GIVEN
         when(securityUtils.getCurrentUser()).thenReturn(user);
         when(passwordEncoder.matches("WrongPassword@2026", "hashedPassword")).thenReturn(false);
-        when(messageService.get("error.password.incorrect")).thenReturn("Current password is incorrect");
+        when(messageService.get("error.password.incorrect"))
+                .thenReturn("Current password is incorrect");
 
         ChangePasswordRequest request = new ChangePasswordRequest();
         request.setCurrentPassword("WrongPassword@2026");
         request.setNewPassword("NewPassword@2026");
 
         // WHEN
-        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
-                () -> userService.changePassword(request));
+        IllegalArgumentException ex =
+                assertThrows(
+                        IllegalArgumentException.class, () -> userService.changePassword(request));
 
         // THEN
         assertEquals("Current password is incorrect", ex.getMessage());
@@ -331,8 +340,9 @@ class UserServiceTest {
         request.setNewPassword("SamePassword@2026");
 
         // WHEN
-        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
-                () -> userService.changePassword(request));
+        IllegalArgumentException ex =
+                assertThrows(
+                        IllegalArgumentException.class, () -> userService.changePassword(request));
 
         // THEN
         assertEquals("New password must be different from the current password", ex.getMessage());
@@ -366,10 +376,12 @@ class UserServiceTest {
         verify(securityUtils).getCurrentUser();
         verify(userRepository).existsByUsername("mehdi_updated");
         verify(userRepository).existsByEmail("mehdi.updated@test.com");
-        verify(userRepository).save(argThat(u ->
-                u.getUsername().equals("mehdi_updated")
-                        && u.getEmail().equals("mehdi.updated@test.com")
-        ));
+        verify(userRepository)
+                .save(
+                        argThat(
+                                u ->
+                                        u.getUsername().equals("mehdi_updated")
+                                                && u.getEmail().equals("mehdi.updated@test.com")));
         verify(auditService).logProfileUpdate("mehdi_updated");
     }
 
@@ -412,8 +424,9 @@ class UserServiceTest {
         request.setEmail("mehdi@test.com");
 
         // WHEN
-        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
-                () -> userService.updateProfile(request));
+        IllegalArgumentException ex =
+                assertThrows(
+                        IllegalArgumentException.class, () -> userService.updateProfile(request));
 
         // THEN
         assertEquals("This username is already taken by another account", ex.getMessage());
@@ -437,8 +450,9 @@ class UserServiceTest {
         request.setEmail("other@test.com");
 
         // WHEN
-        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
-                () -> userService.updateProfile(request));
+        IllegalArgumentException ex =
+                assertThrows(
+                        IllegalArgumentException.class, () -> userService.updateProfile(request));
 
         // THEN
         assertEquals("This email is already in use by another account", ex.getMessage());
@@ -477,8 +491,10 @@ class UserServiceTest {
         request.setPassword("WrongPassword@2026");
 
         // WHEN
-        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
-                () -> userService.deleteAccount(request, httpServletResponse));
+        IllegalArgumentException ex =
+                assertThrows(
+                        IllegalArgumentException.class,
+                        () -> userService.deleteAccount(request, httpServletResponse));
 
         // THEN
         assertEquals("Password is incorrect — account deletion cancelled", ex.getMessage());
