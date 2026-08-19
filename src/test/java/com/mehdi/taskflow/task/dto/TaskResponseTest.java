@@ -1,6 +1,8 @@
 package com.mehdi.taskflow.task.dto;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import com.mehdi.taskflow.project.Project;
 import com.mehdi.taskflow.task.Task;

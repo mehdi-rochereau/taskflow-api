@@ -1,9 +1,17 @@
 package com.mehdi.taskflow.user;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.argThat;
+import static org.mockito.Mockito.contains;
+import static org.mockito.Mockito.eq;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 import com.mehdi.taskflow.auth.RefreshToken;
 import com.mehdi.taskflow.auth.RefreshTokenService;
@@ -12,7 +20,13 @@ import com.mehdi.taskflow.config.MessageService;
 import com.mehdi.taskflow.config.SanitizationService;
 import com.mehdi.taskflow.security.JwtService;
 import com.mehdi.taskflow.security.SecurityUtils;
-import com.mehdi.taskflow.user.dto.*;
+import com.mehdi.taskflow.user.dto.AuthResponse;
+import com.mehdi.taskflow.user.dto.ChangePasswordRequest;
+import com.mehdi.taskflow.user.dto.DeleteAccountRequest;
+import com.mehdi.taskflow.user.dto.LoginRequest;
+import com.mehdi.taskflow.user.dto.RegisterRequest;
+import com.mehdi.taskflow.user.dto.UpdateProfileRequest;
+import com.mehdi.taskflow.user.dto.UserResponse;
 import jakarta.servlet.http.HttpServletResponse;
 import java.time.LocalDateTime;
 import org.junit.jupiter.api.BeforeEach;
