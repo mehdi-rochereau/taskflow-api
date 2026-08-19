@@ -133,7 +133,12 @@ public class UserService {
 
         String token = jwtService.generateToken(user);
         CookieUtils.addCookie(
-                response, "jwt", token, "/api", (int) (jwtExpiration / 1000), cookieSecure);
+                response,
+                "jwt",
+                token,
+                "/api",
+                (int) Duration.ofMillis(jwtExpiration).toSeconds(),
+                cookieSecure);
 
         RefreshToken refreshToken = refreshTokenService.generateRefreshToken(user);
         refreshTokenService.addRefreshTokenCookie(response, refreshToken.getToken());
