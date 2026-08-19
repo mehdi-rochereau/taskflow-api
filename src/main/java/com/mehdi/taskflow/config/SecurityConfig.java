@@ -3,7 +3,9 @@ package com.mehdi.taskflow.config;
 import com.mehdi.taskflow.security.JwtFilter;
 import com.mehdi.taskflow.security.RateLimitFilter;
 import com.mehdi.taskflow.security.UserDetailsServiceImpl;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import java.io.IOException;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.List;
@@ -21,6 +23,7 @@ import org.springframework.security.config.annotation.web.configuration.EnableWe
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.annotation.web.configurers.HeadersConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
@@ -137,28 +140,7 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http.cors(cors -> cors.configurationSource(corsConfigurationSource()))
-                .headers(
-                        headers ->
-                                headers.frameOptions(HeadersConfigurer.FrameOptionsConfig::deny)
-                                        .contentTypeOptions(Customizer.withDefaults())
-                                        .httpStrictTransportSecurity(
-                                                hsts ->
-                                                        hsts.includeSubDomains(true)
-                                                                .maxAgeInSeconds(
-                                                                        HSTS_MAX_AGE.toSeconds()))
-                                        .contentSecurityPolicy(
-                                                csp ->
-                                                        csp.policyDirectives(
-                                                                "default-src 'self'; "
-                                                                        + "style-src 'self' 'unsafe-inline'; "
-                                                                        + "img-src 'self' data:; "
-                                                                        + "frame-ancestors 'none'"))
-                                        .referrerPolicy(
-                                                referrer ->
-                                                        referrer.policy(
-                                                                ReferrerPolicyHeaderWriter
-                                                                        .ReferrerPolicy
-                                                                        .NO_REFERRER)))
+                .headers(this::configureSecurityHeaders)
                 .csrf(AbstractHttpConfigurer::disable)
                 .authorizeHttpRequests(
                         auth ->
@@ -173,23 +155,72 @@ public class SecurityConfig {
                                         .authenticated())
                 .sessionManagement(
                         session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-                .exceptionHandling(
-                        ex ->
-                                ex.authenticationEntryPoint(
-                                        (request, response, authException) -> {
-                                            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-                                            response.setContentType("application/json");
-                                            response.getWriter()
-                                                    .write(
-                                                            "{\"status\":401,\"message\":\""
-                                                                    + messageService.get(
-                                                                            "error.authentication.required")
-                                                                    + "\"}");
-                                        }))
+                .exceptionHandling(ex -> ex.authenticationEntryPoint(this::writeUnauthorizedJson))
                 .authenticationProvider(authenticationProvider())
                 .addFilterBefore(rateLimitFilter, UsernamePasswordAuthenticationFilter.class)
                 .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
         return http.build();
+    }
+
+    /**
+     * Declares the response headers written on every reply.
+     *
+     * <p>Extracted from {@link #securityFilterChain(HttpSecurity)} so that the chain reads as a
+     * list of concerns rather than as one nested expression. Nothing here depends on the rest of
+     * the chain, which is what makes the extraction safe.
+     *
+     * <p>{@code X-XSS-Protection} is deliberately absent: Spring Security emits it at {@code 0},
+     * which disables the legacy browser filter that the header used to switch on. The filter was
+     * itself an attack surface and every current browser has dropped it. The Content Security
+     * Policy below is what actually stops script injection.
+     *
+     * @param headers the headers configurer supplied by the filter chain builder
+     */
+    private void configureSecurityHeaders(HeadersConfigurer<HttpSecurity> headers) {
+        headers.frameOptions(HeadersConfigurer.FrameOptionsConfig::deny)
+                .contentTypeOptions(Customizer.withDefaults())
+                .httpStrictTransportSecurity(
+                        hsts ->
+                                hsts.includeSubDomains(true)
+                                        .maxAgeInSeconds(HSTS_MAX_AGE.toSeconds()))
+                .contentSecurityPolicy(
+                        csp ->
+                                csp.policyDirectives(
+                                        "default-src 'self'; "
+                                                + "style-src 'self' 'unsafe-inline'; "
+                                                + "img-src 'self' data:; "
+                                                + "frame-ancestors 'none'"))
+                .referrerPolicy(
+                        referrer ->
+                                referrer.policy(
+                                        ReferrerPolicyHeaderWriter.ReferrerPolicy.NO_REFERRER));
+    }
+
+    /**
+     * Answers an unauthenticated request with a structured JSON body.
+     *
+     * <p>Without this entry point Spring Security returns its default HTML error page, which a
+     * client consuming JSON cannot parse. The shape matches the one produced by {@code
+     * GlobalExceptionHandler}, so a caller handles every error the same way.
+     *
+     * @param request the unauthenticated request, unused
+     * @param response the response to write the body into
+     * @param authException the cause, not exposed to the caller: an authentication failure must not
+     *     say which part failed
+     * @throws IOException if the response body cannot be written
+     */
+    private void writeUnauthorizedJson(
+            HttpServletRequest request,
+            HttpServletResponse response,
+            AuthenticationException authException)
+            throws IOException {
+        response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+        response.setContentType("application/json");
+        response.getWriter()
+                .write(
+                        "{\"status\":401,\"message\":\""
+                                + messageService.get("error.authentication.required")
+                                + "\"}");
     }
 
     /**
