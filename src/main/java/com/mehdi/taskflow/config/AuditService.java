@@ -178,7 +178,9 @@ public class AuditService {
         try {
             ServletRequestAttributes attributes =
                     (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
-            if (attributes == null) return "unknown";
+            if (attributes == null) {
+                return "unknown";
+            }
             HttpServletRequest request = attributes.getRequest();
             String forwarded = request.getHeader("X-Forwarded-For");
             if (forwarded != null && !forwarded.isEmpty()) {

@@ -220,7 +220,9 @@ public class RefreshTokenService {
      * @return the refresh token string, or {@code null} if the cookie is absent
      */
     private String extractRefreshTokenFromCookie(HttpServletRequest request) {
-        if (request.getCookies() == null) return null;
+        if (request.getCookies() == null) {
+            return null;
+        }
         for (Cookie cookie : request.getCookies()) {
             if ("refreshToken".equals(cookie.getName())) {
                 return cookie.getValue();

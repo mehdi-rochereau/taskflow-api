@@ -90,7 +90,9 @@ public class SanitizationService {
      * @return the sanitized plain text, or {@code null} if input is {@code null}
      */
     public String sanitize(String input) {
-        if (input == null) return null;
+        if (input == null) {
+            return null;
+        }
         return StringEscapeUtils.unescapeHtml4(POLICY.sanitize(input));
     }
 
@@ -106,8 +108,12 @@ public class SanitizationService {
      * @return {@code true} if the sanitized output differs from the original
      */
     public boolean wasSanitized(String original, String sanitized) {
-        if (original == null && sanitized == null) return false;
-        if (original == null || sanitized == null) return true;
+        if (original == null && sanitized == null) {
+            return false;
+        }
+        if (original == null || sanitized == null) {
+            return true;
+        }
         return !original.equals(sanitized);
     }
 }
