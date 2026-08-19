@@ -34,6 +34,16 @@ import org.springframework.web.bind.annotation.RequestBody;
                 "Endpoints for managing the authenticated user's profile. All endpoints require a valid JWT token.")
 public interface UserControllerApi {
 
+    /**
+     * Returns the authenticated user's public profile.
+     *
+     * <p>Implemented by {@link UserController}; this interface carries the OpenAPI annotations
+     * only. The identity comes from the security context, so there is no path variable and no way
+     * to read another account through this endpoint.
+     *
+     * @return {@code 200 OK} with the caller's identifier, username, email, role and creation date.
+     *     The password hash is never exposed
+     */
     @Operation(
             summary = "Get authenticated user profile",
             description =
@@ -98,6 +108,17 @@ public interface UserControllerApi {
             })
     ResponseEntity<UserResponse> getProfile();
 
+    /**
+     * Changes the authenticated user's password.
+     *
+     * <p>Implemented by {@link UserController}; this interface carries the OpenAPI annotations
+     * only. Every refresh token is revoked on success, so all sessions on all devices end and the
+     * user must authenticate again, including on the device that made the change.
+     *
+     * @param request the current and new passwords
+     * @return {@code 204 No Content}, or {@code 400} if the current password is wrong or the new
+     *     one is identical to it
+     */
     @Operation(
             summary = "Change authenticated user password",
             description =
@@ -194,6 +215,17 @@ public interface UserControllerApi {
             })
     ResponseEntity<Void> changePassword(@Valid @RequestBody ChangePasswordRequest request);
 
+    /**
+     * Updates the authenticated user's username and email.
+     *
+     * <p>Implemented by {@link UserController}; this interface carries the OpenAPI annotations
+     * only. Uniqueness is checked against other accounts only, so resubmitting an unchanged value
+     * is not rejected. The username is sanitized before persistence.
+     *
+     * @param request the new profile data, username and email
+     * @return {@code 200 OK} with the updated profile, or {@code 400} if either value is already
+     *     held by another account
+     */
     @Operation(
             summary = "Update authenticated user profile",
             description =
@@ -304,6 +336,19 @@ public interface UserControllerApi {
             })
     ResponseEntity<UserResponse> updateProfile(@Valid @RequestBody UpdateProfileRequest request);
 
+    /**
+     * Permanently deletes the authenticated user's account.
+     *
+     * <p>Implemented by {@link UserController}; this interface carries the OpenAPI annotations
+     * only. Password confirmation is required, so a stolen session alone cannot destroy an account.
+     * Owned projects and their tasks follow, removed by the database through {@code ON DELETE
+     * CASCADE}; tasks merely assigned to the user inside someone else's project survive and become
+     * unassigned.
+     *
+     * @param request the deletion confirmation, carrying the account password
+     * @param response the HTTP response used to clear both authentication cookies
+     * @return {@code 204 No Content}. The operation is irreversible
+     */
     @Operation(
             summary = "Delete authenticated user account",
             description =

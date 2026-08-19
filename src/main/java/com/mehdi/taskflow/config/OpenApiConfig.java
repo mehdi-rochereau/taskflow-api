@@ -103,6 +103,16 @@ import org.springframework.context.annotation.Configuration;
         })
 public class OpenApiConfig {
 
+    /**
+     * Declares the reusable {@code Accept-Language} header parameter.
+     *
+     * <p>The class-level {@link OpenAPIDefinition} annotation cannot express a shared component, so
+     * the parameter is registered programmatically here and referenced from each endpoint by {@code
+     * $ref}. Declaring it inline on every operation instead would repeat the enumeration of
+     * supported locales on more than fifteen methods, and let them drift apart.
+     *
+     * @return the {@link OpenAPI} model contributed to the generated specification
+     */
     @Bean
     public OpenAPI customOpenAPI() {
         return new OpenAPI()

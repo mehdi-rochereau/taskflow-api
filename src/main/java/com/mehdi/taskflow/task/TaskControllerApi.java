@@ -33,6 +33,18 @@ import org.springframework.web.bind.annotation.RequestParam;
                 "Task management endpoints within projects. All operations require project ownership.")
 public interface TaskControllerApi {
 
+    /**
+     * Lists the tasks of a project, with optional filtering.
+     *
+     * <p>Implemented by {@link TaskController}; this interface carries the OpenAPI annotations
+     * only. The two filters are not combined: when both are supplied, {@code status} wins and
+     * {@code priority} is ignored.
+     *
+     * @param projectId the identifier of the project to list tasks from
+     * @param status optional status filter
+     * @param priority optional priority filter, applied only when {@code status} is absent
+     * @return {@code 200 OK} with the matching tasks, an empty array if none
+     */
     @Operation(
             summary = "List tasks of a project",
             description =
@@ -114,6 +126,16 @@ public interface TaskControllerApi {
             @RequestParam(required = false) TaskStatus status,
             @RequestParam(required = false) TaskPriority priority);
 
+    /**
+     * Returns a single task by identifier.
+     *
+     * <p>Implemented by {@link TaskController}; this interface carries the OpenAPI annotations
+     * only.
+     *
+     * @param projectId the identifier of the project the task belongs to
+     * @param id the task identifier
+     * @return {@code 200 OK} with the task
+     */
     @Operation(
             summary = "Get a task by ID",
             description =
@@ -198,6 +220,17 @@ public interface TaskControllerApi {
             })
     ResponseEntity<TaskResponse> getTaskById(@PathVariable Long projectId, @PathVariable Long id);
 
+    /**
+     * Creates a task inside a project.
+     *
+     * <p>Implemented by {@link TaskController}; this interface carries the OpenAPI annotations
+     * only. An {@code assigneeId} may name any registered user, not only the project owner: the
+     * assignment is a project-sharing groundwork with no endpoint exposing it yet.
+     *
+     * @param projectId the identifier of the project to add the task to
+     * @param request the task data
+     * @return {@code 201 Created} with the persisted task and its generated identifier
+     */
     @Operation(
             summary = "Create a task",
             description =
@@ -318,6 +351,17 @@ public interface TaskControllerApi {
     ResponseEntity<TaskResponse> createTask(
             @PathVariable Long projectId, @Valid @RequestBody TaskRequest request);
 
+    /**
+     * Updates an existing task.
+     *
+     * <p>Implemented by {@link TaskController}; this interface carries the OpenAPI annotations
+     * only. Text fields are sanitized in the service layer before persistence.
+     *
+     * @param projectId the identifier of the project the task belongs to
+     * @param id the identifier of the task to update
+     * @param request the new task data
+     * @return {@code 200 OK} with the updated task
+     */
     @Operation(
             summary = "Update a task",
             description =
@@ -437,6 +481,17 @@ public interface TaskControllerApi {
             @PathVariable Long id,
             @Valid @RequestBody TaskRequest request);
 
+    /**
+     * Permanently deletes a task.
+     *
+     * <p>Implemented by {@link TaskController}; this interface carries the OpenAPI annotations
+     * only. Ownership is verified before the task is loaded, so a caller who does not own the
+     * project never triggers a read.
+     *
+     * @param projectId the identifier of the project the task belongs to
+     * @param id the identifier of the task to delete
+     * @return {@code 204 No Content}
+     */
     @Operation(
             summary = "Delete a task",
             description =

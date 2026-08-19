@@ -32,6 +32,14 @@ import org.springframework.web.bind.annotation.RequestBody;
                 "Project management endpoints. All operations are scoped to the authenticated user.")
 public interface ProjectControllerApi {
 
+    /**
+     * Lists the projects owned by the authenticated user.
+     *
+     * <p>Implemented by {@link ProjectController}; this interface carries the OpenAPI annotations
+     * only. Ownership filtering happens in the service layer, the caller cannot widen the scope.
+     *
+     * @return {@code 200 OK} with the caller's projects, an empty array if none
+     */
     @Operation(
             summary = "List my projects",
             description =
@@ -77,6 +85,17 @@ public interface ProjectControllerApi {
             })
     ResponseEntity<List<ProjectResponse>> getMyProjects();
 
+    /**
+     * Returns a single project by identifier.
+     *
+     * <p>Implemented by {@link ProjectController}; this interface carries the OpenAPI annotations
+     * only. A project owned by another user answers {@code 404} rather than {@code 403}, so the
+     * response does not reveal whether the identifier exists.
+     *
+     * @param id the project identifier
+     * @return {@code 200 OK} with the project, or {@code 404} if it does not exist or is owned by
+     *     someone else
+     */
     @Operation(
             summary = "Get a project by ID",
             description =
@@ -156,6 +175,15 @@ public interface ProjectControllerApi {
             })
     ResponseEntity<ProjectResponse> getProjectById(@PathVariable Long id);
 
+    /**
+     * Creates a project owned by the authenticated user.
+     *
+     * <p>Implemented by {@link ProjectController}; this interface carries the OpenAPI annotations
+     * only. The owner is taken from the security context, never from the request body.
+     *
+     * @param request the project data, name and description
+     * @return {@code 201 Created} with the persisted project and its generated identifier
+     */
     @Operation(
             summary = "Create a project",
             description = "Creates a new project associated with the authenticated user.",
@@ -231,6 +259,17 @@ public interface ProjectControllerApi {
             })
     ResponseEntity<ProjectResponse> createProject(@Valid @RequestBody ProjectRequest request);
 
+    /**
+     * Updates a project owned by the authenticated user.
+     *
+     * <p>Implemented by {@link ProjectController}; this interface carries the OpenAPI annotations
+     * only. Ownership is verified in the service layer before any write.
+     *
+     * @param id the identifier of the project to update
+     * @param request the new project data
+     * @return {@code 200 OK} with the updated project, or {@code 404} if it does not exist or is
+     *     owned by someone else
+     */
     @Operation(
             summary = "Update a project",
             description =
@@ -329,6 +368,17 @@ public interface ProjectControllerApi {
     ResponseEntity<ProjectResponse> updateProject(
             @PathVariable Long id, @Valid @RequestBody ProjectRequest request);
 
+    /**
+     * Permanently deletes a project.
+     *
+     * <p>Implemented by {@link ProjectController}; this interface carries the OpenAPI annotations
+     * only. The project's tasks are removed by the database through {@code fk_tasks_project ON
+     * DELETE CASCADE}, not by application code.
+     *
+     * @param id the identifier of the project to delete
+     * @return {@code 204 No Content}, or {@code 404} if the project does not exist or is owned by
+     *     someone else
+     */
     @Operation(
             summary = "Delete a project",
             description =
