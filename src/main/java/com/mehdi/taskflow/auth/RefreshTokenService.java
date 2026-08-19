@@ -9,6 +9,7 @@ import com.mehdi.taskflow.user.dto.AuthResponse;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.UUID;
 import org.springframework.beans.factory.annotation.Value;
@@ -117,8 +118,16 @@ public class RefreshTokenService {
         String newJwt = jwtService.generateToken(user);
         RefreshToken newRefreshToken = generateRefreshToken(user);
 
+        // jwtExpiration is configured in milliseconds because that is what the JWT library
+        // expects, but a cookie max-age is expressed in seconds. Duration performs the
+        // conversion and names the unit at both ends, which a bare division by 1000 does not.
         CookieUtils.addCookie(
-                response, "jwt", newJwt, "/api", (int) (jwtExpiration / 1000), cookieSecure);
+                response,
+                "jwt",
+                newJwt,
+                "/api",
+                (int) Duration.ofMillis(jwtExpiration).toSeconds(),
+                cookieSecure);
         addRefreshTokenCookie(response, newRefreshToken.getToken());
 
         return new AuthResponse(user.getUsername(), user.getEmail());
@@ -165,7 +174,7 @@ public class RefreshTokenService {
                 "refreshToken",
                 refreshToken,
                 "/api/auth",
-                expirationDays * 24 * 60 * 60,
+                (int) Duration.ofDays(expirationDays).toSeconds(),
                 cookieSecure);
     }
 

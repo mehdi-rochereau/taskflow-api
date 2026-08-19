@@ -42,6 +42,20 @@ import org.springframework.web.filter.OncePerRequestFilter;
 @Component
 public class RateLimitFilter extends OncePerRequestFilter {
 
+    /**
+     * Login attempts allowed per minute and per IP address. The value appears twice in the bucket
+     * definition, as the capacity and as the refill amount, and the two must agree: a capacity
+     * larger than the refill would let a burst through that the sustained rate never replenishes.
+     * Holding it in one constant is what makes disagreement impossible.
+     */
+    private static final int LOGIN_CAPACITY = 5;
+
+    /** Refresh attempts allowed per minute and per IP address. */
+    private static final int REFRESH_CAPACITY = 20;
+
+    /** Registration attempts allowed per hour and per IP address. */
+    private static final int REGISTER_CAPACITY = 3;
+
     private final MessageService messageService;
     private final AuditService auditService;
 
@@ -119,8 +133,8 @@ public class RateLimitFilter extends OncePerRequestFilter {
         return Bucket.builder()
                 .addLimit(
                         Bandwidth.builder()
-                                .capacity(5)
-                                .refillGreedy(5, Duration.ofMinutes(1))
+                                .capacity(LOGIN_CAPACITY)
+                                .refillGreedy(LOGIN_CAPACITY, Duration.ofMinutes(1))
                                 .build())
                 .build();
     }
@@ -134,8 +148,8 @@ public class RateLimitFilter extends OncePerRequestFilter {
         return Bucket.builder()
                 .addLimit(
                         Bandwidth.builder()
-                                .capacity(20)
-                                .refillGreedy(20, Duration.ofMinutes(1))
+                                .capacity(REFRESH_CAPACITY)
+                                .refillGreedy(REFRESH_CAPACITY, Duration.ofMinutes(1))
                                 .build())
                 .build();
     }
@@ -149,8 +163,8 @@ public class RateLimitFilter extends OncePerRequestFilter {
         return Bucket.builder()
                 .addLimit(
                         Bandwidth.builder()
-                                .capacity(3)
-                                .refillGreedy(3, Duration.ofHours(1))
+                                .capacity(REGISTER_CAPACITY)
+                                .refillGreedy(REGISTER_CAPACITY, Duration.ofHours(1))
                                 .build())
                 .build();
     }

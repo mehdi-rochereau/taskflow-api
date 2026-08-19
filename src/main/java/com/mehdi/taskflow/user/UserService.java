@@ -16,6 +16,7 @@ import com.mehdi.taskflow.user.dto.RegisterRequest;
 import com.mehdi.taskflow.user.dto.UpdateProfileRequest;
 import com.mehdi.taskflow.user.dto.UserResponse;
 import jakarta.servlet.http.HttpServletResponse;
+import java.time.Duration;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -180,7 +181,12 @@ public class UserService {
         AuthResponse authResponse = new AuthResponse(user.getUsername(), user.getEmail());
 
         CookieUtils.addCookie(
-                response, "jwt", token, "/api", (int) (jwtExpiration / 1000), cookieSecure);
+                response,
+                "jwt",
+                token,
+                "/api",
+                (int) Duration.ofMillis(jwtExpiration).toSeconds(),
+                cookieSecure);
 
         RefreshToken refreshToken = refreshTokenService.generateRefreshToken(user);
         refreshTokenService.addRefreshTokenCookie(response, refreshToken.getToken());

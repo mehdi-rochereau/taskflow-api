@@ -4,6 +4,7 @@ import com.mehdi.taskflow.security.JwtFilter;
 import com.mehdi.taskflow.security.RateLimitFilter;
 import com.mehdi.taskflow.security.UserDetailsServiceImpl;
 import jakarta.servlet.http.HttpServletResponse;
+import java.time.Duration;
 import java.util.Arrays;
 import java.util.List;
 import org.springframework.beans.factory.annotation.Value;
@@ -62,6 +63,18 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 @EnableWebSecurity
 @EnableMethodSecurity
 public class SecurityConfig {
+
+    /**
+     * Validity period advertised by the {@code Strict-Transport-Security} header. One year is the
+     * value required for inclusion in the browser preload lists; anything shorter narrows the
+     * window during which a browser refuses plain HTTP for this domain.
+     *
+     * <p>The application does not currently emit this header: Spring Security only sets it on a
+     * request it considers secure, and the request arrives over plain HTTP from the reverse proxy
+     * that terminates TLS. The header is set by Nginx instead. This configuration is kept so that
+     * the policy is declared in one place if the forwarded-headers strategy is ever enabled.
+     */
+    private static final Duration HSTS_MAX_AGE = Duration.ofDays(365);
 
     @Value("${cors.allowed-origins}")
     private String allowedOrigins;
@@ -131,7 +144,8 @@ public class SecurityConfig {
                                         .httpStrictTransportSecurity(
                                                 hsts ->
                                                         hsts.includeSubDomains(true)
-                                                                .maxAgeInSeconds(31536000))
+                                                                .maxAgeInSeconds(
+                                                                        HSTS_MAX_AGE.toSeconds()))
                                         .contentSecurityPolicy(
                                                 csp ->
                                                         csp.policyDirectives(
