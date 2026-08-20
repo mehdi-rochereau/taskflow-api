@@ -4,9 +4,11 @@
 
 🌐 **Live:** [taskflow.mehdi-rochereau.dev](https://taskflow.mehdi-rochereau.dev)
 
-📖 **API Docs:** [api.taskflow.mehdi-rochereau.dev/swagger-ui/index.html](https://api.taskflow.mehdi-rochereau.dev/swagger-ui/index.html)
+📖 **API
+Docs:** [api.taskflow.mehdi-rochereau.dev/swagger-ui/index.html](https://api.taskflow.mehdi-rochereau.dev/swagger-ui/index.html)
 
-A RESTful task management API built with Java 21 and Spring Boot 3.5, featuring stateless JWT authentication, HttpOnly cookie-based session management, ownership-based access control, input sanitization and comprehensive test coverage.
+A RESTful task management API built with Java 21 and Spring Boot 3.5, featuring stateless JWT authentication, HttpOnly
+cookie-based session management, ownership-based access control, input sanitization and comprehensive test coverage.
 
 [![Java](https://img.shields.io/badge/Java-21-ED8B00?style=flat&logo=openjdk&logoColor=white)](https://openjdk.org/)
 [![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.5-6DB33F?style=flat&logo=springboot&logoColor=white)](https://spring.io/projects/spring-boot)
@@ -18,7 +20,9 @@ A RESTful task management API built with Java 21 and Spring Boot 3.5, featuring 
 
 ## Overview
 
-TaskFlow API allows authenticated users to manage projects and tasks. Each user owns their projects and controls access to the associated tasks. The API follows REST conventions and returns structured JSON responses for all operations, including errors.
+TaskFlow API allows authenticated users to manage projects and tasks. Each user owns their projects and controls access
+to the associated tasks. The API follows REST conventions and returns structured JSON responses for all operations,
+including errors.
 
 For security details, see [SECURITY.md](SECURITY.md).
 
@@ -26,23 +30,23 @@ For security details, see [SECURITY.md](SECURITY.md).
 
 ## Tech Stack
 
-| Layer | Technology |
-|-------|------------|
-| Language | Java 21 |
-| Framework | Spring Boot 3.5 |
-| Security | Spring Security + JWT (jjwt 0.12.6) |
-| Persistence | Spring Data JPA / Hibernate |
-| Database | MySQL 8.4 |
-| Migrations | Flyway |
-| Build tool | Gradle |
-| Testing | JUnit 5 + Mockito + MockMvc + Testcontainers |
-| Coverage | JaCoCo |
-| Documentation | Springdoc OpenAPI / Swagger UI |
-| Rate Limiting | Bucket4j |
-| Input Sanitization | OWASP Java HTML Sanitizer |
-| CI/CD | GitHub Actions + Docker + Trivy |
-| Container | Docker + ghcr.io |
-| Deployment | Hetzner VPS + Nginx + Let's Encrypt |
+| Layer              | Technology                                   |
+|--------------------|----------------------------------------------|
+| Language           | Java 21                                      |
+| Framework          | Spring Boot 3.5                              |
+| Security           | Spring Security + JWT (jjwt 0.12.6)          |
+| Persistence        | Spring Data JPA / Hibernate                  |
+| Database           | MySQL 8.4                                    |
+| Migrations         | Flyway                                       |
+| Build tool         | Gradle                                       |
+| Testing            | JUnit 5 + Mockito + MockMvc + Testcontainers |
+| Coverage           | JaCoCo                                       |
+| Documentation      | Springdoc OpenAPI / Swagger UI               |
+| Rate Limiting      | Bucket4j                                     |
+| Input Sanitization | OWASP Java HTML Sanitizer                    |
+| CI/CD              | GitHub Actions + Docker + Trivy              |
+| Container          | Docker + ghcr.io                             |
+| Deployment         | Hetzner VPS + Nginx + Let's Encrypt          |
 
 ---
 
@@ -61,13 +65,14 @@ src/main/java/com/mehdi/taskflow/
 ```
 
 The application follows a standard layered architecture:
+
 - **Controllers** handle HTTP routing and input validation
 - **Services** encapsulate business logic and ownership enforcement
 - **Repositories** provide data access via Spring Data JPA
 - **DTOs** decouple the API contract from internal entities
 
-OpenAPI annotations live in dedicated `*ControllerApi` interfaces, which the
-controllers implement. Documentation concerns stay out of the routing code.
+OpenAPI annotations live in dedicated `*ControllerApi` interfaces, which the controllers implement. Documentation
+concerns stay out of the routing code.
 
 ---
 
@@ -87,8 +92,8 @@ controllers implement. Documentation concerns stay out of the routing code.
 - Centralized error handling with structured JSON responses
 - i18n error messages — English and French
 - Database schema versioning with Flyway
-- Referential integrity enforced at database level — cascade rules and CHECK
-  constraints, not application-side conventions
+- Referential integrity enforced at database level — cascade rules and CHECK constraints, not application-side
+  conventions
 - Interactive API documentation via Swagger UI
 - 80%+ coverage (JUnit 5 + Mockito + MockMvc + Testcontainers)
 
@@ -112,15 +117,15 @@ Copy `.env.example` to `.env` and fill in your values:
 cp .env.example .env
 ```
 
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `JWT_SECRET` | HMAC-SHA512 signing key — min 32 chars | — |
-| `JWT_EXPIRATION` | JWT expiry in milliseconds | `900000` (15 min) |
-| `COOKIE_SECURE` | Enable `Secure` flag on cookies | `false` |
-| `REFRESH_TOKEN_EXPIRATION_DAYS` | Refresh token validity in days | `7` |
-| `CORS_ALLOWED_ORIGINS` | Comma-separated list of origins allowed to call the API with credentials | `http://localhost:4200` |
-| `DB_USERNAME` | MySQL username | `root` |
-| `DB_PASSWORD` | MySQL password | `root` |
+| Variable                        | Description                                                              | Default                 |
+|---------------------------------|--------------------------------------------------------------------------|-------------------------|
+| `JWT_SECRET`                    | HMAC-SHA512 signing key — min 32 chars                                   | —                       |
+| `JWT_EXPIRATION`                | JWT expiry in milliseconds                                               | `900000` (15 min)       |
+| `COOKIE_SECURE`                 | Enable `Secure` flag on cookies                                          | `false`                 |
+| `REFRESH_TOKEN_EXPIRATION_DAYS` | Refresh token validity in days                                           | `7`                     |
+| `CORS_ALLOWED_ORIGINS`          | Comma-separated list of origins allowed to call the API with credentials | `http://localhost:4200` |
+| `DB_USERNAME`                   | MySQL username                                                           | `root`                  |
+| `DB_PASSWORD`                   | MySQL password                                                           | `root`                  |
 
 **2. Start MySQL**
 
@@ -160,53 +165,50 @@ http://localhost:8082/swagger-ui/index.html
 
 ### Authentication
 
-| Method | Endpoint | Description | Auth required |
-|--------|----------|-------------|---------------|
-| POST | `/api/auth/register` | Create a new account | No |
-| POST | `/api/auth/login` | Log in — sets JWT + refresh token cookies | No |
-| POST | `/api/auth/refresh` | Refresh JWT using refresh token cookie | No |
-| POST | `/api/auth/logout` | Log out — revokes refresh token, clears cookies | No |
+| Method | Endpoint             | Description                                     | Auth required |
+|--------|----------------------|-------------------------------------------------|---------------|
+| POST   | `/api/auth/register` | Create a new account                            | No            |
+| POST   | `/api/auth/login`    | Log in — sets JWT + refresh token cookies       | No            |
+| POST   | `/api/auth/refresh`  | Refresh JWT using refresh token cookie          | No            |
+| POST   | `/api/auth/logout`   | Log out — revokes refresh token, clears cookies | No            |
 
 ### User
 
-| Method | Endpoint | Description | Auth required |
-|--------|----------|-------------|---------------|
-| GET | `/api/users/me` | Get my profile | Yes |
-| PUT | `/api/users/me` | Update my username and email | Yes |
-| POST | `/api/users/me/password` | Change my password — revokes all sessions | Yes |
-| DELETE | `/api/users/me` | Delete my account permanently | Yes |
+| Method | Endpoint                 | Description                               | Auth required |
+|--------|--------------------------|-------------------------------------------|---------------|
+| GET    | `/api/users/me`          | Get my profile                            | Yes           |
+| PUT    | `/api/users/me`          | Update my username and email              | Yes           |
+| POST   | `/api/users/me/password` | Change my password — revokes all sessions | Yes           |
+| DELETE | `/api/users/me`          | Delete my account permanently             | Yes           |
 
-Account deletion requires password confirmation and is irreversible. It removes
-the account, the projects it owns, the tasks inside those projects, the refresh
-tokens and the linked authentication providers. Tasks merely assigned to the
+Account deletion requires password confirmation and is irreversible. It removes the account, the projects it owns, the
+tasks inside those projects, the refresh tokens and the linked authentication providers. Tasks merely assigned to the
 deleted user inside someone else's project are preserved and become unassigned:
 a task belongs to its project, not to its assignee.
 
 ### Projects
 
-| Method | Endpoint | Description | Auth required |
-|--------|----------|-------------|---------------|
-| GET | `/api/projects` | List my projects | Yes |
-| GET | `/api/projects/{id}` | Get a project by ID | Yes |
-| POST | `/api/projects` | Create a project | Yes |
-| PUT | `/api/projects/{id}` | Update a project | Yes |
-| DELETE | `/api/projects/{id}` | Delete a project | Yes |
+| Method | Endpoint             | Description         | Auth required |
+|--------|----------------------|---------------------|---------------|
+| GET    | `/api/projects`      | List my projects    | Yes           |
+| GET    | `/api/projects/{id}` | Get a project by ID | Yes           |
+| POST   | `/api/projects`      | Create a project    | Yes           |
+| PUT    | `/api/projects/{id}` | Update a project    | Yes           |
+| DELETE | `/api/projects/{id}` | Delete a project    | Yes           |
 
 ### Tasks
 
-| Method | Endpoint | Description | Auth required |
-|--------|----------|-------------|---------------|
-| GET | `/api/projects/{projectId}/tasks` | List tasks (filters: `?status=TODO`, `?priority=HIGH`) | Yes |
-| GET | `/api/projects/{projectId}/tasks/{id}` | Get a task by ID | Yes |
-| POST | `/api/projects/{projectId}/tasks` | Create a task | Yes |
-| PUT | `/api/projects/{projectId}/tasks/{id}` | Update a task | Yes |
-| DELETE | `/api/projects/{projectId}/tasks/{id}` | Delete a task | Yes |
+| Method | Endpoint                               | Description                                            | Auth required |
+|--------|----------------------------------------|--------------------------------------------------------|---------------|
+| GET    | `/api/projects/{projectId}/tasks`      | List tasks (filters: `?status=TODO`, `?priority=HIGH`) | Yes           |
+| GET    | `/api/projects/{projectId}/tasks/{id}` | Get a task by ID                                       | Yes           |
+| POST   | `/api/projects/{projectId}/tasks`      | Create a task                                          | Yes           |
+| PUT    | `/api/projects/{projectId}/tasks/{id}` | Update a task                                          | Yes           |
+| DELETE | `/api/projects/{projectId}/tasks/{id}` | Delete a task                                          | Yes           |
 
-Protected endpoints authenticate through the `jwt` HttpOnly cookie, and through
-nothing else. The browser sends it automatically, and so do Postman and the
-Swagger UI, both of which keep a cookie jar: `Try it out` works with no
-`Authorize` step. The `Authorization: Bearer` header was accepted until August
-2026 and no longer is.
+Protected endpoints authenticate through the `jwt` HttpOnly cookie, and through nothing else. The browser sends it
+automatically, and so do Postman and the Swagger UI, both of which keep a cookie jar: `Try it out` works with no
+`Authorize` step. The `Authorization: Bearer` header was accepted until August 2026 and no longer is.
 
 ---
 
@@ -236,41 +238,38 @@ see [SECURITY.md](SECURITY.md).
 
 The suite is organised in three layers:
 
-| Layer | Annotation | What it proves |
-|-------|------------|----------------|
-| Unit | none — Mockito only | Business logic of each service in isolation |
-| Web slice | `@WebMvcTest` | Routing, validation, status codes, security rules |
-| Integration | `@DataJpaTest` + Testcontainers | Behaviour owned by the database engine |
+| Layer       | Annotation                      | What it proves                                    |
+|-------------|---------------------------------|---------------------------------------------------|
+| Unit        | none — Mockito only             | Business logic of each service in isolation       |
+| Web slice   | `@WebMvcTest`                   | Routing, validation, status codes, security rules |
+| Integration | `@DataJpaTest` + Testcontainers | Behaviour owned by the database engine            |
 
-Integration tests (`*IT`) start a disposable MySQL 8.4 container matching the
-production engine, and let Flyway replay every migration against it. They cover
-what no mock can prove: foreign key `ON DELETE` rules, `CHECK` constraints, and
+Integration tests (`*IT`) start a disposable MySQL 8.4 container matching the production engine, and let Flyway replay
+every migration against it. They cover what no mock can prove: foreign key `ON DELETE` rules, `CHECK` constraints, and
 the agreement between the schema and the JPA entities under `ddl-auto=validate`.
 
 **Docker must be running** for these tests to execute.
 
 ### Code formatting
 
-Formatting is applied by Spotless, using the AOSP variant of `google-java-format`.
-Checkstyle reports style violations but never corrects them; Spotless is the tool
-that does the correcting, and the two are configured to agree.
+Formatting is applied by Spotless, using the AOSP variant of `google-java-format`. Checkstyle reports style violations
+but never corrects them; Spotless is the tool that does the correcting, and the two are configured to agree.
 
 ```bash
 ./gradlew spotlessCheck    # reports files that are not formatted
 ./gradlew spotlessApply    # rewrites them
 ```
 
-A versioned `pre-push` hook runs `spotlessCheck` and refuses a push whose sources
-are not formatted. Git does not track `.git/hooks`, so the hook lives in
+A versioned `pre-push` hook runs `spotlessCheck` and refuses a push whose sources are not formatted. Git does not track
+`.git/hooks`, so the hook lives in
 `.githooks` and each clone activates it once:
 
 ```bash
 git config core.hooksPath .githooks
 ```
 
-Without that command the hook is present in the repository and inert, which is
-worse than having none: the safeguard looks in place and is not. To bypass it for
-a single push, use `git push --no-verify`.
+Without that command the hook is present in the repository and inert, which is worse than having none: the safeguard
+looks in place and is not. To bypass it for a single push, use `git push --no-verify`.
 
 Formatting on save is the more comfortable path, but it is an editor setting and therefore neither versioned nor
 uniform. The hook and the build are what decide, whatever the editor.
@@ -308,17 +307,15 @@ is what the hook checks anyway.
 
 ### Test naming conventions
 
-Test methods are named `shouldExpectedBehaviour_whenPrecondition`. The
-underscore separates what is asserted from the condition under which it holds,
-so a failing build names the broken rule without anyone opening the file.
-Fixture values are written as literals rather than extracted into named
-constants, which keeps the value next to the assertion that reads it.
+Test methods are named `shouldExpectedBehaviour_whenPrecondition`. The underscore separates what is asserted from the
+condition under which it holds, so a failing build names the broken rule without anyone opening the file. Fixture values
+are written as literals rather than extracted into named constants, which keeps the value next to the assertion that
+reads it.
 
 Both conventions break a rule that applies to production sources, `MethodName`
 and `MagicNumber` respectively. They are exempted for `src/test` only, in
-`config/checkstyle/suppressions.xml`, where each exemption carries its reason.
-That file is unrelated to `config/owasp/suppressions.xml`, which silences CVE
-findings for Dependency-Check.
+`config/checkstyle/suppressions.xml`, where each exemption carries its reason. That file is unrelated to
+`config/owasp/suppressions.xml`, which silences CVE findings for Dependency-Check.
 
 To run only the fast tests:
 
@@ -345,7 +342,7 @@ Every push triggers an automated pipeline:
 | Code style          | Checkstyle                         | Google Style variant; blocks on any violation                                            |
 | Tests               | JUnit 5 + Mockito + Testcontainers | Unit, web slice and integration layers                                                   |
 | Coverage            | JaCoCo + Codecov                   | 80% threshold                                                                            |
-| Dependency CVEs     | OWASP Dependency Check             | NVD database                                                                             |
+| Dependency CVEs     | OWASP Dependency Check             | NVD database, clean report; remaining findings carry dated suppressions                  |
 | Docker image scan   | Trivy                              | Blocks on CRITICAL CVEs                                                                  |
 | Deployment          | SSH + shared deployment script     | Hetzner VPS, single script shared with the frontend pipeline, aborts on registry refusal |
 | Deploy verification | Image digest                       | Running container compared to published image                                            |
@@ -359,17 +356,16 @@ Push to `main` → CI passes → Docker image built → deployed to production a
 ## Database Migrations
 
 Schema changes are versioned with Flyway and applied automatically at startup.
-`spring.jpa.hibernate.ddl-auto` is set to `validate`: Hibernate never alters the
-schema, it only checks that the entities match it, and refuses to start if they
-diverge.
+`spring.jpa.hibernate.ddl-auto` is set to `validate`: Hibernate never alters the schema, it only checks that the
+entities match it, and refuses to start if they diverge.
 
-| Version | Contents |
-|---------|----------|
-| V1 | Initial schema — users, projects, tasks |
-| V2 | OAuth2 groundwork — `user_providers` table |
-| V3 | Cascade deletion of tasks with their project |
-| V4 | Refresh token table |
-| V5 | Referential integrity fixes, enum `CHECK` constraints, microsecond timestamps |
+| Version | Contents                                                                      |
+|---------|-------------------------------------------------------------------------------|
+| V1      | Initial schema — users, projects, tasks                                       |
+| V2      | OAuth2 groundwork — `user_providers` table                                    |
+| V3      | Cascade deletion of tasks with their project                                  |
+| V4      | Refresh token table                                                           |
+| V5      | Referential integrity fixes, enum `CHECK` constraints, microsecond timestamps |
 
 ---
 
@@ -392,7 +388,9 @@ Validation errors include field-level details:
   "timestamp": "2026-04-08T10:00:00",
   "status": 400,
   "errors": {
-    "title": ["Title is required"]
+     "title": [
+        "Title is required"
+     ]
   }
 }
 ```
@@ -414,21 +412,21 @@ Validation errors include field-level details:
 
 The three TaskFlow repositories are managed from a single
 [GitHub Project](https://github.com/users/mehdi-rochereau/projects/4):
-issue first, branch created from the issue, pull request, squash merge, with a
-five-status workflow (Backlog → In Progress → In Review → Verifying → Done).
+issue first, branch created from the issue, pull request, squash merge, with a five-status workflow (Backlog → In
+Progress → In Review → Verifying → Done).
 
 Cross-repository documentation lives in
-[taskflow-deploy/docs](https://github.com/mehdi-rochereau/taskflow-deploy/tree/main/docs),
-including the full project management manual.
+[taskflow-deploy/docs](https://github.com/mehdi-rochereau/taskflow-deploy/tree/main/docs), including the full project
+management manual.
 
 ---
 
 ## Ecosystem
 
-| Repository | Description |
-|------------|-------------|
-| [taskflow-api](https://github.com/mehdi-rochereau/taskflow-api) | Spring Boot REST API (this repo) |
-| [taskflow-ui](https://github.com/mehdi-rochereau/taskflow-ui) | Angular frontend |
-| [taskflow-deploy](https://github.com/mehdi-rochereau/taskflow-deploy) | Docker Compose, Nginx, deployment scripts |
-| [SECURITY.md](SECURITY.md) | API security policy |
-| [taskflow-ui/SECURITY.md](https://github.com/mehdi-rochereau/taskflow-ui/blob/main/SECURITY.md) | Frontend security policy |
+| Repository                                                                                      | Description                               |
+|-------------------------------------------------------------------------------------------------|-------------------------------------------|
+| [taskflow-api](https://github.com/mehdi-rochereau/taskflow-api)                                 | Spring Boot REST API (this repo)          |
+| [taskflow-ui](https://github.com/mehdi-rochereau/taskflow-ui)                                   | Angular frontend                          |
+| [taskflow-deploy](https://github.com/mehdi-rochereau/taskflow-deploy)                           | Docker Compose, Nginx, deployment scripts |
+| [SECURITY.md](SECURITY.md)                                                                      | API security policy                       |
+| [taskflow-ui/SECURITY.md](https://github.com/mehdi-rochereau/taskflow-ui/blob/main/SECURITY.md) | Frontend security policy                  |
