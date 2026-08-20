@@ -28,9 +28,19 @@ checkstyle {
     toolVersion = "10.21.4"
     // Configuration file defining the rules to enforce
     configFile = file("config/checkstyle/checkstyle.xml")
-    // Do not fail the build on Checkstyle violations — warnings only
-    // Set to false once all violations are resolved
-    ignoreFailures = true
+    // Fail the build on any violation. Two properties are needed, not one.
+    // ignoreFailures alone is not enough: the Gradle Checkstyle task fails on
+    // violations of `error` severity, and checkstyle.xml sets the Checker
+    // severity to `warning`, so every violation arrives as a warning. Warnings
+    // are compared against maxWarnings, whose default is Integer.MAX_VALUE.
+    // Leaving that default would give a task that never fails and a pipeline
+    // that checks nothing while reporting success.
+    ignoreFailures = false
+    // maxWarnings rather than switching severity to `error` in checkstyle.xml:
+    // severity describes how grave a rule is, the threshold describes the
+    // policy of the project. Conflating them removes the ability to downgrade a
+    // single rule to a warning the day that is warranted.
+    maxWarnings = 0
     // Show violations in the console output
     showViolations = true
 }
