@@ -191,6 +191,13 @@ The dependency scan is a blocking gate, and it is the only one that can fail on 
 publication to the NVD turns `main` red without a line of code having changed. That is intended. A dependency that
 became vulnerable overnight is vulnerable whether or not the pipeline says so.
 
+The threshold that triggers this is `failBuildOnCVSS = 9`, which is a choice of interruption rhythm rather than an
+assessment of gravity. A finding scored between 7 and 8.9 — where remote code execution behind authentication and
+authentication bypass under specific conditions live — is reported without stopping the pipeline. Catching those is a
+matter of reading the report, which every run archives as the `owasp-report` artefact, not of the gate. The threshold
+drops to 7 once the project has more than one contributor, or once the schedule allows the triage load that comes with
+it.
+
 The response is fixed in advance, so that it is not improvised under the pressure of a red build:
 
 1. Read the report from the `owasp-report` artefact of the failed run. The console output names the identifier; the
