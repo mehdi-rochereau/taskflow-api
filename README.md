@@ -342,7 +342,7 @@ Every push triggers an automated pipeline:
 | Code style          | Checkstyle                         | Google Style variant; blocks on any violation                                            |
 | Tests               | JUnit 5 + Mockito + Testcontainers | Unit, web slice and integration layers                                                   |
 | Coverage            | JaCoCo + Codecov                   | 80% threshold                                                                            |
-| Dependency CVEs     | OWASP Dependency Check             | NVD database, clean report; remaining findings carry dated suppressions                  |
+| Dependency CVEs     | OWASP Dependency Check             | NVD database, blocking; remaining findings carry dated suppressions                      |
 | Docker image scan   | Trivy                              | Blocks on CRITICAL CVEs                                                                  |
 | Deployment          | SSH + shared deployment script     | Hetzner VPS, single script shared with the frontend pipeline, aborts on registry refusal |
 | Deploy verification | Image digest                       | Running container compared to published image                                            |

@@ -169,7 +169,7 @@ The deployment pipeline integrates multiple security controls:
 |---------------------------|-------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | Secret scanning           | GitLeaks                      | Full git history scanned on every push                                                                                                                             |
 | Code style                | Checkstyle + Spotless         | Zero violations across production and test sources, enforced by two blocking steps; a local pre-push hook runs the same formatting check                           |
-| Dependency CVEs           | OWASP Dependency Check        | NVD database, `failBuildOnCVSS = 9`; the report is clean, every remaining finding carrying a dated and justified suppression. The step is non-blocking for now     |
+| Dependency CVEs           | OWASP Dependency Check        | NVD database, `failBuildOnCVSS = 9`, blocking; the report carries no active finding, every remaining one covered by a dated and justified suppression              |
 | Docker image scan         | Trivy                         | Blocks deployment on CRITICAL CVEs                                                                                                                                 |
 | Least privilege           | GITHUB_TOKEN                  | No PAT — scoped token with minimal permissions                                                                                                                     |
 | Dedicated SSH key         | Ed25519                       | GitHub Actions-only key, separate from developer keys                                                                                                              |
@@ -340,4 +340,4 @@ Jackson are currently kept current. Migrating to 4.x is therefore a deadline rat
 - [ ] Nonce-based CSP to eliminate `unsafe-inline`
 - [ ] Third-party sign-in (Google / GitHub)
 - [ ] Migrate to Spring Boot 4.x before the 3.5 line becomes a liability
-- [ ] Remove `continue-on-error` from the OWASP step once the report is clean
+
