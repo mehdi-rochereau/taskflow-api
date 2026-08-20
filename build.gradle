@@ -11,7 +11,14 @@ plugins {
     id 'jacoco'
     // Checkstyle — enforces Java code style conventions
     id 'checkstyle'
-    // OWASP Dependency Check — scans dependencies for known CVEs
+    // OWASP Dependency Check — scans dependencies for known CVEs.
+    // Raised from 12.2.2 to 13.0.0 alongside the gate being closed: a security
+    // tool that lags is a poor thing to make blocking. The upgrade does not
+    // clear the five findings on the plugin's own build classpath, verified on
+    // 20 August 2026 — 13.0.0 carries the same vulnerable transitives, which is
+    // why the section 4 suppressions in config/owasp/suppressions.xml stay.
+    // The major bump moved the report from build/reports to
+    // build/reports/dependency-check; ci-cd.yml was corrected accordingly.
     id 'org.owasp.dependencycheck' version '13.0.0'
     // Spotless — rewrites source files to a fixed format. Checkstyle only
     // reports, it never corrects; this is the tool that does the correcting.

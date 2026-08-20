@@ -84,8 +84,10 @@
         Gradle dependencyInsight task against the runtimeClasspath configuration
         for each of them: no match is returned, so they are absent from the
         application runtime classpath and from the Docker image. Their versions
-        are controlled by the plugins, not by this project, so an upgrade is not
-        available as a remediation path.
+        are controlled by the plugins, not by this project. Upgrading the
+        Dependency-Check plugin from 12.2.2 to 13.0.0 on 20 August 2026 left all
+        five findings in place, so an upgrade is not a remediation path here —
+        checked rather than assumed.
     -->
     <suppress until="2027-06-30">
         <notes>Build tooling only — not on runtimeClasspath. Also limited to the async HttpClient, unused here.</notes>
