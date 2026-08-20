@@ -272,11 +272,39 @@ Without that command the hook is present in the repository and inert, which is
 worse than having none: the safeguard looks in place and is not. To bypass it for
 a single push, use `git push --no-verify`.
 
-Formatting on save is the more comfortable path, but it is an editor setting and
-therefore neither versioned nor uniform. IntelliJ needs the `google-java-format`
-plugin to match the build; VS Code formats Java through Eclipse's engine, which is
-a different formatter with a different result. The hook and the build are what
-decide, whatever the editor.
+Formatting on save is the more comfortable path, but it is an editor setting and therefore neither versioned nor
+uniform. The hook and the build are what decide, whatever the editor.
+
+<details>
+<summary>Setting up formatting on save in IntelliJ IDEA</summary>
+
+IntelliJ's built-in Java formatter is not `google-java-format`, so without the plugin below it would reformat on save
+into a shape Spotless undoes on the next run. The two tools have to agree.
+
+1. `Settings > Plugins > Marketplace`, install **google-java-format**, restart.
+
+2. `Help > Edit Custom VM Options`, append the export list published by the plugin. It opens internal compiler packages
+   that the Java module system has kept closed since Java 9. Gradle passes the same flags on its own, which is why the
+   command line never needs this. Take the list from the plugin's own notification: a partial list leaves the plugin
+   unable to start.
+
+3. Restart, then `Settings > Tools > google-java-format`: tick **Enable**, and select **AOSP**, not the default Google
+   style. Both wrap at 100 columns, but Google indents with 2 spaces and this codebase uses 4. Picking the wrong one
+   reindents every file you save.
+
+4. `Settings > Tools > Actions on Save`, tick **Reformat code**. Leave **Optimize imports** off: the star-import
+   thresholds are already tuned under
+   `Settings > Editor > Code Style > Java > Imports`, and Spotless removes unused imports on its side.
+
+Verify by breaking the indentation of a line, saving, and watching it snap back. Then run `./gradlew spotlessCheck`: if
+the build fails on a file IntelliJ just formatted, the variant is wrong.
+
+</details>
+
+VS Code formats Java through the Eclipse engine bundled with the Red Hat extension, a different formatter with a
+different result. Matching it to the build means maintaining an Eclipse formatter file alongside the Spotless
+configuration, a second place describing the same rules. Running `./gradlew spotlessApply` before pushing is simpler and
+is what the hook checks anyway.
 
 ### Test naming conventions
 
