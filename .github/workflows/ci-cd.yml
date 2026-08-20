@@ -287,12 +287,18 @@ jobs:
           GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx2g"
         continue-on-error: true
 
+      # Path changed with plugin 13.0.0: reports now land in a
+      # dependency-check subdirectory rather than directly under build/reports.
+      # The previous path silently collected nothing, which is the worst
+      # outcome once the step becomes blocking: a failing pipeline with no
+      # report to explain why. Uploading the directory also captures the JSON
+      # report, which the HTML-only path was leaving behind.
       - name: Upload OWASP report
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: owasp-report
-          path: build/reports/dependency-check-report.html
+          path: build/reports/dependency-check/
           retention-days: 7
 
       # ── Build JAR ────────────────────────────────────────
