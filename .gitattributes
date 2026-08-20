@@ -1,3 +1,9 @@
 /gradlew text eol=lf
 *.bat text eol=crlf
 *.jar binary
+
+# Shell scripts must keep LF endings whatever the platform. A CRLF turns the
+# shebang into "/bin/sh\r", an interpreter that does not exist, and the hook
+# fails without a word: Git reports nothing and the push goes through unchecked.
+/.githooks/** text eol=lf
+*.sh text eol=lf
