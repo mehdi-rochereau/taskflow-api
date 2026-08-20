@@ -1,0 +1,26 @@
+#!/bin/sh
+# .githooks/pre-push
+#
+# Refuses a push whose sources are not formatted.
+#
+# pre-push and not pre-commit: a commit is a private checkpoint, and blocking one
+# interrupts work in progress for a problem that only matters once the code leaves
+# the machine. A push is where it leaves.
+#
+# spotlessCheck and not spotlessApply: a hook that rewrites files while Git is
+# assembling a push desynchronises what was verified from what is sent. The hook
+# reports, the developer fixes.
+#
+# --daemon, unlike the --no-daemon used in CI: a cold start costs about ten seconds
+# on every push, which is how a hook ends up being bypassed. The daemon is a local
+# convenience with no bearing on correctness.
+
+if ! ./gradlew spotlessCheck --daemon --quiet; then
+    echo ""
+    echo "Push refused: source files are not formatted."
+    echo "Run:  ./gradlew spotlessApply"
+    echo "Then stage the rewritten files, amend or add a commit, and push again."
+    echo ""
+    echo "To bypass once:  git push --no-verify"
+    exit 1
+fi

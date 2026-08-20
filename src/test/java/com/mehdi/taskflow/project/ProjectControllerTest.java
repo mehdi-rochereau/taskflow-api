@@ -1,5 +1,17 @@
 package com.mehdi.taskflow.project;
 
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.eq;
+import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mehdi.taskflow.config.AuditService;
 import com.mehdi.taskflow.config.MessageService;
@@ -11,6 +23,9 @@ import com.mehdi.taskflow.security.JwtService;
 import com.mehdi.taskflow.security.UserDetailsServiceImpl;
 import com.mehdi.taskflow.user.User;
 import jakarta.servlet.FilterChain;
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Locale;
 import org.hamcrest.Matchers;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -25,47 +40,28 @@ import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
-import java.time.LocalDateTime;
-import java.util.List;
-import java.util.Locale;
-
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.*;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
-
 @WebMvcTest(ProjectController.class)
 @Import(SecurityConfig.class)
 @WithMockUser(username = "mehdi")
 public class ProjectControllerTest {
 
-    @Autowired
-    private MockMvc mockMvc;
+    @Autowired private MockMvc mockMvc;
 
-    @Autowired
-    private ObjectMapper objectMapper;
+    @Autowired private ObjectMapper objectMapper;
 
-    @MockitoBean
-    private ProjectService projectService;
+    @MockitoBean private ProjectService projectService;
 
-    @MockitoBean
-    private JwtService jwtService;
+    @MockitoBean private JwtService jwtService;
 
-    @MockitoBean
-    private JwtFilter jwtFilter;
+    @MockitoBean private JwtFilter jwtFilter;
 
-    @MockitoBean
-    private UserDetailsServiceImpl userDetailsService;
+    @MockitoBean private UserDetailsServiceImpl userDetailsService;
 
-    @MockitoBean
-    private PasswordEncoder passwordEncoder;
+    @MockitoBean private PasswordEncoder passwordEncoder;
 
-    @MockitoBean
-    private MessageService messageService;
+    @MockitoBean private MessageService messageService;
 
-    @MockitoBean
-    private AuditService auditService;
+    @MockitoBean private AuditService auditService;
 
     private Project project;
     private ProjectRequest projectRequest;
@@ -90,11 +86,14 @@ public class ProjectControllerTest {
         projectRequest.setName("My project");
         projectRequest.setDescription("Description");
 
-        doAnswer(invocation -> {
-            FilterChain chain = invocation.getArgument(2);
-            chain.doFilter(invocation.getArgument(0), invocation.getArgument(1));
-            return null;
-        }).when(jwtFilter).doFilter(any(), any(), any());
+        doAnswer(
+                        invocation -> {
+                            FilterChain chain = invocation.getArgument(2);
+                            chain.doFilter(invocation.getArgument(0), invocation.getArgument(1));
+                            return null;
+                        })
+                .when(jwtFilter)
+                .doFilter(any(), any(), any());
     }
 
     @Test
@@ -205,9 +204,10 @@ public class ProjectControllerTest {
         when(projectService.createProject(any(ProjectRequest.class))).thenReturn(project);
 
         // WHEN & THEN
-        mockMvc.perform(post("/api/projects")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(projectRequest)))
+        mockMvc.perform(
+                        post("/api/projects")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(projectRequest)))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.id").value(1))
                 .andExpect(jsonPath("$.name").value("My project"))
@@ -221,14 +221,15 @@ public class ProjectControllerTest {
         projectRequest.setName("");
 
         // WHEN & THEN
-        mockMvc.perform(post("/api/projects")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(projectRequest)))
+        mockMvc.perform(
+                        post("/api/projects")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(projectRequest)))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.errors.name").exists())
                 .andExpect(jsonPath("$.errors.name").isArray())
-                .andExpect(jsonPath("$.errors.name",
-                        Matchers.contains("Project name is required")));
+                .andExpect(
+                        jsonPath("$.errors.name", Matchers.contains("Project name is required")));
     }
 
     @Test
@@ -237,14 +238,17 @@ public class ProjectControllerTest {
         projectRequest.setName("a".repeat(101));
 
         // WHEN & THEN
-        mockMvc.perform(post("/api/projects")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(projectRequest)))
+        mockMvc.perform(
+                        post("/api/projects")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(projectRequest)))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.errors.name").exists())
                 .andExpect(jsonPath("$.errors.name").isArray())
-                .andExpect(jsonPath("$.errors.name",
-                        Matchers.contains("Project name must not exceed 100 characters")));
+                .andExpect(
+                        jsonPath(
+                                "$.errors.name",
+                                Matchers.contains("Project name must not exceed 100 characters")));
     }
 
     @Test
@@ -253,14 +257,18 @@ public class ProjectControllerTest {
         projectRequest.setDescription("a".repeat(501));
 
         // WHEN & THEN
-        mockMvc.perform(post("/api/projects")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(projectRequest)))
+        mockMvc.perform(
+                        post("/api/projects")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(projectRequest)))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.errors.description").exists())
                 .andExpect(jsonPath("$.errors.description").isArray())
-                .andExpect(jsonPath("$.errors.description",
-                        Matchers.contains("Project description must not exceed 500 characters")));
+                .andExpect(
+                        jsonPath(
+                                "$.errors.description",
+                                Matchers.contains(
+                                        "Project description must not exceed 500 characters")));
     }
 
     @Test
@@ -282,9 +290,10 @@ public class ProjectControllerTest {
         when(projectService.updateProject(eq(1L), any(ProjectRequest.class))).thenReturn(project);
 
         // WHEN & THEN
-        mockMvc.perform(put("/api/projects/1")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(projectRequest)))
+        mockMvc.perform(
+                        put("/api/projects/1")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(projectRequest)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(1))
                 .andExpect(jsonPath("$.name").value("My project"))
@@ -298,14 +307,15 @@ public class ProjectControllerTest {
         projectRequest.setName("");
 
         // WHEN & THEN
-        mockMvc.perform(put("/api/projects/1")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(projectRequest)))
+        mockMvc.perform(
+                        put("/api/projects/1")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(projectRequest)))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.errors.name").exists())
                 .andExpect(jsonPath("$.errors.name").isArray())
-                .andExpect(jsonPath("$.errors.name",
-                        Matchers.contains("Project name is required")));
+                .andExpect(
+                        jsonPath("$.errors.name", Matchers.contains("Project name is required")));
     }
 
     @Test
@@ -314,14 +324,17 @@ public class ProjectControllerTest {
         projectRequest.setName("a".repeat(101));
 
         // WHEN & THEN
-        mockMvc.perform(put("/api/projects/1")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(projectRequest)))
+        mockMvc.perform(
+                        put("/api/projects/1")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(projectRequest)))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.errors.name").exists())
                 .andExpect(jsonPath("$.errors.name").isArray())
-                .andExpect(jsonPath("$.errors.name",
-                        Matchers.contains("Project name must not exceed 100 characters")));
+                .andExpect(
+                        jsonPath(
+                                "$.errors.name",
+                                Matchers.contains("Project name must not exceed 100 characters")));
     }
 
     @Test
@@ -330,14 +343,18 @@ public class ProjectControllerTest {
         projectRequest.setDescription("a".repeat(501));
 
         // WHEN & THEN
-        mockMvc.perform(put("/api/projects/1")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(projectRequest)))
+        mockMvc.perform(
+                        put("/api/projects/1")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(projectRequest)))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.errors.description").exists())
                 .andExpect(jsonPath("$.errors.description").isArray())
-                .andExpect(jsonPath("$.errors.description",
-                        Matchers.contains("Project description must not exceed 500 characters")));
+                .andExpect(
+                        jsonPath(
+                                "$.errors.description",
+                                Matchers.contains(
+                                        "Project description must not exceed 500 characters")));
     }
 
     @Test
@@ -348,9 +365,10 @@ public class ProjectControllerTest {
                 .thenThrow(new AccessDeniedException("Access denied"));
 
         // WHEN & THEN
-        mockMvc.perform(put("/api/projects/1")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(projectRequest)))
+        mockMvc.perform(
+                        put("/api/projects/1")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(projectRequest)))
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.message").value("Access denied"));
     }
@@ -362,9 +380,10 @@ public class ProjectControllerTest {
                 .thenThrow(new ResourceNotFoundException("Project not found"));
 
         // WHEN & THEN
-        mockMvc.perform(put("/api/projects/999")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(projectRequest)))
+        mockMvc.perform(
+                        put("/api/projects/999")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(projectRequest)))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.message").value("Project not found"));
     }
@@ -376,9 +395,10 @@ public class ProjectControllerTest {
                 .thenReturn("Parameter 'id' must be of type Long");
 
         // WHEN & THEN
-        mockMvc.perform(put("/api/projects/abc")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(projectRequest)))
+        mockMvc.perform(
+                        put("/api/projects/abc")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(projectRequest)))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.message").value("Parameter 'id' must be of type Long"));
     }
@@ -399,16 +419,14 @@ public class ProjectControllerTest {
     @Test
     void deleteProject_shouldReturn204_whenOwner() throws Exception {
         // WHEN & THEN
-        mockMvc.perform(delete("/api/projects/1"))
-                .andExpect(status().isNoContent());
+        mockMvc.perform(delete("/api/projects/1")).andExpect(status().isNoContent());
     }
 
     @Test
     void deleteProject_shouldReturn403_whenNotOwner() throws Exception {
         // GIVEN
         when(messageService.get("error.access.denied")).thenReturn("Access denied");
-        doThrow(new AccessDeniedException("Access denied"))
-                .when(projectService).deleteProject(1L);
+        doThrow(new AccessDeniedException("Access denied")).when(projectService).deleteProject(1L);
 
         // WHEN & THEN
         mockMvc.perform(delete("/api/projects/1"))
@@ -420,7 +438,8 @@ public class ProjectControllerTest {
     void deleteProject_shouldReturn404_whenNotFound() throws Exception {
         // GIVEN
         doThrow(new ResourceNotFoundException("Project not found"))
-                .when(projectService).deleteProject(1L);
+                .when(projectService)
+                .deleteProject(1L);
 
         // WHEN & THEN
         mockMvc.perform(delete("/api/projects/1"))
@@ -431,7 +450,8 @@ public class ProjectControllerTest {
     @Test
     void deleteProject_shouldReturn400_whenWrongParameterType() throws Exception {
         // GIVEN
-        when(messageService.get("error.parameter.type.mismatch", "id", "Long")).thenReturn("Parameter 'id' must be of type Long");
+        when(messageService.get("error.parameter.type.mismatch", "id", "Long"))
+                .thenReturn("Parameter 'id' must be of type Long");
 
         // WHEN & THEN
         mockMvc.perform(delete("/api/projects/abc"))

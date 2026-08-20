@@ -9,29 +9,33 @@ import com.mehdi.taskflow.user.dto.AuthResponse;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import java.time.Duration;
+import java.time.LocalDateTime;
+import java.util.UUID;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
-import java.util.UUID;
-
 /**
  * Service handling refresh token lifecycle operations.
  *
- * <p>Refresh tokens are used to obtain new JWT access tokens without
- * requiring the user to re-authenticate. Each token is single-use —
- * upon use it is revoked and a new one is issued (rotation strategy).</p>
+ * <p>Refresh tokens are used to obtain new JWT access tokens without requiring the user to
+ * re-authenticate. Each token is single-use — upon use it is revoked and a new one is issued
+ * (rotation strategy).
  *
- * <p>Refresh tokens are stored in the database and expire after a
- * configurable duration defined by {@code application.refresh-token.expiration-days}.</p>
+ * <p>Refresh tokens are stored in the database and expire after a configurable duration defined by
+ * {@code application.refresh-token.expiration-days}.
  *
- * <p>Public API:</p>
+ * <p>Public API:
+ *
  * <ul>
- *   <li>{@link #generateRefreshToken(User)} — called by {@link com.mehdi.taskflow.user.UserService}</li>
- *   <li>{@link #addRefreshTokenCookie(HttpServletResponse, String)} — called by {@link com.mehdi.taskflow.user.UserService} and internally by {@link #refresh(HttpServletRequest, HttpServletResponse)}</li>
- *   <li>{@link #refresh(HttpServletRequest, HttpServletResponse)} — called by {@link AuthController}</li>
- *   <li>{@link #logout(HttpServletRequest, HttpServletResponse)} — called by {@link AuthController}</li>
+ *   <li>{@link #generateRefreshToken(User)} — called by {@link com.mehdi.taskflow.user.UserService}
+ *   <li>{@link #addRefreshTokenCookie(HttpServletResponse, String)} — called by {@link
+ *       com.mehdi.taskflow.user.UserService} and internally by {@link #refresh(HttpServletRequest,
+ *       HttpServletResponse)}
+ *   <li>{@link #refresh(HttpServletRequest, HttpServletResponse)} — called by {@link
+ *       AuthController}
+ *   <li>{@link #logout(HttpServletRequest, HttpServletResponse)} — called by {@link AuthController}
  * </ul>
  *
  * @see RefreshToken
@@ -57,12 +61,13 @@ public class RefreshTokenService {
      * Constructs a new {@code RefreshTokenService} with its required dependencies.
      *
      * @param refreshTokenRepository repository for refresh token persistence
-     * @param messageService         utility component for resolving i18n messages
-     * @param jwtService             service for JWT token generation
+     * @param messageService utility component for resolving i18n messages
+     * @param jwtService service for JWT token generation
      */
-    public RefreshTokenService(RefreshTokenRepository refreshTokenRepository,
-                               MessageService messageService,
-                               JwtService jwtService) {
+    public RefreshTokenService(
+            RefreshTokenRepository refreshTokenRepository,
+            MessageService messageService,
+            JwtService jwtService) {
         this.refreshTokenRepository = refreshTokenRepository;
         this.messageService = messageService;
         this.jwtService = jwtService;
@@ -87,23 +92,22 @@ public class RefreshTokenService {
     /**
      * Refreshes the JWT access token using the refresh token from the HttpOnly cookie.
      *
-     * <p>Validates the refresh token, revokes it, generates a new JWT and
-     * a new refresh token (rotation strategy), and writes both as HttpOnly cookies.</p>
+     * <p>Validates the refresh token, revokes it, generates a new JWT and a new refresh token
+     * (rotation strategy), and writes both as HttpOnly cookies.
      *
-     * @param request  the HTTP request containing the {@code refreshToken} cookie
+     * @param request the HTTP request containing the {@code refreshToken} cookie
      * @param response the HTTP response used to write the new cookies
-     * @return an {@link AuthResponse} carrying the user's identity. The new JWT
-     *         is written to the {@code jwt} cookie, not returned in the body
-     * @throws IllegalArgumentException  if the refresh token cookie is missing
+     * @return an {@link AuthResponse} carrying the user's identity. The new JWT is written to the
+     *     {@code jwt} cookie, not returned in the body
+     * @throws IllegalArgumentException if the refresh token cookie is missing
      * @throws ResourceNotFoundException if the refresh token does not exist
-     * @throws IllegalArgumentException  if the refresh token is revoked or expired
+     * @throws IllegalArgumentException if the refresh token is revoked or expired
      */
     @Transactional
     public AuthResponse refresh(HttpServletRequest request, HttpServletResponse response) {
         String token = extractRefreshTokenFromCookie(request);
         if (token == null) {
-            throw new IllegalArgumentException(
-                    messageService.get("error.refresh.token.not.found"));
+            throw new IllegalArgumentException(messageService.get("error.refresh.token.not.found"));
         }
 
         RefreshToken refreshToken = validateRefreshToken(token);
@@ -114,26 +118,35 @@ public class RefreshTokenService {
         String newJwt = jwtService.generateToken(user);
         RefreshToken newRefreshToken = generateRefreshToken(user);
 
-        CookieUtils.addCookie(response, "jwt", newJwt, "/api", (int) (jwtExpiration / 1000), cookieSecure);
+        // jwtExpiration is configured in milliseconds because that is what the JWT library
+        // expects, but a cookie max-age is expressed in seconds. Duration performs the
+        // conversion and names the unit at both ends, which a bare division by 1000 does not.
+        CookieUtils.addCookie(
+                response,
+                "jwt",
+                newJwt,
+                "/api",
+                (int) Duration.ofMillis(jwtExpiration).toSeconds(),
+                cookieSecure);
         addRefreshTokenCookie(response, newRefreshToken.getToken());
 
         return new AuthResponse(user.getUsername(), user.getEmail());
     }
 
     /**
-     * Logs out the authenticated user by revoking all active refresh tokens
-     * and clearing the {@code jwt} and {@code refreshToken} cookies.
+     * Logs out the authenticated user by revoking all active refresh tokens and clearing the {@code
+     * jwt} and {@code refreshToken} cookies.
      *
-     * @param request  the HTTP request containing the {@code refreshToken} cookie
+     * @param request the HTTP request containing the {@code refreshToken} cookie
      * @param response the HTTP response used to clear the cookies
      */
     @Transactional
     public void logout(HttpServletRequest request, HttpServletResponse response) {
         String token = extractRefreshTokenFromCookie(request);
         if (token != null) {
-            refreshTokenRepository.findByToken(token).ifPresent(rt ->
-                    revokeAllUserTokens(rt.getUser())
-            );
+            refreshTokenRepository
+                    .findByToken(token)
+                    .ifPresent(rt -> revokeAllUserTokens(rt.getUser()));
         }
         CookieUtils.clearCookie(response, "jwt", "/api", cookieSecure);
         CookieUtils.clearCookie(response, "refreshToken", "/api/auth", cookieSecure);
@@ -142,47 +155,56 @@ public class RefreshTokenService {
     /**
      * Writes the refresh token as an HttpOnly cookie in the HTTP response.
      *
-     * <p>The cookie is configured with the following security attributes:</p>
+     * <p>The cookie is configured with the following security attributes:
+     *
      * <ul>
-     *   <li>{@code HttpOnly} — inaccessible to JavaScript, prevents XSS token theft</li>
-     *   <li>{@code Secure} — must be set to {@code true} in production (HTTPS)</li>
-     *   <li>{@code SameSite=Strict} — prevents CSRF attacks</li>
-     *   <li>{@code Path=/api/auth} — scoped to auth endpoints only</li>
-     *   <li>{@code Max-Age} — matches refresh token expiration in days</li>
+     *   <li>{@code HttpOnly} — inaccessible to JavaScript, prevents XSS token theft
+     *   <li>{@code Secure} — must be set to {@code true} in production (HTTPS)
+     *   <li>{@code SameSite=Strict} — prevents CSRF attacks
+     *   <li>{@code Path=/api/auth} — scoped to auth endpoints only
+     *   <li>{@code Max-Age} — matches refresh token expiration in days
      * </ul>
      *
-     * @param response     the HTTP response to write the cookie to
+     * @param response the HTTP response to write the cookie to
      * @param refreshToken the refresh token string to store in the cookie
      */
     public void addRefreshTokenCookie(HttpServletResponse response, String refreshToken) {
-        CookieUtils.addCookie(response, "refreshToken", refreshToken, "/api/auth",
-                expirationDays * 24 * 60 * 60, cookieSecure);
+        CookieUtils.addCookie(
+                response,
+                "refreshToken",
+                refreshToken,
+                "/api/auth",
+                (int) Duration.ofDays(expirationDays).toSeconds(),
+                cookieSecure);
     }
 
     /**
      * Validates a refresh token string and returns the associated {@link RefreshToken}.
      *
-     * <p>A token is considered valid if it exists in the database,
-     * has not been revoked, and has not expired.</p>
+     * <p>A token is considered valid if it exists in the database, has not been revoked, and has
+     * not expired.
      *
      * @param token the refresh token string to validate
      * @return the valid {@link RefreshToken}
      * @throws ResourceNotFoundException if the token does not exist
-     * @throws IllegalArgumentException  if the token has been revoked or has expired
+     * @throws IllegalArgumentException if the token has been revoked or has expired
      */
     private RefreshToken validateRefreshToken(String token) {
-        RefreshToken refreshToken = refreshTokenRepository.findByToken(token)
-                .orElseThrow(() -> new ResourceNotFoundException(
-                        messageService.get("error.refresh.token.not.found")));
+        RefreshToken refreshToken =
+                refreshTokenRepository
+                        .findByToken(token)
+                        .orElseThrow(
+                                () ->
+                                        new ResourceNotFoundException(
+                                                messageService.get(
+                                                        "error.refresh.token.not.found")));
 
         if (refreshToken.isRevoked()) {
-            throw new IllegalArgumentException(
-                    messageService.get("error.refresh.token.revoked"));
+            throw new IllegalArgumentException(messageService.get("error.refresh.token.revoked"));
         }
 
         if (refreshToken.getExpiresAt().isBefore(LocalDateTime.now())) {
-            throw new IllegalArgumentException(
-                    messageService.get("error.refresh.token.expired"));
+            throw new IllegalArgumentException(messageService.get("error.refresh.token.expired"));
         }
 
         return refreshToken;
@@ -191,8 +213,8 @@ public class RefreshTokenService {
     /**
      * Revokes all active refresh tokens for the given user.
      *
-     * <p>Called after a password change or account deletion to invalidate
-     * all existing sessions and force re-authentication.</p>
+     * <p>Called after a password change or account deletion to invalidate all existing sessions and
+     * force re-authentication.
      *
      * @param user the user whose active refresh tokens should be revoked
      */
@@ -207,7 +229,9 @@ public class RefreshTokenService {
      * @return the refresh token string, or {@code null} if the cookie is absent
      */
     private String extractRefreshTokenFromCookie(HttpServletRequest request) {
-        if (request.getCookies() == null) return null;
+        if (request.getCookies() == null) {
+            return null;
+        }
         for (Cookie cookie : request.getCookies()) {
             if ("refreshToken".equals(cookie.getName())) {
                 return cookie.getValue();
@@ -215,5 +239,4 @@ public class RefreshTokenService {
         }
         return null;
     }
-
 }

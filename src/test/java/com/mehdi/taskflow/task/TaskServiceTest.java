@@ -1,5 +1,18 @@
 package com.mehdi.taskflow.task;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.argThat;
+import static org.mockito.Mockito.eq;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
 import com.mehdi.taskflow.config.AuditService;
 import com.mehdi.taskflow.config.MessageService;
 import com.mehdi.taskflow.config.SanitizationService;
@@ -10,6 +23,9 @@ import com.mehdi.taskflow.security.SecurityUtils;
 import com.mehdi.taskflow.task.dto.TaskRequest;
 import com.mehdi.taskflow.user.User;
 import com.mehdi.taskflow.user.UserRepository;
+import java.time.LocalDate;
+import java.util.List;
+import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -18,39 +34,24 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.access.AccessDeniedException;
 
-import java.time.LocalDate;
-import java.util.List;
-import java.util.Optional;
-
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.Mockito.*;
-
 @ExtendWith(MockitoExtension.class)
 public class TaskServiceTest {
 
-    @Mock
-    private TaskRepository taskRepository;
+    @Mock private TaskRepository taskRepository;
 
-    @Mock
-    private ProjectRepository projectRepository;
+    @Mock private ProjectRepository projectRepository;
 
-    @Mock
-    private UserRepository userRepository;
+    @Mock private UserRepository userRepository;
 
-    @Mock
-    private SecurityUtils securityUtils;
+    @Mock private SecurityUtils securityUtils;
 
-    @Mock
-    private MessageService messageService;
+    @Mock private MessageService messageService;
 
-    @Mock
-    private AuditService auditService;
+    @Mock private AuditService auditService;
 
-    @Mock
-    private SanitizationService sanitizationService;
+    @Mock private SanitizationService sanitizationService;
 
-    @InjectMocks
-    private TaskService taskService;
+    @InjectMocks private TaskService taskService;
 
     private User currentUser;
     private User otherUser;
@@ -147,7 +148,8 @@ public class TaskServiceTest {
     @Test
     void getTasksByProject_shouldFilterByStatus() {
         // GIVEN
-        when(taskRepository.findByProjectIdAndStatus(1L, TaskStatus.TODO)).thenReturn(List.of(task));
+        when(taskRepository.findByProjectIdAndStatus(1L, TaskStatus.TODO))
+                .thenReturn(List.of(task));
 
         // WHEN
         List<Task> result = taskService.getTasksByProject(1L, TaskStatus.TODO, null);
@@ -171,7 +173,8 @@ public class TaskServiceTest {
     @Test
     void getTasksByProject_shouldFilterByPriority() {
         // GIVEN
-        when(taskRepository.findByProjectIdAndPriority(1L, TaskPriority.MEDIUM)).thenReturn(List.of(task));
+        when(taskRepository.findByProjectIdAndPriority(1L, TaskPriority.MEDIUM))
+                .thenReturn(List.of(task));
 
         // WHEN
         List<Task> result = taskService.getTasksByProject(1L, null, TaskPriority.MEDIUM);
@@ -195,7 +198,8 @@ public class TaskServiceTest {
     @Test
     void getTasksByProject_shouldPrioritizeStatusFilter_whenBothProvided() {
         // GIVEN
-        when(taskRepository.findByProjectIdAndStatus(1L, TaskStatus.TODO)).thenReturn(List.of(task));
+        when(taskRepository.findByProjectIdAndStatus(1L, TaskStatus.TODO))
+                .thenReturn(List.of(task));
 
         // WHEN
         List<Task> result = taskService.getTasksByProject(1L, TaskStatus.TODO, TaskPriority.MEDIUM);
@@ -249,8 +253,8 @@ public class TaskServiceTest {
         when(messageService.get("error.task.not.found")).thenReturn("Task not found");
 
         // WHEN
-        ResourceNotFoundException ex = assertThrows(ResourceNotFoundException.class,
-                () -> taskService.getTaskById(999L));
+        ResourceNotFoundException ex =
+                assertThrows(ResourceNotFoundException.class, () -> taskService.getTaskById(999L));
 
         // THEN
         assertEquals("Task not found", ex.getMessage());
@@ -270,8 +274,8 @@ public class TaskServiceTest {
         when(messageService.get("error.access.denied")).thenReturn("Access denied");
 
         // WHEN
-        AccessDeniedException ex = assertThrows(AccessDeniedException.class,
-                () -> taskService.getTaskById(1L));
+        AccessDeniedException ex =
+                assertThrows(AccessDeniedException.class, () -> taskService.getTaskById(1L));
 
         // THEN
         assertEquals("Access denied", ex.getMessage());
@@ -290,8 +294,8 @@ public class TaskServiceTest {
         when(userRepository.findById(2L)).thenReturn(Optional.of(otherUser));
         when(sanitizationService.sanitizeAndLog(any(), any(), any()))
                 .thenAnswer(invocation -> invocation.getArgument(0));
-        when(taskRepository.save(any(Task.class))).thenAnswer(
-                invocation -> invocation.getArgument(0));
+        when(taskRepository.save(any(Task.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
 
         // WHEN
         Task result = taskService.createTask(1L, createRequest);
@@ -309,17 +313,19 @@ public class TaskServiceTest {
         verify(projectRepository).findById(1L);
         verify(messageService, never()).get(any());
         verify(userRepository).findById(2L);
-        verify(taskRepository, times(1)).save(argThat(t ->
-                t.getId() == null
-                        && t.getTitle().equals("New task")
-                        && t.getDescription().equals("New description")
-                        && t.getStatus().equals(TaskStatus.TODO)
-                        && t.getPriority().equals(TaskPriority.MEDIUM)
-                        && t.getDueDate().equals(LocalDate.of(2026, 12, 31))
-                        && t.getAssignee().equals(otherUser)
-                        && t.getProject().equals(project)
-                        && t.getProject().getOwner().equals(currentUser)
-        ));
+        verify(taskRepository, times(1))
+                .save(
+                        argThat(
+                                t ->
+                                        t.getId() == null
+                                                && t.getTitle().equals("New task")
+                                                && t.getDescription().equals("New description")
+                                                && t.getStatus().equals(TaskStatus.TODO)
+                                                && t.getPriority().equals(TaskPriority.MEDIUM)
+                                                && t.getDueDate().equals(LocalDate.of(2026, 12, 31))
+                                                && t.getAssignee().equals(otherUser)
+                                                && t.getProject().equals(project)
+                                                && t.getProject().getOwner().equals(currentUser)));
     }
 
     @Test
@@ -330,8 +336,8 @@ public class TaskServiceTest {
         when(projectRepository.findById(1L)).thenReturn(Optional.of(project));
         when(sanitizationService.sanitizeAndLog(any(), any(), any()))
                 .thenAnswer(invocation -> invocation.getArgument(0));
-        when(taskRepository.save(any(Task.class))).thenAnswer(
-                invocation -> invocation.getArgument(0));
+        when(taskRepository.save(any(Task.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
 
         // WHEN
         Task result = taskService.createTask(1L, createRequest);
@@ -349,17 +355,19 @@ public class TaskServiceTest {
         verify(projectRepository).findById(1L);
         verify(messageService, never()).get(any());
         verify(userRepository, never()).findById(any());
-        verify(taskRepository, times(1)).save(argThat(t ->
-                t.getId() == null
-                        && t.getTitle().equals("New task")
-                        && t.getDescription().equals("New description")
-                        && t.getStatus().equals(TaskStatus.TODO)
-                        && t.getPriority().equals(TaskPriority.MEDIUM)
-                        && t.getDueDate().equals(LocalDate.of(2026, 12, 31))
-                        && t.getAssignee() == null
-                        && t.getProject().equals(project)
-                        && t.getProject().getOwner().equals(currentUser)
-        ));
+        verify(taskRepository, times(1))
+                .save(
+                        argThat(
+                                t ->
+                                        t.getId() == null
+                                                && t.getTitle().equals("New task")
+                                                && t.getDescription().equals("New description")
+                                                && t.getStatus().equals(TaskStatus.TODO)
+                                                && t.getPriority().equals(TaskPriority.MEDIUM)
+                                                && t.getDueDate().equals(LocalDate.of(2026, 12, 31))
+                                                && t.getAssignee() == null
+                                                && t.getProject().equals(project)
+                                                && t.getProject().getOwner().equals(currentUser)));
     }
 
     @Test
@@ -370,8 +378,10 @@ public class TaskServiceTest {
         when(messageService.get("error.project.not.found")).thenReturn("Project not found");
 
         // WHEN
-        ResourceNotFoundException ex = assertThrows(ResourceNotFoundException.class,
-                () -> taskService.createTask(999L, createRequest));
+        ResourceNotFoundException ex =
+                assertThrows(
+                        ResourceNotFoundException.class,
+                        () -> taskService.createTask(999L, createRequest));
 
         // THEN
         assertEquals("Project not found", ex.getMessage());
@@ -393,8 +403,10 @@ public class TaskServiceTest {
         when(messageService.get("error.access.denied")).thenReturn("Access denied");
 
         // WHEN
-        AccessDeniedException ex = assertThrows(AccessDeniedException.class,
-                () -> taskService.createTask(1L, createRequest));
+        AccessDeniedException ex =
+                assertThrows(
+                        AccessDeniedException.class,
+                        () -> taskService.createTask(1L, createRequest));
         // THEN
         assertEquals("Access denied", ex.getMessage());
         verify(securityUtils).getCurrentUser();
@@ -416,8 +428,10 @@ public class TaskServiceTest {
         when(messageService.get("error.assignee.not.found")).thenReturn("Assignee not found");
 
         // WHEN
-        ResourceNotFoundException ex = assertThrows(ResourceNotFoundException.class,
-                () -> taskService.createTask(1L, createRequest));
+        ResourceNotFoundException ex =
+                assertThrows(
+                        ResourceNotFoundException.class,
+                        () -> taskService.createTask(1L, createRequest));
 
         // THEN
         assertEquals("Assignee not found", ex.getMessage());
@@ -458,18 +472,20 @@ public class TaskServiceTest {
         verify(taskRepository).findById(1L);
         verify(userRepository).findById(2L);
         verify(messageService, never()).get(any());
-        verify(taskRepository).save(argThat(t ->
-                t.getId().equals(1L)
-                        && t.getTitle().equals("Updated task")
-                        && t.getDescription().equals("Updated description")
-                        && t.getStatus().equals(TaskStatus.TODO)
-                        && t.getPriority().equals(TaskPriority.MEDIUM)
-                        && t.getDueDate().equals(LocalDate.of(2026, 12, 31))
-                        && t.getAssignee().equals(otherUser)
-                        && t.getProject().equals(project)
-                        && t.getProject().getOwner().equals(currentUser)
-                        && t.getCreatedAt() == null
-        ));
+        verify(taskRepository)
+                .save(
+                        argThat(
+                                t ->
+                                        t.getId().equals(1L)
+                                                && t.getTitle().equals("Updated task")
+                                                && t.getDescription().equals("Updated description")
+                                                && t.getStatus().equals(TaskStatus.TODO)
+                                                && t.getPriority().equals(TaskPriority.MEDIUM)
+                                                && t.getDueDate().equals(LocalDate.of(2026, 12, 31))
+                                                && t.getAssignee().equals(otherUser)
+                                                && t.getProject().equals(project)
+                                                && t.getProject().getOwner().equals(currentUser)
+                                                && t.getCreatedAt() == null));
     }
 
     @Test
@@ -481,7 +497,8 @@ public class TaskServiceTest {
         when(taskRepository.existsByIdAndProjectOwnerId(1L, 1L)).thenReturn(true);
         when(taskRepository.findById(1L)).thenReturn(Optional.of(task));
         when(sanitizationService.sanitizeAndLog(any(), any(), any()))
-                .thenAnswer(invocation -> invocation.getArgument(0));;
+                .thenAnswer(invocation -> invocation.getArgument(0));
+        ;
         when(taskRepository.save(any(Task.class))).thenReturn(task);
 
         // WHEN
@@ -501,18 +518,20 @@ public class TaskServiceTest {
         verify(taskRepository).findById(1L);
         verify(userRepository, never()).findById(2L);
         verify(messageService, never()).get(any());
-        verify(taskRepository).save(argThat(t ->
-                t.getId().equals(1L)
-                        && t.getTitle().equals("Updated task")
-                        && t.getDescription().equals("Updated description")
-                        && t.getStatus().equals(TaskStatus.TODO)
-                        && t.getPriority().equals(TaskPriority.MEDIUM)
-                        && t.getDueDate().equals(LocalDate.of(2026, 12, 31))
-                        && t.getAssignee() == null
-                        && t.getProject().equals(project)
-                        && t.getProject().getOwner().equals(currentUser)
-                        && t.getCreatedAt() == null
-        ));
+        verify(taskRepository)
+                .save(
+                        argThat(
+                                t ->
+                                        t.getId().equals(1L)
+                                                && t.getTitle().equals("Updated task")
+                                                && t.getDescription().equals("Updated description")
+                                                && t.getStatus().equals(TaskStatus.TODO)
+                                                && t.getPriority().equals(TaskPriority.MEDIUM)
+                                                && t.getDueDate().equals(LocalDate.of(2026, 12, 31))
+                                                && t.getAssignee() == null
+                                                && t.getProject().equals(project)
+                                                && t.getProject().getOwner().equals(currentUser)
+                                                && t.getCreatedAt() == null));
     }
 
     @Test
@@ -523,8 +542,10 @@ public class TaskServiceTest {
         when(messageService.get("error.access.denied")).thenReturn("Access denied");
 
         // WHEN
-        AccessDeniedException ex = assertThrows(AccessDeniedException.class,
-                () -> taskService.updateTask(1L, updateRequest));
+        AccessDeniedException ex =
+                assertThrows(
+                        AccessDeniedException.class,
+                        () -> taskService.updateTask(1L, updateRequest));
 
         // THEN
         assertEquals("Access denied", ex.getMessage());
@@ -547,8 +568,10 @@ public class TaskServiceTest {
         when(messageService.get("error.task.not.found")).thenReturn("Task not found");
 
         // WHEN
-        ResourceNotFoundException ex = assertThrows(ResourceNotFoundException.class,
-                () -> taskService.updateTask(1L, updateRequest));
+        ResourceNotFoundException ex =
+                assertThrows(
+                        ResourceNotFoundException.class,
+                        () -> taskService.updateTask(1L, updateRequest));
 
         // THEN
         assertEquals("Task not found", ex.getMessage());
@@ -573,8 +596,10 @@ public class TaskServiceTest {
         when(messageService.get("error.assignee.not.found")).thenReturn("Assignee not found");
 
         // WHEN
-        ResourceNotFoundException ex = assertThrows(ResourceNotFoundException.class,
-                () -> taskService.updateTask(1L, updateRequest));
+        ResourceNotFoundException ex =
+                assertThrows(
+                        ResourceNotFoundException.class,
+                        () -> taskService.updateTask(1L, updateRequest));
 
         // THEN
         assertEquals("Assignee not found", ex.getMessage());
@@ -615,8 +640,8 @@ public class TaskServiceTest {
         when(messageService.get("error.access.denied")).thenReturn("Access denied");
 
         // WHEN
-        AccessDeniedException ex = assertThrows(AccessDeniedException.class,
-                () -> taskService.deleteTask(1L));
+        AccessDeniedException ex =
+                assertThrows(AccessDeniedException.class, () -> taskService.deleteTask(1L));
 
         // THEN
         assertEquals("Access denied", ex.getMessage());
@@ -637,8 +662,8 @@ public class TaskServiceTest {
         when(messageService.get("error.task.not.found")).thenReturn("Task not found");
 
         // WHEN
-        ResourceNotFoundException ex = assertThrows(ResourceNotFoundException.class,
-                () -> taskService.deleteTask(1L));
+        ResourceNotFoundException ex =
+                assertThrows(ResourceNotFoundException.class, () -> taskService.deleteTask(1L));
 
         // THEN
         assertEquals("Task not found", ex.getMessage());

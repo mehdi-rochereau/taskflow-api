@@ -1,18 +1,22 @@
 package com.mehdi.taskflow.security;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
 import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.MalformedJwtException;
 import io.jsonwebtoken.security.SignatureException;
 import io.jsonwebtoken.security.WeakKeyException;
+import java.util.Collections;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.test.util.ReflectionTestUtils;
-
-import java.util.Collections;
-
-import static org.junit.jupiter.api.Assertions.*;
 
 class JwtServiceTest {
 
@@ -22,7 +26,9 @@ class JwtServiceTest {
     @BeforeEach
     void setUp() {
         jwtService = new JwtService();
-        ReflectionTestUtils.setField(jwtService, "secret",
+        ReflectionTestUtils.setField(
+                jwtService,
+                "secret",
                 "this-secret-must-have-a-length-of-at-least-256-bits-so-32-characters-minimum");
         ReflectionTestUtils.setField(jwtService, "expiration", 86400000L);
         userDetails = new User("mehdi", "password", Collections.emptyList());
@@ -57,12 +63,15 @@ class JwtServiceTest {
         ReflectionTestUtils.setField(jwtService, "secret", "too-short");
 
         // WHEN
-        WeakKeyException ex = assertThrows(WeakKeyException.class,
-                () -> jwtService.generateToken(userDetails));
+        WeakKeyException ex =
+                assertThrows(WeakKeyException.class, () -> jwtService.generateToken(userDetails));
 
         // THEN
         assertTrue(ex.getMessage().contains("The specified key byte array is"));
-        assertTrue(ex.getMessage().contains("bits which is not secure enough for any JWT HMAC-SHA algorithm"));
+        assertTrue(
+                ex.getMessage()
+                        .contains(
+                                "bits which is not secure enough for any JWT HMAC-SHA algorithm"));
         assertTrue(ex.getMessage().contains("MUST have a size >= 256 bits"));
     }
 
@@ -83,12 +92,16 @@ class JwtServiceTest {
     @Test
     void extractUsername_shouldThrow_whenTokenIsMalformed() {
         // WHEN
-        MalformedJwtException ex = assertThrows(MalformedJwtException.class,
-                () -> jwtService.extractUsername("not.a.valid.jwt.token"));
+        MalformedJwtException ex =
+                assertThrows(
+                        MalformedJwtException.class,
+                        () -> jwtService.extractUsername("not.a.valid.jwt.token"));
 
         // THEN
-        assertTrue(ex.getMessage().contains(
-                "Malformed protected header JSON: Unable to deserialize: Unexpected character"));
+        assertTrue(
+                ex.getMessage()
+                        .contains(
+                                "Malformed protected header JSON: Unable to deserialize: Unexpected character"));
     }
 
     @Test
@@ -98,8 +111,8 @@ class JwtServiceTest {
         String token = jwtService.generateToken(userDetails);
 
         // WHEN
-        ExpiredJwtException ex = assertThrows(ExpiredJwtException.class,
-                () -> jwtService.extractUsername(token));
+        ExpiredJwtException ex =
+                assertThrows(ExpiredJwtException.class, () -> jwtService.extractUsername(token));
 
         // THEN
         assertTrue(ex.getMessage().contains("JWT expired "));
@@ -112,26 +125,30 @@ class JwtServiceTest {
     void extractUsername_shouldThrow_whenTokenSignedWithDifferentKey() {
         // GIVEN
         JwtService otherService = new JwtService();
-        ReflectionTestUtils.setField(otherService, "secret",
-                "other-secret-completely-different-must-be-32-characters");
+        ReflectionTestUtils.setField(
+                otherService, "secret", "other-secret-completely-different-must-be-32-characters");
         ReflectionTestUtils.setField(otherService, "expiration", 86400000L);
         String tokenFromOtherService = otherService.generateToken(userDetails);
 
         // WHEN
-        SignatureException ex = assertThrows(SignatureException.class,
-                () -> jwtService.extractUsername(tokenFromOtherService));
+        SignatureException ex =
+                assertThrows(
+                        SignatureException.class,
+                        () -> jwtService.extractUsername(tokenFromOtherService));
 
         // THEN
-        assertEquals("JWT signature does not match locally computed signature. " +
-                        "JWT validity cannot be asserted and should not be trusted.",
+        assertEquals(
+                "JWT signature does not match locally computed signature. "
+                        + "JWT validity cannot be asserted and should not be trusted.",
                 ex.getMessage());
     }
 
     @Test
     void extractUsername_shouldThrow_whenTokenIsNull() {
         // WHEN
-        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
-                () -> jwtService.extractUsername(null));
+        IllegalArgumentException ex =
+                assertThrows(
+                        IllegalArgumentException.class, () -> jwtService.extractUsername(null));
 
         // THEN
         assertEquals("CharSequence cannot be null or empty.", ex.getMessage());
@@ -140,8 +157,8 @@ class JwtServiceTest {
     @Test
     void extractUsername_shouldThrow_whenTokenIsEmpty() {
         // WHEN
-        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
-                () -> jwtService.extractUsername(""));
+        IllegalArgumentException ex =
+                assertThrows(IllegalArgumentException.class, () -> jwtService.extractUsername(""));
 
         // THEN
         assertEquals("CharSequence cannot be null or empty.", ex.getMessage());
@@ -150,8 +167,9 @@ class JwtServiceTest {
     @Test
     void extractUsername_shouldThrow_whenTokenIsBlank() {
         // WHEN
-        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
-                () -> jwtService.extractUsername("   "));
+        IllegalArgumentException ex =
+                assertThrows(
+                        IllegalArgumentException.class, () -> jwtService.extractUsername("   "));
 
         // THEN
         assertEquals("CharSequence cannot be null or empty.", ex.getMessage());
@@ -189,8 +207,10 @@ class JwtServiceTest {
         String token = jwtService.generateToken(userDetails);
 
         // WHEN
-        ExpiredJwtException ex = assertThrows(ExpiredJwtException.class,
-                () -> jwtService.isTokenValid(token, userDetails));
+        ExpiredJwtException ex =
+                assertThrows(
+                        ExpiredJwtException.class,
+                        () -> jwtService.isTokenValid(token, userDetails));
 
         // THEN
         assertTrue(ex.getMessage().contains("JWT expired "));
@@ -203,18 +223,21 @@ class JwtServiceTest {
     void isTokenValid_shouldThrow_whenTokenSignedWithDifferentKey() {
         // GIVEN
         JwtService otherService = new JwtService();
-        ReflectionTestUtils.setField(otherService, "secret",
-                "other-secret-completely-different-must-be-32-characters");
+        ReflectionTestUtils.setField(
+                otherService, "secret", "other-secret-completely-different-must-be-32-characters");
         ReflectionTestUtils.setField(otherService, "expiration", 86400000L);
         String tokenFromOtherService = otherService.generateToken(userDetails);
 
         // WHEN
-        SignatureException ex = assertThrows(SignatureException.class,
-                () -> jwtService.isTokenValid(tokenFromOtherService, userDetails));
+        SignatureException ex =
+                assertThrows(
+                        SignatureException.class,
+                        () -> jwtService.isTokenValid(tokenFromOtherService, userDetails));
 
         // THEN
-        assertEquals("JWT signature does not match locally computed signature. " +
-                        "JWT validity cannot be asserted and should not be trusted.",
+        assertEquals(
+                "JWT signature does not match locally computed signature. "
+                        + "JWT validity cannot be asserted and should not be trusted.",
                 ex.getMessage());
     }
 

@@ -1,11 +1,25 @@
 package com.mehdi.taskflow.security;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.anyString;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
 import com.mehdi.taskflow.config.MessageService;
 import io.jsonwebtoken.ExpiredJwtException;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import java.io.PrintWriter;
+import java.io.StringWriter;
+import java.util.ArrayList;
+import java.util.Collections;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -17,46 +31,30 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetails;
 
-import java.io.PrintWriter;
-import java.io.StringWriter;
-import java.util.ArrayList;
-import java.util.Collections;
-
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.Mockito.*;
-
 /**
  * Unit tests for {@link JwtFilter}.
  *
- * <p>Every case drives the filter through the {@code jwt} cookie, which is the
- * only transport accepted since the {@code Authorization: Bearer} header was
- * removed. The two entry cases that used to cover an absent header and a
- * non-Bearer header are kept in their cookie form: no cookie at all, and a
- * cookie jar holding some other cookie.</p>
+ * <p>Every case drives the filter through the {@code jwt} cookie, which is the only transport
+ * accepted since the {@code Authorization: Bearer} header was removed. The two entry cases that
+ * used to cover an absent header and a non-Bearer header are kept in their cookie form: no cookie
+ * at all, and a cookie jar holding some other cookie.
  */
 @ExtendWith(MockitoExtension.class)
 class JwtFilterTest {
 
-    @Mock
-    private JwtService jwtService;
+    @Mock private JwtService jwtService;
 
-    @Mock
-    private UserDetailsServiceImpl userDetailsService;
+    @Mock private UserDetailsServiceImpl userDetailsService;
 
-    @Mock
-    private HttpServletRequest request;
+    @Mock private HttpServletRequest request;
 
-    @Mock
-    private HttpServletResponse response;
+    @Mock private HttpServletResponse response;
 
-    @Mock
-    private FilterChain filterChain;
+    @Mock private FilterChain filterChain;
 
-    @Mock
-    private MessageService messageService;
+    @Mock private MessageService messageService;
 
-    @InjectMocks
-    private JwtFilter jwtFilter;
+    @InjectMocks private JwtFilter jwtFilter;
 
     private UserDetails userDetails;
     private StringWriter responseWriter;
@@ -68,14 +66,12 @@ class JwtFilterTest {
     }
 
     /**
-     * Places a {@code jwt} cookie in the request, alongside an unrelated cookie
-     * so that the extraction is proven to select by name and not by position.
+     * Places a {@code jwt} cookie in the request, alongside an unrelated cookie so that the
+     * extraction is proven to select by name and not by position.
      */
     private void givenJwtCookie(String value) {
-        when(request.getCookies()).thenReturn(new Cookie[]{
-                new Cookie("theme", "dark"),
-                new Cookie("jwt", value)
-        });
+        when(request.getCookies())
+                .thenReturn(new Cookie[] {new Cookie("theme", "dark"), new Cookie("jwt", value)});
     }
 
     @Test
@@ -100,10 +96,11 @@ class JwtFilterTest {
     @Test
     void doFilterInternal_shouldContinueChain_whenJwtCookieIsAbsentAmongOthers() throws Exception {
         // GIVEN — a cookie jar that holds no jwt cookie
-        when(request.getCookies()).thenReturn(new Cookie[]{
-                new Cookie("theme", "dark"),
-                new Cookie("refreshToken", "some-uuid")
-        });
+        when(request.getCookies())
+                .thenReturn(
+                        new Cookie[] {
+                            new Cookie("theme", "dark"), new Cookie("refreshToken", "some-uuid")
+                        });
 
         // WHEN
         jwtFilter.doFilterInternal(request, response, filterChain);
@@ -146,7 +143,8 @@ class JwtFilterTest {
         when(jwtService.extractUsername("valid-token")).thenReturn("mehdi");
 
         UsernamePasswordAuthenticationToken existingAuth =
-                new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
+                new UsernamePasswordAuthenticationToken(
+                        userDetails, null, userDetails.getAuthorities());
         SecurityContextHolder.getContext().setAuthentication(existingAuth);
 
         // WHEN
@@ -155,10 +153,13 @@ class JwtFilterTest {
         // THEN
         assertNotNull(SecurityContextHolder.getContext().getAuthentication());
         assertTrue(SecurityContextHolder.getContext().getAuthentication().isAuthenticated());
-        assertEquals(userDetails, SecurityContextHolder.getContext().getAuthentication().getPrincipal());
+        assertEquals(
+                userDetails, SecurityContextHolder.getContext().getAuthentication().getPrincipal());
         assertEquals("mehdi", SecurityContextHolder.getContext().getAuthentication().getName());
-        assertEquals(new ArrayList<>(userDetails.getAuthorities()),
-                new ArrayList<>(SecurityContextHolder.getContext().getAuthentication().getAuthorities()));
+        assertEquals(
+                new ArrayList<>(userDetails.getAuthorities()),
+                new ArrayList<>(
+                        SecurityContextHolder.getContext().getAuthentication().getAuthorities()));
         verify(jwtService).extractUsername("valid-token");
         verify(userDetailsService, never()).loadUserByUsername(any());
         verify(jwtService, never()).isTokenValid(any(), any());
@@ -182,10 +183,13 @@ class JwtFilterTest {
         // THEN
         assertNotNull(SecurityContextHolder.getContext().getAuthentication());
         assertTrue(SecurityContextHolder.getContext().getAuthentication().isAuthenticated());
-        assertEquals(userDetails, SecurityContextHolder.getContext().getAuthentication().getPrincipal());
+        assertEquals(
+                userDetails, SecurityContextHolder.getContext().getAuthentication().getPrincipal());
         assertEquals("mehdi", SecurityContextHolder.getContext().getAuthentication().getName());
-        assertEquals(new ArrayList<>(userDetails.getAuthorities()),
-                new ArrayList<>(SecurityContextHolder.getContext().getAuthentication().getAuthorities()));
+        assertEquals(
+                new ArrayList<>(userDetails.getAuthorities()),
+                new ArrayList<>(
+                        SecurityContextHolder.getContext().getAuthentication().getAuthorities()));
         verify(jwtService).extractUsername("valid-token");
         verify(userDetailsService).loadUserByUsername("mehdi");
         verify(jwtService).isTokenValid("valid-token", userDetails);
@@ -232,8 +236,7 @@ class JwtFilterTest {
 
         // THEN
         assertNull(SecurityContextHolder.getContext().getAuthentication());
-        assertEquals("{\"status\":401,\"message\":\"Token expired\"}",
-                responseWriter.toString());
+        assertEquals("{\"status\":401,\"message\":\"Token expired\"}", responseWriter.toString());
         verify(jwtService).extractUsername("expired-token");
         verify(userDetailsService, never()).loadUserByUsername(any());
         verify(jwtService, never()).isTokenValid(anyString(), any());
@@ -259,8 +262,7 @@ class JwtFilterTest {
 
         // THEN
         assertNull(SecurityContextHolder.getContext().getAuthentication());
-        assertEquals("{\"status\":401,\"message\":\"Invalid token\"}",
-                responseWriter.toString());
+        assertEquals("{\"status\":401,\"message\":\"Invalid token\"}", responseWriter.toString());
         verify(jwtService).extractUsername("bad-format-token");
         verify(userDetailsService, never()).loadUserByUsername(any());
         verify(jwtService, never()).isTokenValid(anyString(), any());

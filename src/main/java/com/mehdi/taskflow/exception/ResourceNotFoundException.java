@@ -6,10 +6,11 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 /**
  * Exception thrown when a requested resource cannot be found in the database.
  *
- * <p>Automatically produces an HTTP {@code 404 Not Found} response
- * via {@link GlobalExceptionHandler}.</p>
+ * <p>Automatically produces an HTTP {@code 404 Not Found} response via {@link
+ * GlobalExceptionHandler}.
  *
- * <p>Usage example:</p>
+ * <p>Usage example:
+ *
  * <pre>{@code
  * Project project = projectRepository.findById(id)
  *     .orElseThrow(() -> new ResourceNotFoundException("Project not found"));
@@ -23,8 +24,7 @@ public class ResourceNotFoundException extends RuntimeException {
     /**
      * Constructs a new exception with the specified detail message.
      *
-     * @param message description of the missing resource,
-     *                included in the HTTP response body
+     * @param message description of the missing resource, included in the HTTP response body
      */
     public ResourceNotFoundException(String message) {
         super(message);

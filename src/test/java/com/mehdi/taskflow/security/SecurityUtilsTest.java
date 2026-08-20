@@ -1,9 +1,19 @@
 package com.mehdi.taskflow.security;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
 import com.mehdi.taskflow.config.MessageService;
 import com.mehdi.taskflow.exception.ResourceNotFoundException;
 import com.mehdi.taskflow.user.User;
 import com.mehdi.taskflow.user.UserRepository;
+import java.util.Collections;
+import java.util.Optional;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -14,23 +24,14 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 
-import java.util.Collections;
-import java.util.Optional;
-
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.Mockito.*;
-
 @ExtendWith(MockitoExtension.class)
 class SecurityUtilsTest {
 
-    @Mock
-    private UserRepository userRepository;
+    @Mock private UserRepository userRepository;
 
-    @Mock
-    private MessageService messageService;
+    @Mock private MessageService messageService;
 
-    @InjectMocks
-    private SecurityUtils securityUtils;
+    @InjectMocks private SecurityUtils securityUtils;
 
     private User user;
 
@@ -77,8 +78,8 @@ class SecurityUtilsTest {
         when(messageService.get("error.user.not.found")).thenReturn("User not found");
 
         // WHEN
-        ResourceNotFoundException ex = assertThrows(ResourceNotFoundException.class,
-                () -> securityUtils.getCurrentUser());
+        ResourceNotFoundException ex =
+                assertThrows(ResourceNotFoundException.class, () -> securityUtils.getCurrentUser());
 
         // THEN
         assertEquals("User not found", ex.getMessage());

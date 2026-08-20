@@ -1,5 +1,22 @@
 package com.mehdi.taskflow.auth;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.atLeastOnce;
+import static org.mockito.Mockito.mockStatic;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
 import com.mehdi.taskflow.config.CookieUtils;
 import com.mehdi.taskflow.config.MessageService;
 import com.mehdi.taskflow.exception.ResourceNotFoundException;
@@ -9,6 +26,8 @@ import com.mehdi.taskflow.user.dto.AuthResponse;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import java.time.LocalDateTime;
+import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -20,33 +39,20 @@ import org.mockito.MockedStatic;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
 
-import java.time.LocalDateTime;
-import java.util.Optional;
-
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.*;
-import static org.mockito.Mockito.*;
-
 @ExtendWith(MockitoExtension.class)
 public class RefreshTokenServiceTest {
 
-    @Mock
-    private RefreshTokenRepository refreshTokenRepository;
+    @Mock private RefreshTokenRepository refreshTokenRepository;
 
-    @Mock
-    private MessageService messageService;
+    @Mock private MessageService messageService;
 
-    @Mock
-    private JwtService jwtService;
+    @Mock private JwtService jwtService;
 
-    @Mock
-    private HttpServletRequest request;
+    @Mock private HttpServletRequest request;
 
-    @Mock
-    private HttpServletResponse response;
+    @Mock private HttpServletResponse response;
 
-    @InjectMocks
-    private RefreshTokenService refreshTokenService;
+    @InjectMocks private RefreshTokenService refreshTokenService;
 
     private User user;
     private RefreshToken validToken;
@@ -69,7 +75,8 @@ public class RefreshTokenServiceTest {
     }
 
     private void givenRefreshTokenCookie(String tokenValue) {
-        when(request.getCookies()).thenReturn(new Cookie[]{new Cookie("refreshToken", tokenValue)});
+        when(request.getCookies())
+                .thenReturn(new Cookie[] {new Cookie("refreshToken", tokenValue)});
     }
 
     // =========================================================================
@@ -82,7 +89,8 @@ public class RefreshTokenServiceTest {
         @Test
         void generateRefreshToken_shouldGenerateAndPersistToken_whenCalled() {
             // GIVEN
-            when(refreshTokenRepository.save(any(RefreshToken.class))).thenAnswer(i -> i.getArgument(0));
+            when(refreshTokenRepository.save(any(RefreshToken.class)))
+                    .thenAnswer(i -> i.getArgument(0));
 
             // WHEN
             RefreshToken result = refreshTokenService.generateRefreshToken(user);
@@ -98,7 +106,8 @@ public class RefreshTokenServiceTest {
         @Test
         void generateRefreshToken_shouldSetExpirationTo7Days_whenCalled() {
             // GIVEN
-            when(refreshTokenRepository.save(any(RefreshToken.class))).thenAnswer(i -> i.getArgument(0));
+            when(refreshTokenRepository.save(any(RefreshToken.class)))
+                    .thenAnswer(i -> i.getArgument(0));
 
             // WHEN
             RefreshToken result = refreshTokenService.generateRefreshToken(user);
@@ -113,7 +122,8 @@ public class RefreshTokenServiceTest {
         @Test
         void generateRefreshToken_shouldGenerateUniqueToken_whenCalledTwice() {
             // GIVEN
-            when(refreshTokenRepository.save(any(RefreshToken.class))).thenAnswer(i -> i.getArgument(0));
+            when(refreshTokenRepository.save(any(RefreshToken.class)))
+                    .thenAnswer(i -> i.getArgument(0));
 
             // WHEN
             RefreshToken token1 = refreshTokenService.generateRefreshToken(user);
@@ -138,14 +148,15 @@ public class RefreshTokenServiceTest {
             try (MockedStatic<CookieUtils> mocked = mockStatic(CookieUtils.class)) {
                 refreshTokenService.addRefreshTokenCookie(response, "my-token");
 
-                mocked.verify(() -> CookieUtils.addCookie(
-                        response,
-                        "refreshToken",
-                        "my-token",
-                        "/api/auth",
-                        7 * 24 * 60 * 60,
-                        false
-                ));
+                mocked.verify(
+                        () ->
+                                CookieUtils.addCookie(
+                                        response,
+                                        "refreshToken",
+                                        "my-token",
+                                        "/api/auth",
+                                        7 * 24 * 60 * 60,
+                                        false));
             }
         }
     }
@@ -161,8 +172,10 @@ public class RefreshTokenServiceTest {
         void refresh_shouldReturnAuthResponse_whenTokenIsValid() {
             // GIVEN
             givenRefreshTokenCookie("valid-uuid-token");
-            when(refreshTokenRepository.findByToken("valid-uuid-token")).thenReturn(Optional.of(validToken));
-            when(refreshTokenRepository.save(any(RefreshToken.class))).thenAnswer(i -> i.getArgument(0));
+            when(refreshTokenRepository.findByToken("valid-uuid-token"))
+                    .thenReturn(Optional.of(validToken));
+            when(refreshTokenRepository.save(any(RefreshToken.class)))
+                    .thenAnswer(i -> i.getArgument(0));
             when(jwtService.generateToken(user)).thenReturn("new-jwt-token");
 
             // WHEN
@@ -182,8 +195,10 @@ public class RefreshTokenServiceTest {
         void refresh_shouldRevokeOldToken_whenTokenIsValid() {
             // GIVEN
             givenRefreshTokenCookie("valid-uuid-token");
-            when(refreshTokenRepository.findByToken("valid-uuid-token")).thenReturn(Optional.of(validToken));
-            when(refreshTokenRepository.save(any(RefreshToken.class))).thenAnswer(i -> i.getArgument(0));
+            when(refreshTokenRepository.findByToken("valid-uuid-token"))
+                    .thenReturn(Optional.of(validToken));
+            when(refreshTokenRepository.save(any(RefreshToken.class)))
+                    .thenAnswer(i -> i.getArgument(0));
             when(jwtService.generateToken(user)).thenReturn("new-jwt");
 
             // WHEN
@@ -201,8 +216,10 @@ public class RefreshTokenServiceTest {
         void refresh_shouldWriteBothCookies_whenTokenIsValid() {
             // GIVEN
             givenRefreshTokenCookie("valid-uuid-token");
-            when(refreshTokenRepository.findByToken("valid-uuid-token")).thenReturn(Optional.of(validToken));
-            when(refreshTokenRepository.save(any(RefreshToken.class))).thenAnswer(i -> i.getArgument(0));
+            when(refreshTokenRepository.findByToken("valid-uuid-token"))
+                    .thenReturn(Optional.of(validToken));
+            when(refreshTokenRepository.save(any(RefreshToken.class)))
+                    .thenAnswer(i -> i.getArgument(0));
             when(jwtService.generateToken(user)).thenReturn("new-jwt");
 
             // WHEN
@@ -210,8 +227,24 @@ public class RefreshTokenServiceTest {
                 refreshTokenService.refresh(request, response);
 
                 // THEN
-                mocked.verify(() -> CookieUtils.addCookie(eq(response), eq("jwt"), eq("new-jwt"), eq("/api"), anyInt(), eq(false)));
-                mocked.verify(() -> CookieUtils.addCookie(eq(response), eq("refreshToken"), anyString(), eq("/api/auth"), anyInt(), eq(false)));
+                mocked.verify(
+                        () ->
+                                CookieUtils.addCookie(
+                                        eq(response),
+                                        eq("jwt"),
+                                        eq("new-jwt"),
+                                        eq("/api"),
+                                        anyInt(),
+                                        eq(false)));
+                mocked.verify(
+                        () ->
+                                CookieUtils.addCookie(
+                                        eq(response),
+                                        eq("refreshToken"),
+                                        anyString(),
+                                        eq("/api/auth"),
+                                        anyInt(),
+                                        eq(false)));
             }
         }
 
@@ -219,11 +252,14 @@ public class RefreshTokenServiceTest {
         void refresh_shouldThrow_whenCookieIsAbsent() {
             // GIVEN
             when(request.getCookies()).thenReturn(null);
-            when(messageService.get("error.refresh.token.not.found")).thenReturn("Token introuvable");
+            when(messageService.get("error.refresh.token.not.found"))
+                    .thenReturn("Token introuvable");
 
             // WHEN
-            IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
-                    () -> refreshTokenService.refresh(request, response));
+            IllegalArgumentException ex =
+                    assertThrows(
+                            IllegalArgumentException.class,
+                            () -> refreshTokenService.refresh(request, response));
 
             // THEN
             assertEquals("Token introuvable", ex.getMessage());
@@ -234,12 +270,15 @@ public class RefreshTokenServiceTest {
         @Test
         void refresh_shouldThrow_whenCookiesArrayIsEmpty() {
             // GIVEN
-            when(request.getCookies()).thenReturn(new Cookie[]{});
-            when(messageService.get("error.refresh.token.not.found")).thenReturn("Token introuvable");
+            when(request.getCookies()).thenReturn(new Cookie[] {});
+            when(messageService.get("error.refresh.token.not.found"))
+                    .thenReturn("Token introuvable");
 
             // WHEN
-            IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
-                    () -> refreshTokenService.refresh(request, response));
+            IllegalArgumentException ex =
+                    assertThrows(
+                            IllegalArgumentException.class,
+                            () -> refreshTokenService.refresh(request, response));
 
             // THEN
             assertEquals("Token introuvable", ex.getMessage());
@@ -252,11 +291,14 @@ public class RefreshTokenServiceTest {
             // GIVEN
             givenRefreshTokenCookie("unknown-token");
             when(refreshTokenRepository.findByToken("unknown-token")).thenReturn(Optional.empty());
-            when(messageService.get("error.refresh.token.not.found")).thenReturn("Token introuvable");
+            when(messageService.get("error.refresh.token.not.found"))
+                    .thenReturn("Token introuvable");
 
             // WHEN
-            ResourceNotFoundException ex = assertThrows(ResourceNotFoundException.class,
-                    () -> refreshTokenService.refresh(request, response));
+            ResourceNotFoundException ex =
+                    assertThrows(
+                            ResourceNotFoundException.class,
+                            () -> refreshTokenService.refresh(request, response));
 
             // THEN
             assertEquals("Token introuvable", ex.getMessage());
@@ -271,12 +313,15 @@ public class RefreshTokenServiceTest {
             // GIVEN
             validToken.setRevoked(true);
             givenRefreshTokenCookie("valid-uuid-token");
-            when(refreshTokenRepository.findByToken("valid-uuid-token")).thenReturn(Optional.of(validToken));
+            when(refreshTokenRepository.findByToken("valid-uuid-token"))
+                    .thenReturn(Optional.of(validToken));
             when(messageService.get("error.refresh.token.revoked")).thenReturn("Token révoqué");
 
             // WHEN
-            IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
-                    () -> refreshTokenService.refresh(request, response));
+            IllegalArgumentException ex =
+                    assertThrows(
+                            IllegalArgumentException.class,
+                            () -> refreshTokenService.refresh(request, response));
 
             // THEN
             assertEquals("Token révoqué", ex.getMessage());
@@ -292,12 +337,15 @@ public class RefreshTokenServiceTest {
             // GIVEN
             validToken.setExpiresAt(LocalDateTime.now().minusSeconds(1));
             givenRefreshTokenCookie("valid-uuid-token");
-            when(refreshTokenRepository.findByToken("valid-uuid-token")).thenReturn(Optional.of(validToken));
+            when(refreshTokenRepository.findByToken("valid-uuid-token"))
+                    .thenReturn(Optional.of(validToken));
             when(messageService.get("error.refresh.token.expired")).thenReturn("Token expiré");
 
             // WHEN
-            IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
-                    () -> refreshTokenService.refresh(request, response));
+            IllegalArgumentException ex =
+                    assertThrows(
+                            IllegalArgumentException.class,
+                            () -> refreshTokenService.refresh(request, response));
 
             // THEN
             assertEquals("Token expiré", ex.getMessage());
@@ -312,12 +360,15 @@ public class RefreshTokenServiceTest {
         @Test
         void refresh_shouldThrow_whenRefreshTokenCookieAbsentAmongOtherCookies() {
             // GIVEN
-            when(request.getCookies()).thenReturn(new Cookie[]{new Cookie("jwt", "some-jwt")});
-            when(messageService.get("error.refresh.token.not.found")).thenReturn("Token introuvable");
+            when(request.getCookies()).thenReturn(new Cookie[] {new Cookie("jwt", "some-jwt")});
+            when(messageService.get("error.refresh.token.not.found"))
+                    .thenReturn("Token introuvable");
 
             // WHEN
-            IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
-                    () -> refreshTokenService.refresh(request, response));
+            IllegalArgumentException ex =
+                    assertThrows(
+                            IllegalArgumentException.class,
+                            () -> refreshTokenService.refresh(request, response));
 
             // THEN
             assertEquals("Token introuvable", ex.getMessage());
@@ -328,12 +379,16 @@ public class RefreshTokenServiceTest {
         @Test
         void refresh_shouldExtractCorrectCookie_whenMultipleCookiesPresent() {
             // GIVEN
-            when(request.getCookies()).thenReturn(new Cookie[]{
-                    new Cookie("jwt", "some-jwt"),
-                    new Cookie("refreshToken", "valid-uuid-token")
-            });
-            when(refreshTokenRepository.findByToken("valid-uuid-token")).thenReturn(Optional.of(validToken));
-            when(refreshTokenRepository.save(any(RefreshToken.class))).thenAnswer(i -> i.getArgument(0));
+            when(request.getCookies())
+                    .thenReturn(
+                            new Cookie[] {
+                                new Cookie("jwt", "some-jwt"),
+                                new Cookie("refreshToken", "valid-uuid-token")
+                            });
+            when(refreshTokenRepository.findByToken("valid-uuid-token"))
+                    .thenReturn(Optional.of(validToken));
+            when(refreshTokenRepository.save(any(RefreshToken.class)))
+                    .thenAnswer(i -> i.getArgument(0));
             when(jwtService.generateToken(user)).thenReturn("new-jwt");
 
             // WHEN
@@ -358,7 +413,8 @@ public class RefreshTokenServiceTest {
         void logout_shouldRevokeAllUserTokens_whenCookieIsPresent() {
             // GIVEN
             givenRefreshTokenCookie("valid-uuid-token");
-            when(refreshTokenRepository.findByToken("valid-uuid-token")).thenReturn(Optional.of(validToken));
+            when(refreshTokenRepository.findByToken("valid-uuid-token"))
+                    .thenReturn(Optional.of(validToken));
 
             // WHEN
             try (MockedStatic<CookieUtils> mocked = mockStatic(CookieUtils.class)) {
@@ -368,7 +424,10 @@ public class RefreshTokenServiceTest {
                 verify(refreshTokenRepository).findByToken("valid-uuid-token");
                 verify(refreshTokenRepository).revokeAllByUser(user);
                 mocked.verify(() -> CookieUtils.clearCookie(response, "jwt", "/api", false));
-                mocked.verify(() -> CookieUtils.clearCookie(response, "refreshToken", "/api/auth", false));
+                mocked.verify(
+                        () ->
+                                CookieUtils.clearCookie(
+                                        response, "refreshToken", "/api/auth", false));
             }
         }
 
@@ -385,7 +444,10 @@ public class RefreshTokenServiceTest {
                 verify(refreshTokenRepository, never()).findByToken(any());
                 verify(refreshTokenRepository, never()).revokeAllByUser(any());
                 mocked.verify(() -> CookieUtils.clearCookie(response, "jwt", "/api", false));
-                mocked.verify(() -> CookieUtils.clearCookie(response, "refreshToken", "/api/auth", false));
+                mocked.verify(
+                        () ->
+                                CookieUtils.clearCookie(
+                                        response, "refreshToken", "/api/auth", false));
             }
         }
 
@@ -403,7 +465,10 @@ public class RefreshTokenServiceTest {
                 verify(refreshTokenRepository).findByToken("ghost-token");
                 verify(refreshTokenRepository, never()).revokeAllByUser(any());
                 mocked.verify(() -> CookieUtils.clearCookie(response, "jwt", "/api", false));
-                mocked.verify(() -> CookieUtils.clearCookie(response, "refreshToken", "/api/auth", false));
+                mocked.verify(
+                        () ->
+                                CookieUtils.clearCookie(
+                                        response, "refreshToken", "/api/auth", false));
             }
         }
     }

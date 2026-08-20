@@ -3,7 +3,12 @@ package com.mehdi.taskflow.config;
 import com.mehdi.taskflow.security.JwtFilter;
 import com.mehdi.taskflow.security.RateLimitFilter;
 import com.mehdi.taskflow.security.UserDetailsServiceImpl;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import java.io.IOException;
+import java.time.Duration;
+import java.util.Arrays;
+import java.util.List;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -18,6 +23,7 @@ import org.springframework.security.config.annotation.web.configuration.EnableWe
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.annotation.web.configurers.HeadersConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
@@ -27,34 +33,30 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
-import java.util.Arrays;
-import java.util.List;
-
 /**
  * Spring Security configuration for the TaskFlow API.
  *
- * <p>Configures a stateless JWT-based authentication mechanism with rate limiting
- * on authentication endpoints to prevent brute force attacks.
- * CSRF protection is disabled: the JWT travels in a cookie, but that cookie is
- * scoped with {@code SameSite=Strict}, so a third-party site cannot make the
- * browser attach it to a cross-site request, and the CORS policy enumerates the
- * two origins allowed to call the API with credentials. No server-side session
- * is created either, so there is no session fixation surface to protect.
- * Method-level security is enabled via {@link EnableMethodSecurity} to support
- * {@code @PreAuthorize} annotations on service methods.</p>
+ * <p>Configures a stateless JWT-based authentication mechanism with rate limiting on authentication
+ * endpoints to prevent brute force attacks. CSRF protection is disabled: the JWT travels in a
+ * cookie, but that cookie is scoped with {@code SameSite=Strict}, so a third-party site cannot make
+ * the browser attach it to a cross-site request, and the CORS policy enumerates the two origins
+ * allowed to call the API with credentials. No server-side session is created either, so there is
+ * no session fixation surface to protect. Method-level security is enabled via {@link
+ * EnableMethodSecurity} to support {@code @PreAuthorize} annotations on service methods.
  *
- * <p>Public endpoints (no JWT required):</p>
+ * <p>Public endpoints (no JWT required):
+ *
  * <ul>
- *   <li>{@code POST /api/auth/register}</li>
- *   <li>{@code POST /api/auth/login}</li>
- *   <li>{@code POST /api/auth/refresh}</li>
- *   <li>{@code POST /api/auth/logout}</li>
- *   <li>{@code /swagger-ui/**}</li>
- *   <li>{@code /v3/api-docs/**}</li>
+ *   <li>{@code POST /api/auth/register}
+ *   <li>{@code POST /api/auth/login}
+ *   <li>{@code POST /api/auth/refresh}
+ *   <li>{@code POST /api/auth/logout}
+ *   <li>{@code /swagger-ui/**}
+ *   <li>{@code /v3/api-docs/**}
  * </ul>
  *
- * <p>All other endpoints require a valid JWT token carried by the {@code jwt}
- * HttpOnly cookie, validated by {@link JwtFilter}.</p>
+ * <p>All other endpoints require a valid JWT token carried by the {@code jwt} HttpOnly cookie,
+ * validated by {@link JwtFilter}.
  *
  * @see JwtFilter
  * @see RateLimitFilter
@@ -64,6 +66,18 @@ import java.util.List;
 @EnableWebSecurity
 @EnableMethodSecurity
 public class SecurityConfig {
+
+    /**
+     * Validity period advertised by the {@code Strict-Transport-Security} header. One year is the
+     * value required for inclusion in the browser preload lists; anything shorter narrows the
+     * window during which a browser refuses plain HTTP for this domain.
+     *
+     * <p>The application does not currently emit this header: Spring Security only sets it on a
+     * request it considers secure, and the request arrives over plain HTTP from the reverse proxy
+     * that terminates TLS. The header is set by Nginx instead. This configuration is kept so that
+     * the policy is declared in one place if the forwarded-headers strategy is ever enabled.
+     */
+    private static final Duration HSTS_MAX_AGE = Duration.ofDays(365);
 
     @Value("${cors.allowed-origins}")
     private String allowedOrigins;
@@ -76,15 +90,17 @@ public class SecurityConfig {
     /**
      * Constructs a new {@code SecurityConfig} with its required dependencies.
      *
-     * @param jwtFilter          filter responsible for JWT token validation on each request
+     * @param jwtFilter filter responsible for JWT token validation on each request
      * @param userDetailsService service for loading user details during authentication
-     * @param messageService     utility component for resolving i18n messages based on the current request locale
-     * @param rateLimitFilter    filter responsible for rate limiting on authentication endpoints
+     * @param messageService utility component for resolving i18n messages based on the current
+     *     request locale
+     * @param rateLimitFilter filter responsible for rate limiting on authentication endpoints
      */
-    public SecurityConfig(JwtFilter jwtFilter,
-                          UserDetailsServiceImpl userDetailsService,
-                          MessageService messageService,
-                          RateLimitFilter rateLimitFilter) {
+    public SecurityConfig(
+            JwtFilter jwtFilter,
+            UserDetailsServiceImpl userDetailsService,
+            MessageService messageService,
+            RateLimitFilter rateLimitFilter) {
         this.jwtFilter = jwtFilter;
         this.userDetailsService = userDetailsService;
         this.messageService = messageService;
@@ -94,27 +110,27 @@ public class SecurityConfig {
     /**
      * Configures the HTTP security filter chain.
      *
-     * <p>Applies the following configuration:</p>
+     * <p>Applies the following configuration:
+     *
      * <ul>
      *   <li>CORS — allowed origins loaded from the {@code cors.allowed-origins} property,
-     *     configured via the {@code CORS_ALLOWED_ORIGINS} environment variable.
-     *     Credentials are allowed so the browser attaches the authentication cookies</li>
-     *   <li>Security headers — {@code X-Frame-Options: DENY}, {@code X-Content-Type-Options: nosniff},
-     *     {@code Strict-Transport-Security},
-     *     {@code Content-Security-Policy: default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; frame-ancestors 'none'},
-     *     {@code Referrer-Policy: no-referrer}</li>
-     *   <li>CSRF disabled — see the class Javadoc for the rationale</li>
-     *   <li>Public routes: {@code /api/auth/**}, {@code /swagger-ui/**},
-     *       {@code /v3/api-docs/**}</li>
-     *   <li>All other routes require authentication</li>
-     *   <li>Session management: {@link SessionCreationPolicy#STATELESS} — no HTTP session created</li>
+     *       configured via the {@code CORS_ALLOWED_ORIGINS} environment variable. Credentials are
+     *       allowed so the browser attaches the authentication cookies
+     *   <li>Security headers — {@code X-Frame-Options: DENY}, {@code X-Content-Type-Options:
+     *       nosniff}, {@code Strict-Transport-Security}, {@code Content-Security-Policy:
+     *       default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:;
+     *       frame-ancestors 'none'}, {@code Referrer-Policy: no-referrer}
+     *   <li>CSRF disabled — see the class Javadoc for the rationale
+     *   <li>Public routes: {@code /api/auth/**}, {@code /swagger-ui/**}, {@code /v3/api-docs/**}
+     *   <li>All other routes require authentication
+     *   <li>Session management: {@link SessionCreationPolicy#STATELESS} — no HTTP session created
      *   <li>Custom {@link org.springframework.security.web.AuthenticationEntryPoint} — returns a
-     *       structured {@code 401 Unauthorized} JSON response instead of the default HTML error page
-     *       when an unauthenticated request reaches a protected endpoint</li>
-     *   <li>{@link RateLimitFilter} inserted before {@link UsernamePasswordAuthenticationFilter}
-     *       — limits login to 5 attempts/minute and registration to 3 attempts/hour per IP</li>
-     *   <li>{@link JwtFilter} inserted before {@link UsernamePasswordAuthenticationFilter}
-     *       — validates the {@code jwt} cookie on every protected request</li>
+     *       structured {@code 401 Unauthorized} JSON response instead of the default HTML error
+     *       page when an unauthenticated request reaches a protected endpoint
+     *   <li>{@link RateLimitFilter} inserted before {@link UsernamePasswordAuthenticationFilter} —
+     *       limits login to 5 attempts/minute and registration to 3 attempts/hour per IP
+     *   <li>{@link JwtFilter} inserted before {@link UsernamePasswordAuthenticationFilter} —
+     *       validates the {@code jwt} cookie on every protected request
      * </ul>
      *
      * @param http the {@link HttpSecurity} to configure
@@ -123,52 +139,23 @@ public class SecurityConfig {
      */
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
-        http
-                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
-                .headers(headers -> headers
-                        .frameOptions(HeadersConfigurer.FrameOptionsConfig::deny)
-                        .contentTypeOptions(Customizer.withDefaults())
-                        .httpStrictTransportSecurity(hsts -> hsts
-                                .includeSubDomains(true)
-                                .maxAgeInSeconds(31536000)
-                        )
-                        .contentSecurityPolicy(csp -> csp
-                                .policyDirectives(
-                                        "default-src 'self'; " +
-                                                "style-src 'self' 'unsafe-inline'; " +
-                                                "img-src 'self' data:; " +
-                                                "frame-ancestors 'none'"
-                                )
-                        )
-                        .referrerPolicy(referrer -> referrer
-                                .policy(ReferrerPolicyHeaderWriter.ReferrerPolicy.NO_REFERRER)
-                        )
-                )
+        http.cors(cors -> cors.configurationSource(corsConfigurationSource()))
+                .headers(this::configureSecurityHeaders)
                 .csrf(AbstractHttpConfigurer::disable)
-                .authorizeHttpRequests(auth -> auth
-                        .requestMatchers(
-                                "/api/auth/**",
-                                "/swagger-ui/**",
-                                "/v3/api-docs/**",
-                                "/actuator/health",
-                                "/favicon.ico"
-                        ).permitAll()
-                        .anyRequest().authenticated()
-                )
-                .sessionManagement(session -> session
-                        .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
-                )
-                .exceptionHandling(ex -> ex
-                        .authenticationEntryPoint((request, response, authException) -> {
-                            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-                            response.setContentType("application/json");
-                            response.getWriter().write(
-                                    "{\"status\":401,\"message\":\""
-                                            + messageService.get("error.authentication.required")
-                                            + "\"}"
-                            );
-                        })
-                )
+                .authorizeHttpRequests(
+                        auth ->
+                                auth.requestMatchers(
+                                                "/api/auth/**",
+                                                "/swagger-ui/**",
+                                                "/v3/api-docs/**",
+                                                "/actuator/health",
+                                                "/favicon.ico")
+                                        .permitAll()
+                                        .anyRequest()
+                                        .authenticated())
+                .sessionManagement(
+                        session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .exceptionHandling(ex -> ex.authenticationEntryPoint(this::writeUnauthorizedJson))
                 .authenticationProvider(authenticationProvider())
                 .addFilterBefore(rateLimitFilter, UsernamePasswordAuthenticationFilter.class)
                 .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
@@ -176,10 +163,71 @@ public class SecurityConfig {
     }
 
     /**
+     * Declares the response headers written on every reply.
+     *
+     * <p>Extracted from {@link #securityFilterChain(HttpSecurity)} so that the chain reads as a
+     * list of concerns rather than as one nested expression. Nothing here depends on the rest of
+     * the chain, which is what makes the extraction safe.
+     *
+     * <p>{@code X-XSS-Protection} is deliberately absent: Spring Security emits it at {@code 0},
+     * which disables the legacy browser filter that the header used to switch on. The filter was
+     * itself an attack surface and every current browser has dropped it. The Content Security
+     * Policy below is what actually stops script injection.
+     *
+     * @param headers the headers configurer supplied by the filter chain builder
+     */
+    private void configureSecurityHeaders(HeadersConfigurer<HttpSecurity> headers) {
+        headers.frameOptions(HeadersConfigurer.FrameOptionsConfig::deny)
+                .contentTypeOptions(Customizer.withDefaults())
+                .httpStrictTransportSecurity(
+                        hsts ->
+                                hsts.includeSubDomains(true)
+                                        .maxAgeInSeconds(HSTS_MAX_AGE.toSeconds()))
+                .contentSecurityPolicy(
+                        csp ->
+                                csp.policyDirectives(
+                                        "default-src 'self'; "
+                                                + "style-src 'self' 'unsafe-inline'; "
+                                                + "img-src 'self' data:; "
+                                                + "frame-ancestors 'none'"))
+                .referrerPolicy(
+                        referrer ->
+                                referrer.policy(
+                                        ReferrerPolicyHeaderWriter.ReferrerPolicy.NO_REFERRER));
+    }
+
+    /**
+     * Answers an unauthenticated request with a structured JSON body.
+     *
+     * <p>Without this entry point Spring Security returns its default HTML error page, which a
+     * client consuming JSON cannot parse. The shape matches the one produced by {@code
+     * GlobalExceptionHandler}, so a caller handles every error the same way.
+     *
+     * @param request the unauthenticated request, unused
+     * @param response the response to write the body into
+     * @param authException the cause, not exposed to the caller: an authentication failure must not
+     *     say which part failed
+     * @throws IOException if the response body cannot be written
+     */
+    private void writeUnauthorizedJson(
+            HttpServletRequest request,
+            HttpServletResponse response,
+            AuthenticationException authException)
+            throws IOException {
+        response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+        response.setContentType("application/json");
+        response.getWriter()
+                .write(
+                        "{\"status\":401,\"message\":\""
+                                + messageService.get("error.authentication.required")
+                                + "\"}");
+    }
+
+    /**
      * Configures the authentication provider used by Spring Security.
      *
-     * <p>Uses a {@link DaoAuthenticationProvider} backed by {@link UserDetailsServiceImpl}
-     * for user lookup and {@link BCryptPasswordEncoder} for password verification.</p>
+     * <p>Uses a {@link DaoAuthenticationProvider} backed by {@link UserDetailsServiceImpl} for user
+     * lookup and {@link BCryptPasswordEncoder} for password verification.
      *
      * @return the configured {@link AuthenticationProvider}
      */
@@ -193,9 +241,9 @@ public class SecurityConfig {
     /**
      * Exposes the {@link AuthenticationManager} as a Spring bean.
      *
-     * <p>Required by {@link com.mehdi.taskflow.user.UserService} to authenticate
-     * users during login via
-     * {@link AuthenticationManager#authenticate(org.springframework.security.core.Authentication)}.</p>
+     * <p>Required by {@link com.mehdi.taskflow.user.UserService} to authenticate users during login
+     * via {@link
+     * AuthenticationManager#authenticate(org.springframework.security.core.Authentication)}.
      *
      * @param config the Spring Security authentication configuration
      * @return the application's {@link AuthenticationManager}
@@ -210,9 +258,8 @@ public class SecurityConfig {
     /**
      * Provides a BCrypt password encoder bean.
      *
-     * <p>Used by {@link DaoAuthenticationProvider} to verify passwords during login,
-     * and by {@link com.mehdi.taskflow.user.UserService} to encode passwords
-     * before persisting new user accounts.</p>
+     * <p>Used by {@link DaoAuthenticationProvider} to verify passwords during login, and by {@link
+     * com.mehdi.taskflow.user.UserService} to encode passwords before persisting new user accounts.
      *
      * @return a {@link BCryptPasswordEncoder} instance
      */
@@ -224,23 +271,21 @@ public class SecurityConfig {
     /**
      * Configures CORS for the Angular frontend and the Swagger UI.
      *
-     * <p>Allowed origins are read from the {@code cors.allowed-origins} property,
-     * bound to the {@code CORS_ALLOWED_ORIGINS} environment variable. The value
-     * is a comma-separated list and must be split before being handed to
-     * {@link CorsConfiguration#setAllowedOrigins(List)}: wrapping the raw string
-     * in a single-element list would compare the whole property value against a
-     * single {@code Origin} header, which can never match once a second origin
-     * is declared.</p>
+     * <p>Allowed origins are read from the {@code cors.allowed-origins} property, bound to the
+     * {@code CORS_ALLOWED_ORIGINS} environment variable. The value is a comma-separated list and
+     * must be split before being handed to {@link CorsConfiguration#setAllowedOrigins(List)}:
+     * wrapping the raw string in a single-element list would compare the whole property value
+     * against a single {@code Origin} header, which can never match once a second origin is
+     * declared.
      *
-     * <p>Two origins are expected in production: the frontend, and the API's own
-     * origin. Swagger UI is served from the API host, so its {@code Try it out}
-     * requests carry {@code Origin: https://api.taskflow.mehdi-rochereau.dev}.
-     * Since Spring Framework 5.3 the presence of that header makes the request a
-     * CORS request even when origin and target share the same host.</p>
+     * <p>Two origins are expected in production: the frontend, and the API's own origin. Swagger UI
+     * is served from the API host, so its {@code Try it out} requests carry {@code Origin:
+     * https://api.taskflow.mehdi-rochereau.dev}. Since Spring Framework 5.3 the presence of that
+     * header makes the request a CORS request even when origin and target share the same host.
      *
-     * <p>Credentials are allowed so that the HttpOnly {@code jwt} and
-     * {@code refreshToken} cookies are transmitted. This forbids the
-     * {@code *} wildcard on origins, which is why they are enumerated.</p>
+     * <p>Credentials are allowed so that the HttpOnly {@code jwt} and {@code refreshToken} cookies
+     * are transmitted. This forbids the {@code *} wildcard on origins, which is why they are
+     * enumerated.
      *
      * @return the CORS configuration source
      */
@@ -253,8 +298,7 @@ public class SecurityConfig {
                 Arrays.stream(allowedOrigins.split(","))
                         .map(String::trim)
                         .filter(origin -> !origin.isEmpty())
-                        .toList()
-        );
+                        .toList());
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(List.of("*"));
         config.setAllowCredentials(true);

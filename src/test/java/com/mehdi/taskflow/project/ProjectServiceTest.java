@@ -1,5 +1,18 @@
 package com.mehdi.taskflow.project;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.anyString;
+import static org.mockito.Mockito.argThat;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
 import com.mehdi.taskflow.config.AuditService;
 import com.mehdi.taskflow.config.MessageService;
 import com.mehdi.taskflow.config.SanitizationService;
@@ -7,6 +20,8 @@ import com.mehdi.taskflow.exception.ResourceNotFoundException;
 import com.mehdi.taskflow.project.dto.ProjectRequest;
 import com.mehdi.taskflow.security.SecurityUtils;
 import com.mehdi.taskflow.user.User;
+import java.util.List;
+import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -15,33 +30,20 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.access.AccessDeniedException;
 
-import java.util.List;
-import java.util.Optional;
-
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.*;
-
 @ExtendWith(MockitoExtension.class)
 class ProjectServiceTest {
 
-    @Mock
-    private ProjectRepository projectRepository;
+    @Mock private ProjectRepository projectRepository;
 
-    @Mock
-    private SecurityUtils securityUtils;
+    @Mock private SecurityUtils securityUtils;
 
-    @Mock
-    private MessageService messageService;
+    @Mock private MessageService messageService;
 
-    @Mock
-    private AuditService auditService;
+    @Mock private AuditService auditService;
 
-    @Mock
-    private SanitizationService sanitizationService;
+    @Mock private SanitizationService sanitizationService;
 
-    @InjectMocks
-    private ProjectService projectService;
+    @InjectMocks private ProjectService projectService;
 
     private User currentUser;
     private Project project;
@@ -126,8 +128,9 @@ class ProjectServiceTest {
         when(messageService.get("error.project.not.found")).thenReturn("Project not found");
 
         // WHEN
-        ResourceNotFoundException ex = assertThrows(ResourceNotFoundException.class,
-                () -> projectService.getProjectById(999L));
+        ResourceNotFoundException ex =
+                assertThrows(
+                        ResourceNotFoundException.class, () -> projectService.getProjectById(999L));
 
         assertEquals("Project not found", ex.getMessage());
         verify(securityUtils).getCurrentUser();
@@ -146,8 +149,8 @@ class ProjectServiceTest {
         when(messageService.get("error.access.denied")).thenReturn("Access denied");
 
         // WHEN
-        AccessDeniedException ex = assertThrows(AccessDeniedException.class,
-                () -> projectService.getProjectById(1L));
+        AccessDeniedException ex =
+                assertThrows(AccessDeniedException.class, () -> projectService.getProjectById(1L));
 
         // THEN
         assertEquals("Access denied", ex.getMessage());
@@ -176,13 +179,15 @@ class ProjectServiceTest {
         assertNull(result.getId());
         assertNull(result.getCreatedAt());
         verify(securityUtils).getCurrentUser();
-        verify(projectRepository).save(argThat(p ->
-                p.getId() == null
-                        && p.getCreatedAt() == null
-                        && p.getName().equals("New project")
-                        && p.getDescription().equals("New description")
-                        && p.getOwner().equals(currentUser)
-        ));
+        verify(projectRepository)
+                .save(
+                        argThat(
+                                p ->
+                                        p.getId() == null
+                                                && p.getCreatedAt() == null
+                                                && p.getName().equals("New project")
+                                                && p.getDescription().equals("New description")
+                                                && p.getOwner().equals(currentUser)));
     }
 
     @Test
@@ -206,13 +211,15 @@ class ProjectServiceTest {
         verify(securityUtils).getCurrentUser();
         verify(projectRepository).existsByIdAndOwnerId(1L, 1L);
         verify(projectRepository).findById(1L);
-        verify(projectRepository).save(argThat(p ->
-                p.getId().equals(1L)
-                        && p.getName().equals("Updated project")
-                        && p.getDescription().equals("Updated description")
-                        && p.getOwner().equals(currentUser)
-                        && p.getCreatedAt() == null
-        ));
+        verify(projectRepository)
+                .save(
+                        argThat(
+                                p ->
+                                        p.getId().equals(1L)
+                                                && p.getName().equals("Updated project")
+                                                && p.getDescription().equals("Updated description")
+                                                && p.getOwner().equals(currentUser)
+                                                && p.getCreatedAt() == null));
     }
 
     @Test
@@ -222,8 +229,10 @@ class ProjectServiceTest {
         when(messageService.get("error.access.denied")).thenReturn("Access denied");
 
         // WHEN
-        AccessDeniedException ex = assertThrows(AccessDeniedException.class,
-                () -> projectService.updateProject(1L, updateRequest));
+        AccessDeniedException ex =
+                assertThrows(
+                        AccessDeniedException.class,
+                        () -> projectService.updateProject(1L, updateRequest));
 
         // THEN
         assertEquals("Access denied", ex.getMessage());
@@ -243,8 +252,10 @@ class ProjectServiceTest {
         when(messageService.get("error.project.not.found")).thenReturn("Project not found");
 
         // WHEN
-        ResourceNotFoundException ex = assertThrows(ResourceNotFoundException.class,
-                () -> projectService.updateProject(1L, updateRequest));
+        ResourceNotFoundException ex =
+                assertThrows(
+                        ResourceNotFoundException.class,
+                        () -> projectService.updateProject(1L, updateRequest));
 
         // THEN
         assertEquals("Project not found", ex.getMessage());
@@ -282,8 +293,8 @@ class ProjectServiceTest {
         when(messageService.get("error.access.denied")).thenReturn("Access denied");
 
         // WHEN
-        AccessDeniedException ex = assertThrows(AccessDeniedException.class,
-                () -> projectService.deleteProject(1L));
+        AccessDeniedException ex =
+                assertThrows(AccessDeniedException.class, () -> projectService.deleteProject(1L));
 
         // THEN
         assertEquals("Access denied", ex.getMessage());
@@ -303,8 +314,9 @@ class ProjectServiceTest {
         when(messageService.get("error.project.not.found")).thenReturn("Project not found");
 
         // WHEN
-        ResourceNotFoundException ex = assertThrows(ResourceNotFoundException.class,
-                () -> projectService.deleteProject(1L));
+        ResourceNotFoundException ex =
+                assertThrows(
+                        ResourceNotFoundException.class, () -> projectService.deleteProject(1L));
 
         // THEN
         assertEquals("Project not found", ex.getMessage());

@@ -1,17 +1,18 @@
 package com.mehdi.taskflow.task.dto;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+
 import com.mehdi.taskflow.project.Project;
 import com.mehdi.taskflow.task.Task;
 import com.mehdi.taskflow.task.TaskPriority;
 import com.mehdi.taskflow.task.TaskStatus;
 import com.mehdi.taskflow.user.User;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-
-import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 class TaskResponseTest {
 
@@ -78,8 +79,8 @@ class TaskResponseTest {
     @Test
     void constructor_shouldThrow_whenTaskIsNull() {
         // WHEN & THEN
-        NullPointerException ex = assertThrows(NullPointerException.class,
-                () -> new TaskResponse(null));
+        NullPointerException ex =
+                assertThrows(NullPointerException.class, () -> new TaskResponse(null));
         assertEquals("Task must not be null", ex.getMessage());
     }
 }

@@ -7,9 +7,8 @@ import org.springframework.stereotype.Component;
 /**
  * Utility component for resolving i18n messages from the message source.
  *
- * <p>Resolves messages based on the current request locale,
- * determined by the {@code Accept-Language} HTTP header via
- * {@link LocaleContextHolder}.</p>
+ * <p>Resolves messages based on the current request locale, determined by the {@code
+ * Accept-Language} HTTP header via {@link LocaleContextHolder}.
  *
  * @see MessageSource
  */
@@ -40,7 +39,7 @@ public class MessageService {
     /**
      * Resolves a message by key with arguments for the current request locale.
      *
-     * @param key  the message key defined in messages.properties
+     * @param key the message key defined in messages.properties
      * @param args arguments to substitute in the message (e.g. {0}, {1})
      * @return the resolved message string with substituted arguments
      */

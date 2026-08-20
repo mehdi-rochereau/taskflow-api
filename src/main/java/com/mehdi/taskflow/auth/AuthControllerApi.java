@@ -19,330 +19,362 @@ import org.springframework.web.bind.annotation.RequestBody;
 /**
  * OpenAPI documentation interface for {@link AuthController}.
  *
- * <p>Declares all Swagger/OpenAPI annotations for authentication endpoints,
- * keeping {@link AuthController} clean and focused on business logic.</p>
+ * <p>Declares all Swagger/OpenAPI annotations for authentication endpoints, keeping {@link
+ * AuthController} clean and focused on business logic.
  *
- * <p>All endpoints defined here are public — no JWT token required.</p>
+ * <p>All endpoints defined here are public — no JWT token required.
  *
  * @see AuthController
  */
 @Tag(
         name = "Authentication",
-        description = "Public endpoints for account registration and login. No JWT token required."
-)
+        description = "Public endpoints for account registration and login. No JWT token required.")
 public interface AuthControllerApi {
 
+    /**
+     * Creates a new account and opens a session for it.
+     *
+     * <p>Implemented by {@link AuthController}; this interface carries the OpenAPI annotations
+     * only. Registration authenticates the caller immediately, so no login call is needed after it.
+     *
+     * @param request the registration data, username, email and password
+     * @param response the HTTP response used to write the authentication cookies
+     * @return {@code 201 Created} with the caller's identity, or {@code 400} if the username or
+     *     email is already taken
+     */
     @Operation(
             summary = "Register a new user account",
-            description = """
-                    Creates a new user account with a BCrypt-encoded password.
-                    
-                    The JWT token is also set as an **HttpOnly cookie** named `jwt` for secure browser storage.
-                    
-                    Sets the `jwt` cookie, valid for **15 minutes**, upon successful registration.
-                    
-                    **Constraints:**
-                    - `username` must be between 3 and 50 characters and unique
-                    - `email` must be a valid email address and unique
-                    - `password` must be at least 8 characters with 1 uppercase, 1 digit and 1 special character
-                    """,
-            parameters = {
-                    @Parameter(ref = "#/components/parameters/Accept-Language")
-            },
+            description =
+                    """
+                            Creates a new user account with a BCrypt-encoded password.
+
+                            The JWT token is also set as an **HttpOnly cookie** named `jwt` for secure browser storage.
+
+                            Sets the `jwt` cookie, valid for **15 minutes**, upon successful registration.
+
+                            **Constraints:**
+                            - `username` must be between 3 and 50 characters and unique
+                            - `email` must be a valid email address and unique
+                            - `password` must be at least 8 characters with 1 uppercase, 1 digit and 1 special character
+                            """,
+            parameters = {@Parameter(ref = "#/components/parameters/Accept-Language")},
             responses = {
-                    @ApiResponse(
-                            responseCode = "201",
-                            description = "Account successfully created",
-                            content = @Content(
-                                    mediaType = "application/json",
-                                    schema = @Schema(implementation = AuthResponse.class),
-                                    examples = @ExampleObject(
-                                            name = "Success",
-                                            value = """
-                                                    {
-                                                      "username": "mehdi",
-                                                      "email": "mehdi@example.com"
-                                                    }
-                                                    """
-                                    )
-                            )
-                    ),
-                    @ApiResponse(
-                            responseCode = "400",
-                            description = "Validation failed or username/email already taken",
-                            content = @Content(
-                                    mediaType = "application/json",
-                                    examples = {
+                @ApiResponse(
+                        responseCode = "201",
+                        description = "Account successfully created",
+                        content =
+                                @Content(
+                                        mediaType = "application/json",
+                                        schema = @Schema(implementation = AuthResponse.class),
+                                        examples =
+                                                @ExampleObject(
+                                                        name = "Success",
+                                                        value =
+                                                                """
+                                                            {
+                                                              "username": "mehdi",
+                                                              "email": "mehdi@example.com"
+                                                            }
+                                                            """))),
+                @ApiResponse(
+                        responseCode = "400",
+                        description = "Validation failed or username/email already taken",
+                        content =
+                                @Content(
+                                        mediaType = "application/json",
+                                        examples = {
                                             @ExampleObject(
                                                     name = "Validation error",
-                                                    value = """
+                                                    value =
+                                                            """
+                                                                    {
+                                                                      "timestamp": "2026-04-18T10:00:00",
+                                                                      "status": 400,
+                                                                      "errors": {
+                                                                        "username": ["Username is required"],
+                                                                        "email": ["Invalid email address"],
+                                                                        "password": ["Password must be at least 8 characters"]
+                                                                      }
+                                                                    }
+                                                                    """),
+                                            @ExampleObject(
+                                                    name = "Username already taken",
+                                                    value =
+                                                            """
+                                                                    {
+                                                                      "timestamp": "2026-04-18T10:00:00",
+                                                                      "status": 400,
+                                                                      "message": "This username is already taken"
+                                                                    }
+                                                                    """),
+                                            @ExampleObject(
+                                                    name = "Email already taken",
+                                                    value =
+                                                            """
+                                                                    {
+                                                                      "timestamp": "2026-04-18T10:00:00",
+                                                                      "status": 400,
+                                                                      "message": "This email is already in use"
+                                                                    }
+                                                                    """)
+                                        })),
+                @ApiResponse(
+                        responseCode = "429",
+                        description = "Too many requests — rate limit exceeded",
+                        content =
+                                @Content(
+                                        mediaType = "application/json",
+                                        examples =
+                                                @ExampleObject(
+                                                        value =
+                                                                """
+                                                            {
+                                                              "status": 429,
+                                                              "message": "Too many requests. Please try again later."
+                                                            }
+                                                            """))),
+                @ApiResponse(
+                        responseCode = "500",
+                        description = "Unexpected server error",
+                        content =
+                                @Content(
+                                        mediaType = "application/json",
+                                        examples =
+                                                @ExampleObject(
+                                                        value =
+                                                                """
+                                                            {
+                                                              "timestamp": "2026-04-18T10:00:00",
+                                                              "status": 500,
+                                                              "message": "An unexpected error occurred"
+                                                            }
+                                                            """)))
+            })
+    ResponseEntity<AuthResponse> register(
+            @Valid @RequestBody RegisterRequest request, HttpServletResponse response);
+
+    /**
+     * Authenticates a user and opens a session.
+     *
+     * <p>Implemented by {@link AuthController}; this interface carries the OpenAPI annotations
+     * only. The identifier accepts a username or an email address, resolved by the service layer.
+     *
+     * @param request the credentials, identifier and password
+     * @param response the HTTP response used to write the authentication cookies
+     * @return {@code 200 OK} with the caller's identity, or {@code 401} on invalid credentials
+     */
+    @Operation(
+            summary = "Login",
+            description =
+                    """
+                            Authenticates a user and sets the `jwt` HttpOnly cookie, valid for **15 minutes**, alongside the `refreshToken` cookie.
+
+                            The `identifier` field accepts either a **username** or an **email address**.
+
+                            Nothing needs to be copied: any client keeping a cookie jar sends the cookie back automatically on protected endpoints.
+                            """,
+            parameters = {@Parameter(ref = "#/components/parameters/Accept-Language")},
+            responses = {
+                @ApiResponse(
+                        responseCode = "200",
+                        description = "Login successful",
+                        content =
+                                @Content(
+                                        mediaType = "application/json",
+                                        schema = @Schema(implementation = AuthResponse.class),
+                                        examples =
+                                                @ExampleObject(
+                                                        name = "Success",
+                                                        value =
+                                                                """
+                                                            {
+                                                              "username": "mehdi",
+                                                              "email": "mehdi@example.com"
+                                                            }
+                                                            """))),
+                @ApiResponse(
+                        responseCode = "400",
+                        description = "Missing or blank fields",
+                        content =
+                                @Content(
+                                        mediaType = "application/json",
+                                        examples =
+                                                @ExampleObject(
+                                                        value =
+                                                                """
                                                             {
                                                               "timestamp": "2026-04-18T10:00:00",
                                                               "status": 400,
                                                               "errors": {
-                                                                "username": ["Username is required"],
-                                                                "email": ["Invalid email address"],
-                                                                "password": ["Password must be at least 8 characters"]
+                                                                "identifier": ["Username or email is required"],
+                                                                "password": ["Password is required"]
                                                               }
                                                             }
-                                                            """
-                                            ),
-                                            @ExampleObject(
-                                                    name = "Username already taken",
-                                                    value = """
+                                                            """))),
+                @ApiResponse(
+                        responseCode = "401",
+                        description = "Invalid credentials",
+                        content =
+                                @Content(
+                                        mediaType = "application/json",
+                                        examples =
+                                                @ExampleObject(
+                                                        value =
+                                                                """
                                                             {
                                                               "timestamp": "2026-04-18T10:00:00",
-                                                              "status": 400,
-                                                              "message": "This username is already taken"
+                                                              "status": 401,
+                                                              "message": "Bad credentials"
                                                             }
-                                                            """
-                                            ),
-                                            @ExampleObject(
-                                                    name = "Email already taken",
-                                                    value = """
+                                                            """))),
+                @ApiResponse(
+                        responseCode = "429",
+                        description = "Too many requests — rate limit exceeded",
+                        content =
+                                @Content(
+                                        mediaType = "application/json",
+                                        examples =
+                                                @ExampleObject(
+                                                        value =
+                                                                """
+                                                            {
+                                                              "status": 429,
+                                                              "message": "Too many requests. Please try again later."
+                                                            }
+                                                            """))),
+                @ApiResponse(
+                        responseCode = "500",
+                        description = "Unexpected server error",
+                        content =
+                                @Content(
+                                        mediaType = "application/json",
+                                        examples =
+                                                @ExampleObject(
+                                                        value =
+                                                                """
                                                             {
                                                               "timestamp": "2026-04-18T10:00:00",
-                                                              "status": 400,
-                                                              "message": "This email is already in use"
+                                                              "status": 500,
+                                                              "message": "An unexpected error occurred"
                                                             }
-                                                            """
-                                            )
-                                    }
-                            )
-                    ),
-                    @ApiResponse(
-                            responseCode = "429",
-                            description = "Too many requests — rate limit exceeded",
-                            content = @Content(
-                                    mediaType = "application/json",
-                                    examples = @ExampleObject(
-                                            value = """
-                                {
-                                  "status": 429,
-                                  "message": "Too many requests. Please try again later."
-                                }
-                                """
-                                    )
-                            )
-                    ),
-                    @ApiResponse(
-                            responseCode = "500",
-                            description = "Unexpected server error",
-                            content = @Content(
-                                    mediaType = "application/json",
-                                    examples = @ExampleObject(
-                                            value = """
-                                                    {
-                                                      "timestamp": "2026-04-18T10:00:00",
-                                                      "status": 500,
-                                                      "message": "An unexpected error occurred"
-                                                    }
-                                                    """
-                                    )
-                            )
-                    )
-            }
-    )
-    ResponseEntity<AuthResponse> register(@Valid @RequestBody RegisterRequest request,
-                                          HttpServletResponse response);
-    @Operation(
-            summary = "Login",
-            description = """
-                    Authenticates a user and sets the `jwt` HttpOnly cookie, valid for **15 minutes**, alongside the `refreshToken` cookie.
+                                                            """)))
+            })
+    ResponseEntity<AuthResponse> login(
+            @Valid @RequestBody LoginRequest request, HttpServletResponse response);
 
-                    The `identifier` field accepts either a **username** or an **email address**.
-
-                    Nothing needs to be copied: any client keeping a cookie jar sends the cookie back automatically on protected endpoints.
-                    """,
-            parameters = {
-                    @Parameter(ref = "#/components/parameters/Accept-Language")
-            },
-            responses = {
-                    @ApiResponse(
-                            responseCode = "200",
-                            description = "Login successful",
-                            content = @Content(
-                                    mediaType = "application/json",
-                                    schema = @Schema(implementation = AuthResponse.class),
-                                    examples = @ExampleObject(
-                                            name = "Success",
-                                            value = """
-                                                    {
-                                                      "username": "mehdi",
-                                                      "email": "mehdi@example.com"
-                                                    }
-                                                    """
-                                    )
-                            )
-                    ),
-                    @ApiResponse(
-                            responseCode = "400",
-                            description = "Missing or blank fields",
-                            content = @Content(
-                                    mediaType = "application/json",
-                                    examples = @ExampleObject(
-                                            value = """
-                                                    {
-                                                      "timestamp": "2026-04-18T10:00:00",
-                                                      "status": 400,
-                                                      "errors": {
-                                                        "identifier": ["Username or email is required"],
-                                                        "password": ["Password is required"]
-                                                      }
-                                                    }
-                                                    """
-                                    )
-                            )
-                    ),
-                    @ApiResponse(
-                            responseCode = "401",
-                            description = "Invalid credentials",
-                            content = @Content(
-                                    mediaType = "application/json",
-                                    examples = @ExampleObject(
-                                            value = """
-                                                    {
-                                                      "timestamp": "2026-04-18T10:00:00",
-                                                      "status": 401,
-                                                      "message": "Bad credentials"
-                                                    }
-                                                    """
-                                    )
-                            )
-                    ),
-                    @ApiResponse(
-                            responseCode = "429",
-                            description = "Too many requests — rate limit exceeded",
-                            content = @Content(
-                                    mediaType = "application/json",
-                                    examples = @ExampleObject(
-                                            value = """
-                                {
-                                  "status": 429,
-                                  "message": "Too many requests. Please try again later."
-                                }
-                                """
-                                    )
-                            )
-                    ),
-                    @ApiResponse(
-                            responseCode = "500",
-                            description = "Unexpected server error",
-                            content = @Content(
-                                    mediaType = "application/json",
-                                    examples = @ExampleObject(
-                                            value = """
-                                                    {
-                                                      "timestamp": "2026-04-18T10:00:00",
-                                                      "status": 500,
-                                                      "message": "An unexpected error occurred"
-                                                    }
-                                                    """
-                                    )
-                            )
-                    )
-            }
-    )
-    ResponseEntity<AuthResponse> login(@Valid @RequestBody LoginRequest request,
-                                       HttpServletResponse response);
-
+    /**
+     * Issues a new token pair from the {@code refreshToken} cookie.
+     *
+     * <p>Implemented by {@link AuthController}; this interface carries the OpenAPI annotations
+     * only. The presented refresh token is revoked as part of the exchange: a token serves once.
+     *
+     * @param request the HTTP request, read for the {@code refreshToken} cookie
+     * @param response the HTTP response used to write the renewed cookie pair
+     * @return {@code 200 OK} with the caller's identity, or {@code 401} if the token is absent,
+     *     expired or already used
+     */
     @Operation(
             summary = "Refresh JWT token",
-            description = """
-                Generates a new JWT access token using the `refreshToken` HttpOnly cookie.
-                
-                The old refresh token is revoked and a new one is issued (rotation strategy).
-                Both the new `jwt` and `refreshToken` cookies are set in the response.
-                """,
-            parameters = {
-                    @Parameter(ref = "#/components/parameters/Accept-Language")
-            },
+            description =
+                    """
+                            Generates a new JWT access token using the `refreshToken` HttpOnly cookie.
+
+                            The old refresh token is revoked and a new one is issued (rotation strategy).
+                            Both the new `jwt` and `refreshToken` cookies are set in the response.
+                            """,
+            parameters = {@Parameter(ref = "#/components/parameters/Accept-Language")},
             responses = {
-                    @ApiResponse(
-                            responseCode = "200",
-                            description = "Token successfully refreshed",
-                            content = @Content(
-                                    mediaType = "application/json",
-                                    schema = @Schema(implementation = AuthResponse.class),
-                                    examples = @ExampleObject(
-                                            value = """
-                                                {
-                                                  "username": "mehdi",
-                                                  "email": "mehdi@example.com"
-                                                }
-                                                """
-                                    )
-                            )
-                    ),
-                    @ApiResponse(
-                            responseCode = "401",
-                            description = "Refresh token missing, revoked or expired",
-                            content = @Content(
-                                    mediaType = "application/json",
-                                    examples = @ExampleObject(
-                                            value = """
-                                                {
-                                                  "timestamp": "2026-04-18T10:00:00",
-                                                  "status": 401,
-                                                  "message": "Refresh token has expired"
-                                                }
-                                                """
-                                    )
-                            )
-                    ),
-                    @ApiResponse(
-                            responseCode = "500",
-                            description = "Unexpected server error",
-                            content = @Content(
-                                    mediaType = "application/json",
-                                    examples = @ExampleObject(
-                                            value = """
-                                                {
-                                                  "timestamp": "2026-04-18T10:00:00",
-                                                  "status": 500,
-                                                  "message": "An unexpected error occurred"
-                                                }
-                                                """
-                                    )
-                            )
-                    )
-            }
-    )
+                @ApiResponse(
+                        responseCode = "200",
+                        description = "Token successfully refreshed",
+                        content =
+                                @Content(
+                                        mediaType = "application/json",
+                                        schema = @Schema(implementation = AuthResponse.class),
+                                        examples =
+                                                @ExampleObject(
+                                                        value =
+                                                                """
+                                                            {
+                                                              "username": "mehdi",
+                                                              "email": "mehdi@example.com"
+                                                            }
+                                                            """))),
+                @ApiResponse(
+                        responseCode = "401",
+                        description = "Refresh token missing, revoked or expired",
+                        content =
+                                @Content(
+                                        mediaType = "application/json",
+                                        examples =
+                                                @ExampleObject(
+                                                        value =
+                                                                """
+                                                            {
+                                                              "timestamp": "2026-04-18T10:00:00",
+                                                              "status": 401,
+                                                              "message": "Refresh token has expired"
+                                                            }
+                                                            """))),
+                @ApiResponse(
+                        responseCode = "500",
+                        description = "Unexpected server error",
+                        content =
+                                @Content(
+                                        mediaType = "application/json",
+                                        examples =
+                                                @ExampleObject(
+                                                        value =
+                                                                """
+                                                            {
+                                                              "timestamp": "2026-04-18T10:00:00",
+                                                              "status": 500,
+                                                              "message": "An unexpected error occurred"
+                                                            }
+                                                            """)))
+            })
     ResponseEntity<AuthResponse> refresh(HttpServletRequest request, HttpServletResponse response);
 
+    /**
+     * Revokes the caller's refresh tokens and clears both authentication cookies.
+     *
+     * <p>Implemented by {@link AuthController}; this interface carries the OpenAPI annotations
+     * only. Revocation is server-side, so clearing the cookies alone would not end the session.
+     *
+     * @param request the HTTP request, read for the {@code refreshToken} cookie
+     * @param response the HTTP response used to clear both cookies
+     * @return {@code 200 OK}, whether or not a valid session existed
+     */
     @Operation(
             summary = "Logout",
-            description = """
-                Logs out the authenticated user by revoking all active refresh tokens.
-                
-                Clears the `jwt` and `refreshToken` HttpOnly cookies from the browser.
-                """,
-            parameters = {
-                    @Parameter(ref = "#/components/parameters/Accept-Language")
-            },
+            description =
+                    """
+                            Logs out the authenticated user by revoking all active refresh tokens.
+
+                            Clears the `jwt` and `refreshToken` HttpOnly cookies from the browser.
+                            """,
+            parameters = {@Parameter(ref = "#/components/parameters/Accept-Language")},
             responses = {
-                    @ApiResponse(
-                            responseCode = "204",
-                            description = "Successfully logged out",
-                            content = @Content
-                    ),
-                    @ApiResponse(
-                            responseCode = "500",
-                            description = "Unexpected server error",
-                            content = @Content(
-                                    mediaType = "application/json",
-                                    examples = @ExampleObject(
-                                            value = """
-                                                {
-                                                  "timestamp": "2026-04-18T10:00:00",
-                                                  "status": 500,
-                                                  "message": "An unexpected error occurred"
-                                                }
-                                                """
-                                    )
-                            )
-                    )
-            }
-    )
+                @ApiResponse(
+                        responseCode = "204",
+                        description = "Successfully logged out",
+                        content = @Content),
+                @ApiResponse(
+                        responseCode = "500",
+                        description = "Unexpected server error",
+                        content =
+                                @Content(
+                                        mediaType = "application/json",
+                                        examples =
+                                                @ExampleObject(
+                                                        value =
+                                                                """
+                                                            {
+                                                              "timestamp": "2026-04-18T10:00:00",
+                                                              "status": 500,
+                                                              "message": "An unexpected error occurred"
+                                                            }
+                                                            """)))
+            })
     ResponseEntity<Void> logout(HttpServletRequest request, HttpServletResponse response);
 }

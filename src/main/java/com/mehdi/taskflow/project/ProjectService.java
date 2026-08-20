@@ -7,22 +7,20 @@ import com.mehdi.taskflow.exception.ResourceNotFoundException;
 import com.mehdi.taskflow.project.dto.ProjectRequest;
 import com.mehdi.taskflow.security.SecurityUtils;
 import com.mehdi.taskflow.user.User;
+import java.util.List;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.List;
-
 /**
  * Service handling project management operations.
  *
- * <p>All operations are restricted to the currently authenticated user.
- * Ownership is enforced on every mutating operation — only the project owner
- * can update or delete a project.</p>
+ * <p>All operations are restricted to the currently authenticated user. Ownership is enforced on
+ * every mutating operation — only the project owner can update or delete a project.
  *
- * <p>The authenticated user is resolved via {@link SecurityUtils},
- * which reads the current {@link org.springframework.security.core.context.SecurityContext}.</p>
+ * <p>The authenticated user is resolved via {@link SecurityUtils}, which reads the current {@link
+ * org.springframework.security.core.context.SecurityContext}.
  *
  * @see SecurityUtils
  * @see ProjectRepository
@@ -36,21 +34,22 @@ public class ProjectService {
     private final AuditService auditService;
     private final SanitizationService sanitizationService;
 
-
     /**
      * Constructs a new {@code ProjectService} with its required dependencies.
      *
      * @param projectRepository repository for project persistence
-     * @param securityUtils     utility for resolving the currently authenticated user
-     * @param messageService utility component for resolving i18n messages based on the current request locale
-     * @param auditService   service for logging security audit events
+     * @param securityUtils utility for resolving the currently authenticated user
+     * @param messageService utility component for resolving i18n messages based on the current
+     *     request locale
+     * @param auditService service for logging security audit events
      * @param sanitizationService service for sanitizing user-provided text input
      */
-    public ProjectService(ProjectRepository projectRepository,
-                          SecurityUtils securityUtils,
-                          MessageService messageService,
-                          AuditService auditService,
-                          SanitizationService sanitizationService) {
+    public ProjectService(
+            ProjectRepository projectRepository,
+            SecurityUtils securityUtils,
+            MessageService messageService,
+            AuditService auditService,
+            SanitizationService sanitizationService) {
         this.projectRepository = projectRepository;
         this.securityUtils = securityUtils;
         this.messageService = messageService;
@@ -73,21 +72,25 @@ public class ProjectService {
     /**
      * Returns a project by its identifier.
      *
-     * <p>Access is restricted to the project owner.
-     * If the current user is not the owner, access is denied.</p>
+     * <p>Access is restricted to the project owner. If the current user is not the owner, access is
+     * denied.
      *
      * @param id the project identifier
      * @return the matching project
      * @throws ResourceNotFoundException if no project exists with the given id
-     * @throws AccessDeniedException     if the current user is not the project owner
+     * @throws AccessDeniedException if the current user is not the project owner
      */
     @PreAuthorize("isAuthenticated()")
     @Transactional(readOnly = true)
     public Project getProjectById(Long id) {
         User currentUser = securityUtils.getCurrentUser();
-        Project project = projectRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException(
-                        messageService.get("error.project.not.found")));
+        Project project =
+                projectRepository
+                        .findById(id)
+                        .orElseThrow(
+                                () ->
+                                        new ResourceNotFoundException(
+                                                messageService.get("error.project.not.found")));
         if (!project.getOwner().getId().equals(currentUser.getId())) {
             throw new AccessDeniedException(messageService.get("error.access.denied"));
         }
@@ -97,7 +100,7 @@ public class ProjectService {
     /**
      * Creates a new project owned by the currently authenticated user.
      *
-     * <p>Input fields are sanitized before persistence to prevent XSS attacks.</p>
+     * <p>Input fields are sanitized before persistence to prevent XSS attacks.
      *
      * @param request data for the project to create
      * @return the persisted project with its generated identifier
@@ -107,8 +110,11 @@ public class ProjectService {
     public Project createProject(ProjectRequest request) {
         User currentUser = securityUtils.getCurrentUser();
         Project project = new Project();
-        project.setName(sanitizationService.sanitizeAndLog(request.getName(), "name", auditService));
-        project.setDescription(sanitizationService.sanitizeAndLog(request.getDescription(), "description", auditService));
+        project.setName(
+                sanitizationService.sanitizeAndLog(request.getName(), "name", auditService));
+        project.setDescription(
+                sanitizationService.sanitizeAndLog(
+                        request.getDescription(), "description", auditService));
         project.setOwner(currentUser);
         return projectRepository.save(project);
     }
@@ -116,15 +122,15 @@ public class ProjectService {
     /**
      * Updates an existing project.
      *
-     * <p>Ownership is verified before loading the project —
-     * if the current user is not the owner, the project is never fetched.</p>
+     * <p>Ownership is verified before loading the project — if the current user is not the owner,
+     * the project is never fetched.
      *
-     * <p>Input fields are sanitized before persistence to prevent XSS attacks.</p>
+     * <p>Input fields are sanitized before persistence to prevent XSS attacks.
      *
-     * @param id      the identifier of the project to update
+     * @param id the identifier of the project to update
      * @param request updated project data
      * @return the updated project
-     * @throws AccessDeniedException     if the current user is not the project owner
+     * @throws AccessDeniedException if the current user is not the project owner
      * @throws ResourceNotFoundException if no project exists with the given id
      */
     @PreAuthorize("isAuthenticated()")
@@ -134,22 +140,29 @@ public class ProjectService {
         if (!projectRepository.existsByIdAndOwnerId(id, currentUser.getId())) {
             throw new AccessDeniedException(messageService.get("error.access.denied"));
         }
-        Project project = projectRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException(
-                        messageService.get("error.project.not.found")));
-        project.setName(sanitizationService.sanitizeAndLog(request.getName(), "name", auditService));
-        project.setDescription(sanitizationService.sanitizeAndLog(request.getDescription(), "description", auditService));
+        Project project =
+                projectRepository
+                        .findById(id)
+                        .orElseThrow(
+                                () ->
+                                        new ResourceNotFoundException(
+                                                messageService.get("error.project.not.found")));
+        project.setName(
+                sanitizationService.sanitizeAndLog(request.getName(), "name", auditService));
+        project.setDescription(
+                sanitizationService.sanitizeAndLog(
+                        request.getDescription(), "description", auditService));
         return projectRepository.save(project);
     }
 
     /**
      * Permanently deletes a project.
      *
-     * <p>Ownership is verified before loading the project —
-     * if the current user is not the owner, the project is never fetched.</p>
+     * <p>Ownership is verified before loading the project — if the current user is not the owner,
+     * the project is never fetched.
      *
      * @param id the identifier of the project to delete
-     * @throws AccessDeniedException     if the current user is not the project owner
+     * @throws AccessDeniedException if the current user is not the project owner
      * @throws ResourceNotFoundException if no project exists with the given id
      */
     @PreAuthorize("isAuthenticated()")
@@ -159,9 +172,13 @@ public class ProjectService {
         if (!projectRepository.existsByIdAndOwnerId(id, currentUser.getId())) {
             throw new AccessDeniedException(messageService.get("error.access.denied"));
         }
-        Project project = projectRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException(
-                        messageService.get("error.project.not.found")));
+        Project project =
+                projectRepository
+                        .findById(id)
+                        .orElseThrow(
+                                () ->
+                                        new ResourceNotFoundException(
+                                                messageService.get("error.project.not.found")));
         auditService.logProjectDeletion(id, currentUser.getUsername());
         projectRepository.delete(project);
     }
