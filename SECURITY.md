@@ -169,7 +169,7 @@ The deployment pipeline integrates multiple security controls:
 |---------------------------|-------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | Secret scanning           | GitLeaks                      | Full git history scanned on every push                                                                                                                             |
 | Code style                | Checkstyle + Spotless         | Zero violations across production and test sources, enforced by two blocking steps; a local pre-push hook runs the same formatting check                           |
-| Dependency CVEs           | OWASP Dependency Check        | NVD database, `failBuildOnCVSS = 9`; the report is clean, every remaining finding carrying a dated and justified suppression. The step is non-blocking for now     |
+| Dependency CVEs           | OWASP Dependency Check        | NVD database, `failBuildOnCVSS = 9`, blocking; the report carries no active finding, every remaining one covered by a dated and justified suppression              |
 | Docker image scan         | Trivy                         | Blocks deployment on CRITICAL CVEs                                                                                                                                 |
 | Least privilege           | GITHUB_TOKEN                  | No PAT — scoped token with minimal permissions                                                                                                                     |
 | Dedicated SSH key         | Ed25519                       | GitHub Actions-only key, separate from developer keys                                                                                                              |
@@ -184,6 +184,37 @@ The deployment pipeline integrates multiple security controls:
 The registry token installed on the production host is scoped to
 `read:packages` only. The host pulls images and never pushes or deletes them, so a leak of that credential cannot be
 used to publish a tampered image.
+
+#### Handling a newly published CVE
+
+The dependency scan is a blocking gate, and it is the only one that can fail on an event outside this repository: a
+publication to the NVD turns `main` red without a line of code having changed. That is intended. A dependency that
+became vulnerable overnight is vulnerable whether or not the pipeline says so.
+
+The threshold that triggers this is `failBuildOnCVSS = 9`, which is a choice of interruption rhythm rather than an
+assessment of gravity. A finding scored between 7 and 8.9 — where remote code execution behind authentication and
+authentication bypass under specific conditions live — is reported without stopping the pipeline. Catching those is a
+matter of reading the report, which every run archives as the `owasp-report` artefact, not of the gate. The threshold
+drops to 7 once the project has more than one contributor, or once the schedule allows the triage load that comes with
+it.
+
+The response is fixed in advance, so that it is not improvised under the pressure of a red build:
+
+1. Read the report from the `owasp-report` artefact of the failed run. The console output names the identifier; the
+   report says which dependency carries it and by which path.
+2. Establish whether the code is reachable. A finding on a build-tooling artefact, on a component absent from the
+   runtime classpath, or on a feature the application never calls is not the same thing as a finding on a shipped and
+   exercised component. `./gradlew dependencyInsight --dependency <name>
+   --configuration runtimeClasspath` settles the first question.
+3. Raise the dependency if a corrected version exists. For a version managed by the Spring Boot BOM, override the
+   property rather than the artefact, so that every module of that library stays aligned.
+4. If no fix is reachable, add a suppression to `config/owasp/suppressions.xml`
+   carrying three things: the technical reason, the condition that lifts it, and an expiry date. The expiry is what
+   makes the finding return on its own, which is the only mechanism preventing a suppression from becoming permanent by
+   neglect.
+
+Restoring `continue-on-error` on the step is never the answer. It would turn every future finding into silence, which is
+the state this gate was closed to end.
 
 ### Error Handling
 
@@ -316,4 +347,4 @@ Jackson are currently kept current. Migrating to 4.x is therefore a deadline rat
 - [ ] Nonce-based CSP to eliminate `unsafe-inline`
 - [ ] Third-party sign-in (Google / GitHub)
 - [ ] Migrate to Spring Boot 4.x before the 3.5 line becomes a liability
-- [ ] Remove `continue-on-error` from the OWASP step once the report is clean
+

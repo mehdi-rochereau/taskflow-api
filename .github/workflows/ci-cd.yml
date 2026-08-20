@@ -275,8 +275,13 @@ jobs:
       # Scans all project dependencies against the NVD CVE database.
       # Fails the build only if a dependency has a CVSS score >= 9
       # (Critical severity) — see failBuildOnCVSS in build.gradle.
-      # continue-on-error: true — HIGH vulnerabilities are reported
-      # but do not block the pipeline (informational).
+      # Blocking: the report carries no active finding, every remaining one
+      # covered by a dated suppression stating its reason and its lift
+      # condition. Unlike the other gates, this one can now fail on an event
+      # outside the repository: an NVD publication can turn main red without a
+      # line having changed. The response is written in SECURITY.md — triage,
+      # then either raise the dependency or add a dated suppression. Never
+      # restore continue-on-error to unblock.
       # Sonatype OSS Index is disabled — NVD provides equivalent coverage.
       # NVD_API_KEY speeds up database updates from 90min to ~20sec.
       - name: Run OWASP Dependency Check
@@ -285,14 +290,19 @@ jobs:
         env:
           NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
           GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx2g"
-        continue-on-error: true
 
+      # Path changed with plugin 13.0.0: reports now land in a
+      # dependency-check subdirectory rather than directly under build/reports.
+      # The previous path silently collected nothing, which is the worst
+      # outcome once the step becomes blocking: a failing pipeline with no
+      # report to explain why. Uploading the directory also captures the JSON
+      # report, which the HTML-only path was leaving behind.
       - name: Upload OWASP report
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: owasp-report
-          path: build/reports/dependency-check-report.html
+          path: build/reports/dependency-check/
           retention-days: 7
 
       # ── Build JAR ────────────────────────────────────────
@@ -329,7 +339,7 @@ jobs:
           echo "| 🔨 Compile | ${{ steps.compile.outcome == 'success' && '✅ Success' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
           echo "| 🧪 Tests | ${{ steps.tests.outcome == 'success' && '✅ Passed' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
           echo "| 📊 Coverage | ${{ steps.coverage.outcome == 'success' && '✅' || '❌' }} ${{ steps.coverage.outputs.coverage }}% |" >> $GITHUB_STEP_SUMMARY
-          echo "| 🔒 OWASP | ${{ steps.owasp.outcome == 'success' && '✅ No issues' || '⚠️ Check report' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| 🔒 OWASP | ${{ steps.owasp.outcome == 'success' && '✅ No issues' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
           echo "| 📦 JAR | ${{ steps.jar.outcome == 'success' && '✅ Built' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
 
   # ── CD ─────────────────────────────────────────────────────

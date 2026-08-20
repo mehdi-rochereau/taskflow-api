@@ -11,8 +11,15 @@ plugins {
     id 'jacoco'
     // Checkstyle — enforces Java code style conventions
     id 'checkstyle'
-    // OWASP Dependency Check — scans dependencies for known CVEs
-    id 'org.owasp.dependencycheck' version '12.2.2'
+    // OWASP Dependency Check — scans dependencies for known CVEs.
+    // Raised from 12.2.2 to 13.0.0 alongside the gate being closed: a security
+    // tool that lags is a poor thing to make blocking. The upgrade does not
+    // clear the six findings on the plugin's own build classpath, verified on
+    // 20 August 2026 — 13.0.0 carries the same vulnerable transitives, which is
+    // why the section 3 suppressions in config/owasp/suppressions.xml stay.
+    // The major bump moved the report from build/reports to
+    // build/reports/dependency-check; ci-cd.yml was corrected accordingly.
+    id 'org.owasp.dependencycheck' version '13.0.0'
     // Spotless — rewrites source files to a fixed format. Checkstyle only
     // reports, it never corrects; this is the tool that does the correcting.
     // The two must agree on the same convention, otherwise each undoes the
@@ -78,7 +85,21 @@ spotless {
 }
 
 dependencyCheck {
-    // Fail the build if a dependency has a CVSS score >= 9 (Critical)
+    // Fail the build if a dependency has a CVSS score >= 9 (Critical).
+    // This threshold is a choice of interruption rhythm, not an assessment of
+    // gravity. CVSS 9 means catastrophic and trivially exploitable remotely;
+    // remote code execution behind authentication, privilege escalation and
+    // authentication bypass under specific conditions all sit between 7 and 8.9
+    // and would pass this gate. Lowering it to 7 is the security-correct answer
+    // in the abstract, and the wrong one here: on a single-developer project it
+    // would block merges several times a month on HIGH advisories against
+    // transitive dependencies, most of them unreachable, and the predictable
+    // outcome is suppressions written under the pressure of a red build. A
+    // suppression written to unblock is a suppression that is not justified.
+    // What actually catches a finding below 9 is reading the report, which the
+    // pipeline archives on every run as the owasp-report artefact. Lower this
+    // to 7 once someone else works on the project, or after the November
+    // presentation when the schedule allows the triage load.
     failBuildOnCVSS = 9
     // Output formats — HTML for humans, JSON for CI tools
     formats = ['HTML', 'JSON']
