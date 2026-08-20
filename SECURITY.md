@@ -185,6 +185,7 @@ The deployment pipeline integrates multiple security controls:
 | Control | Tool | Details |
 |---------|------|---------|
 | Secret scanning | GitLeaks | Full git history scanned on every push |
+| Code style | Checkstyle + Spotless | Zero violations across production and test sources; the step is non-blocking for now |
 | Dependency CVEs | OWASP Dependency Check | NVD database, `failBuildOnCVSS = 9`; the step is non-blocking for now, so the threshold reports without stopping the pipeline |
 | Docker image scan | Trivy | Blocks deployment on CRITICAL CVEs |
 | Least privilege | GITHUB_TOKEN | No PAT — scoped token with minimal permissions |
@@ -306,11 +307,15 @@ case at the machine level, but there is no off-site copy of the database itself.
 ### Bundled Swagger UI Vulnerabilities
 
 Springdoc 2.8.8 bundles swagger-ui 5.21.0, which in turn bundles DOMPurify
-3.2.4: eighteen CVEs plus `GHSA-55q2-fjhq-7xh7`, highest MEDIUM 6.3. This is the
-only remaining entry in the Dependency-Check report. The component is genuinely
-shipped, so no honest suppression is available, and remediation depends on
-whether a fixed Springdoc release exists that is still compatible with Spring
-Boot 3.5.
+3.2.4: eighteen CVEs plus `GHSA-55q2-fjhq-7xh7`, highest MEDIUM 6.3. Every
+finding is counted twice, once per bundle file, which is why the report shows
+thirty-eight.
+
+This single jar accounts for the entire Dependency-Check report: no other
+dependency in the project is flagged. The component is genuinely shipped, so no
+honest suppression is available. A 2.8.x release raising swagger-ui to 5.32.5
+exists and remains on the Spring Boot 3.x line, so the fix is an upgrade rather
+than a documented debt. Tracked for the next release.
 
 ### Spring Boot 3.5 End of Open Source Life
 

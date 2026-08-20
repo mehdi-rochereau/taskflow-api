@@ -249,6 +249,35 @@ the agreement between the schema and the JPA entities under `ddl-auto=validate`.
 
 **Docker must be running** for these tests to execute.
 
+### Code formatting
+
+Formatting is applied by Spotless, using the AOSP variant of `google-java-format`.
+Checkstyle reports style violations but never corrects them; Spotless is the tool
+that does the correcting, and the two are configured to agree.
+
+```bash
+./gradlew spotlessCheck    # reports files that are not formatted
+./gradlew spotlessApply    # rewrites them
+```
+
+A versioned `pre-push` hook runs `spotlessCheck` and refuses a push whose sources
+are not formatted. Git does not track `.git/hooks`, so the hook lives in
+`.githooks` and each clone activates it once:
+
+```bash
+git config core.hooksPath .githooks
+```
+
+Without that command the hook is present in the repository and inert, which is
+worse than having none: the safeguard looks in place and is not. To bypass it for
+a single push, use `git push --no-verify`.
+
+Formatting on save is the more comfortable path, but it is an editor setting and
+therefore neither versioned nor uniform. IntelliJ needs the `google-java-format`
+plugin to match the build; VS Code formats Java through Eclipse's engine, which is
+a different formatter with a different result. The hook and the build are what
+decide, whatever the editor.
+
 ### Test naming conventions
 
 Test methods are named `shouldExpectedBehaviour_whenPrecondition`. The
@@ -284,7 +313,7 @@ Every push triggers an automated pipeline:
 | Step | Tool | Details |
 |------|------|---------|
 | Secret scanning | GitLeaks | Full history scan |
-| Code style | Checkstyle | Google Style variant |
+| Code style | Checkstyle + Spotless | Google Style variant, zero violations; the step is non-blocking for now |
 | Tests | JUnit 5 + Mockito + Testcontainers | Unit, web slice and integration layers |
 | Coverage | JaCoCo + Codecov | 80% threshold |
 | Dependency CVEs | OWASP Dependency Check | NVD database |
