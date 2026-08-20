@@ -12,7 +12,7 @@ plugins {
     // Checkstyle — enforces Java code style conventions
     id 'checkstyle'
     // OWASP Dependency Check — scans dependencies for known CVEs
-    id 'org.owasp.dependencycheck' version '12.2.2'
+    id 'org.owasp.dependencycheck' version '13.0.0'
     // Spotless — rewrites source files to a fixed format. Checkstyle only
     // reports, it never corrects; this is the tool that does the correcting.
     // The two must agree on the same convention, otherwise each undoes the
