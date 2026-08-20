@@ -34,33 +34,7 @@
 
     <!--
         ═══════════════════════════════════════════════════════════════════════
-        2. MySQL Connector/Net — wrong product, shared CPE identifier
-        ═══════════════════════════════════════════════════════════════════════
-        Oracle publishes every MySQL driver under the same
-        cpe:oracle:mysql_connectors identifier, so Dependency-Check attributes
-        Connector/Net advisories to the Java driver. These three target the .NET
-        driver, which this project does not embed. The four genuine Connector/J
-        advisories were resolved by upgrading to 26.7.0 in this same change.
-    -->
-    <suppress>
-        <notes>Wrong product — targets Connector/Net (.NET driver), not Connector/J</notes>
-        <packageUrl regex="true">^pkg:maven/com\.mysql/mysql-connector-j@.*$</packageUrl>
-        <cve>CVE-2026-60193</cve>
-    </suppress>
-    <suppress>
-        <notes>Wrong product — targets Connector/Net (.NET driver), not Connector/J</notes>
-        <packageUrl regex="true">^pkg:maven/com\.mysql/mysql-connector-j@.*$</packageUrl>
-        <cve>CVE-2026-60192</cve>
-    </suppress>
-    <suppress>
-        <notes>Wrong product — targets Connector/Net (.NET driver), not Connector/J</notes>
-        <packageUrl regex="true">^pkg:maven/com\.mysql/mysql-connector-j@.*$</packageUrl>
-        <cve>CVE-2026-60317</cve>
-    </suppress>
-
-    <!--
-        ═══════════════════════════════════════════════════════════════════════
-        3. Tomcat examples web application — absent from an embedded Tomcat
+        2. Tomcat examples web application — absent from an embedded Tomcat
         ═══════════════════════════════════════════════════════════════════════
     -->
     <suppress until="2026-12-31">
@@ -77,7 +51,7 @@
 
     <!--
         ═══════════════════════════════════════════════════════════════════════
-        4. Gradle plugin classpath — never shipped to production
+        3. Gradle plugin classpath — never shipped to production
         ═══════════════════════════════════════════════════════════════════════
         These four artifacts belong to the build tooling, mostly to the
         Dependency-Check plugin itself. Verified on 18 Aug 2026 by running the
@@ -114,27 +88,7 @@
 
     <!--
         ═══════════════════════════════════════════════════════════════════════
-        5. Spring Boot — Cassandra and RabbitMQ SSL, likely obsolete
-        ═══════════════════════════════════════════════════════════════════════
-        Both were documented as fixed in Spring Boot 3.5.14. The project now runs
-        3.5.16, so these two suppressions are probably dead weight. They are kept
-        for one report cycle only: removing them is the way to find out, since a
-        suppressed finding never appears in the report and absence proves nothing.
-    -->
-    <suppress until="2026-12-31">
-        <notes>Cassandra SSL — not exploitable, TaskFlow uses no Cassandra. Verify removal against a 3.5.16 report.</notes>
-        <packageUrl regex="true">^pkg:maven/org\.springframework\.boot/.*$</packageUrl>
-        <cve>CVE-2026-40974</cve>
-    </suppress>
-    <suppress until="2026-12-31">
-        <notes>RabbitMQ SSL — not exploitable, TaskFlow uses no RabbitMQ. Verify removal against a 3.5.16 report.</notes>
-        <packageUrl regex="true">^pkg:maven/org\.springframework\.boot/.*$</packageUrl>
-        <cve>CVE-2026-40971</cve>
-    </suppress>
-
-    <!--
-        ═══════════════════════════════════════════════════════════════════════
-        6. DOMPurify bundled in swagger-ui — no upstream fix reachable
+        4. DOMPurify bundled in swagger-ui — no upstream fix reachable
         ═══════════════════════════════════════════════════════════════════════
         Springdoc 2.9.0 brings swagger-ui 5.32.11, which bundles DOMPurify
         3.4.12. That upgrade cleared eighteen of the nineteen identifiers the
