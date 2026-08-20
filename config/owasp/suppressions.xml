@@ -130,4 +130,44 @@
         <cve>CVE-2026-40971</cve>
     </suppress>
 
+    <!--
+        ═══════════════════════════════════════════════════════════════════════
+        6. DOMPurify bundled in swagger-ui — no upstream fix reachable
+        ═══════════════════════════════════════════════════════════════════════
+        Springdoc 2.9.0 brings swagger-ui 5.32.11, which bundles DOMPurify
+        3.4.12. That upgrade cleared eighteen of the nineteen identifiers the
+        previous swagger-ui 5.21.0 carried; this is the one that survives.
+
+        Not patchable from here. DOMPurify is JavaScript packaged inside the
+        swagger-ui jar, not a declared dependency: there is no version property
+        to override and no exclusion that would not break Swagger UI outright.
+        The fix exists upstream in DOMPurify 3.4.13, but swagger-ui has not
+        picked it up, and Springdoc 2.9.0 is already the most recent release on
+        the Spring Boot 3.x line.
+
+        Limited exposure. Swagger UI runs DOMPurify over the Markdown
+        descriptions of the OpenAPI specification, which this project writes
+        itself in its own annotations. Exploiting the flaw would require
+        injecting content into that specification, which already implies write
+        access to the source. Scored medium, unscored by the NVD, reported by
+        RetireJS rather than the NVD feed.
+
+        Counted twice, once per bundle file: swagger-ui-bundle.js and
+        swagger-ui-es-bundle.js.
+
+        Lift as soon as a swagger-ui release bundling DOMPurify 3.4.13 or later
+        reaches a Springdoc version compatible with Spring Boot 3.5. The short
+        expiry is deliberate: this one moves upstream, unlike the suppressions
+        above.
+    -->
+    <suppress until="2026-11-30">
+        <notes>
+            No upstream fix reachable — DOMPurify is bundled inside the
+            swagger-ui jar, not declared as a dependency. Fixed in DOMPurify
+            3.4.13, not yet bundled by swagger-ui. Re-evaluate at expiry.
+        </notes>
+        <packageUrl regex="true">^pkg:javascript/DOMPurify@.*$</packageUrl>
+        <cve>CVE-2026-75838</cve>
+    </suppress>
+
 </suppressions>
