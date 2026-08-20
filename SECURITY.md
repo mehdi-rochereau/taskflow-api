@@ -185,6 +185,30 @@ The registry token installed on the production host is scoped to
 `read:packages` only. The host pulls images and never pushes or deletes them, so a leak of that credential cannot be
 used to publish a tampered image.
 
+#### Handling a newly published CVE
+
+The dependency scan is a blocking gate, and it is the only one that can fail on an event outside this repository: a
+publication to the NVD turns `main` red without a line of code having changed. That is intended. A dependency that
+became vulnerable overnight is vulnerable whether or not the pipeline says so.
+
+The response is fixed in advance, so that it is not improvised under the pressure of a red build:
+
+1. Read the report from the `owasp-report` artefact of the failed run. The console output names the identifier; the
+   report says which dependency carries it and by which path.
+2. Establish whether the code is reachable. A finding on a build-tooling artefact, on a component absent from the
+   runtime classpath, or on a feature the application never calls is not the same thing as a finding on a shipped and
+   exercised component. `./gradlew dependencyInsight --dependency <name>
+   --configuration runtimeClasspath` settles the first question.
+3. Raise the dependency if a corrected version exists. For a version managed by the Spring Boot BOM, override the
+   property rather than the artefact, so that every module of that library stays aligned.
+4. If no fix is reachable, add a suppression to `config/owasp/suppressions.xml`
+   carrying three things: the technical reason, the condition that lifts it, and an expiry date. The expiry is what
+   makes the finding return on its own, which is the only mechanism preventing a suppression from becoming permanent by
+   neglect.
+
+Restoring `continue-on-error` on the step is never the answer. It would turn every future finding into silence, which is
+the state this gate was closed to end.
+
 ### Error Handling
 
 - Stack traces and internal details are **never** exposed in API responses.
