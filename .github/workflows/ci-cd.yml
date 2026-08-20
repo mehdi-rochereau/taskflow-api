@@ -56,7 +56,7 @@ env:
   # Production API base URL — used by health check and smoke tests
   API_BASE_URL: https://api.taskflow.mehdi-rochereau.dev
 
-# Workflow-level permissions (least privilege principle).
+# Workflow-level permissions (the least privilege principle).
 # contents: read   — checkout source code
 # packages: write  — push Docker image to ghcr.io
 # checks: write    — publish check results (GitLeaks SARIF)
@@ -149,16 +149,34 @@ jobs:
           key: owasp-nvd-${{ runner.os }}-${{ hashFiles('build.gradle') }}
           restore-keys: owasp-nvd-${{ runner.os }}-
 
+      # ── Formatting ───────────────────────────────────────
+      # Verifies that sources match what Spotless would produce.
+      # spotlessCheck and never spotlessApply: a job that reformats has to
+      # commit and push what it rewrote, on a branch it does not author. That
+      # produces commits with no human author, a local-remote divergence on
+      # every push, code rewritten outside any review, and a job holding write
+      # access to branches, whose compromise modifies the code.
+      # Placed before Checkstyle on purpose: both can report the same file, but
+      # a Spotless failure is fixed by one command while the Checkstyle version
+      # of the same problem hands back a list to correct by hand. Failing on the
+      # cheaper cause first is what makes the message actionable.
+      # A pre-push hook runs the same task locally, so this step normally never
+      # fires. It covers the paths the hook does not: a clone where
+      # core.hooksPath was never set, and git push --no-verify.
+      - name: Check formatting
+        id: spotless
+        run: ./gradlew spotlessCheck --no-daemon
+
       # ── Checkstyle ───────────────────────────────────────
       # Enforces Java code style conventions defined in
       # config/checkstyle/checkstyle.xml (Google Style variant).
-      # continue-on-error: true — violations are warnings, not blockers.
-      # The goal is progressive improvement, not a hard gate.
-      # Set to false once all violations are resolved.
+      # Blocking: the debt was cleared to zero, and a gate that closes on
+      # residual debt never closes at all. See ignoreFailures and maxWarnings
+      # in build.gradle — both are required, one without the other lets every
+      # violation through while reporting success.
       - name: Run Checkstyle
         id: checkstyle
         run: ./gradlew checkstyleMain checkstyleTest --no-daemon
-        continue-on-error: true
 
       - name: Upload Checkstyle report
         if: always()
@@ -178,8 +196,10 @@ jobs:
       # ── Tests + JaCoCo ───────────────────────────────────
       # Runs the full JUnit 5 test suite with Mockito.
       # SPRING_PROFILES_ACTIVE=test activates the test profile,
-      # which uses H2 in-memory database instead of MySQL,
-      # keeping tests fast and self-contained.
+      # which points the integration tests at a disposable MySQL 8.4 container
+      # started by Testcontainers, matching the production engine so that
+      # foreign key ON DELETE rules and CHECK constraints are exercised for
+      # real rather than approximated by an in-memory engine.
       # jacocoTestReport is chained via finalizedBy in build.gradle,
       # but called explicitly here for clarity.
       - name: Run tests and generate JaCoCo report
@@ -293,7 +313,7 @@ jobs:
           retention-days: 7
 
       # ── GitHub Actions Step Summary ──────────────────────
-      # Generates a markdown summary table visible in the Actions UI.
+      # Generates a Markdown summary table visible in the Actions UI.
       # Uses ternary expressions on step outcomes for status icons.
       - name: Generate CI summary
         if: always()
@@ -304,7 +324,8 @@ jobs:
           echo "|-------|--------|" >> $GITHUB_STEP_SUMMARY
           echo "| 🔍 GitLeaks | ${{ steps.gitleaks.outcome == 'success' && '✅ No secrets detected' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
           echo "| ☕ Java | ${{ env.JAVA_VERSION }} (Temurin) |" >> $GITHUB_STEP_SUMMARY
-          echo "| 🎨 Checkstyle | ${{ steps.checkstyle.outcome == 'success' && '✅ Passed' || '⚠️ Warnings' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| 🎨 Formatting | ${{ steps.spotless.outcome == 'success' && '✅ Passed' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| 🎨 Checkstyle | ${{ steps.checkstyle.outcome == 'success' && '✅ Passed' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
           echo "| 🔨 Compile | ${{ steps.compile.outcome == 'success' && '✅ Success' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
           echo "| 🧪 Tests | ${{ steps.tests.outcome == 'success' && '✅ Passed' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
           echo "| 📊 Coverage | ${{ steps.coverage.outcome == 'success' && '✅' || '❌' }} ${{ steps.coverage.outputs.coverage }}% |" >> $GITHUB_STEP_SUMMARY
@@ -589,14 +610,14 @@ jobs:
       # skipped. Restores the image the service was running before this
       # deployment, so production is not left on a broken version.
       #
-      # The restore point is written by the script during the deploy step,
+      # The restore point is written by the script during the deployment step,
       # under /tmp/taskflow-deploy-rollback-taskflow-api.env. The script exits
       # 0 with an explicit message when no reference is recorded, which is the
       # expected state on the first run after this change: the previous
       # workflow wrote a different path, /tmp/taskflow_rollback.env.
       #
       # No git pull here. The working copy was brought up to date by the
-      # deploy step minutes earlier, and a repository update that fails at
+      # deployment step minutes earlier, and a repository update that fails at
       # this point would block the recovery it is supposed to enable.
       - name: Rollback on health check failure
         if: failure() && steps.health.outcome == 'failure'

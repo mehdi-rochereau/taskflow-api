@@ -182,21 +182,21 @@ All security-relevant events are logged via a dedicated `AUDIT` logger:
 
 The deployment pipeline integrates multiple security controls:
 
-| Control | Tool | Details |
-|---------|------|---------|
-| Secret scanning | GitLeaks | Full git history scanned on every push |
-| Code style | Checkstyle + Spotless | Zero violations across production and test sources; the step is non-blocking for now |
-| Dependency CVEs | OWASP Dependency Check | NVD database, `failBuildOnCVSS = 9`; the step is non-blocking for now, so the threshold reports without stopping the pipeline |
-| Docker image scan | Trivy | Blocks deployment on CRITICAL CVEs |
-| Least privilege | GITHUB_TOKEN | No PAT — scoped token with minimal permissions |
-| Dedicated SSH key | Ed25519 | GitHub Actions-only key, separate from developer keys |
-| Branch protection | GitHub Rulesets | CI must pass before any merge to main |
-| Immutable deploys | Image digest | Trivy scans the exact pushed digest, not a mutable tag |
-| Deploy verification | Image digest | The running container is compared to the digest published by the run, and the job fails on mismatch |
-| Fail-loud deployment | Strict-mode deployment script | A registry refusal aborts the deploy step instead of falling through to a success message |
-| Single deployment path | Shared script | Deployment and rollback live in one reviewed script in `taskflow-deploy`, called by both application pipelines, instead of inline blocks duplicated per repository |
-| Automatic rollback | Docker | Previous image restored if health check fails post-deploy |
-| Scheduled database backup | systemd timer | Daily logical dump with completeness checks and seven-day rotation |
+| Control                   | Tool                          | Details                                                                                                                                                            |
+|---------------------------|-------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| Secret scanning           | GitLeaks                      | Full git history scanned on every push                                                                                                                             |
+| Code style                | Checkstyle + Spotless         | Zero violations across production and test sources, enforced by two blocking steps; a local pre-push hook runs the same formatting check                           |
+| Dependency CVEs           | OWASP Dependency Check        | NVD database, `failBuildOnCVSS = 9`; the step is non-blocking for now, so the threshold reports without stopping the pipeline                                      |
+| Docker image scan         | Trivy                         | Blocks deployment on CRITICAL CVEs                                                                                                                                 |
+| Least privilege           | GITHUB_TOKEN                  | No PAT — scoped token with minimal permissions                                                                                                                     |
+| Dedicated SSH key         | Ed25519                       | GitHub Actions-only key, separate from developer keys                                                                                                              |
+| Branch protection         | GitHub Rulesets               | CI must pass before any merge to main                                                                                                                              |
+| Immutable deploys         | Image digest                  | Trivy scans the exact pushed digest, not a mutable tag                                                                                                             |
+| Deploy verification       | Image digest                  | The running container is compared to the digest published by the run, and the job fails on mismatch                                                                |
+| Fail-loud deployment      | Strict-mode deployment script | A registry refusal aborts the deploy step instead of falling through to a success message                                                                          |
+| Single deployment path    | Shared script                 | Deployment and rollback live in one reviewed script in `taskflow-deploy`, called by both application pipelines, instead of inline blocks duplicated per repository |
+| Automatic rollback        | Docker                        | Previous image restored if health check fails post-deploy                                                                                                          |
+| Scheduled database backup | systemd timer                 | Daily logical dump with completeness checks and seven-day rotation                                                                                                 |
 
 The registry token installed on the production host is scoped to
 `read:packages` only. The host pulls images and never pushes or deletes them,

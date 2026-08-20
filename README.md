@@ -338,18 +338,19 @@ build/reports/jacoco/html/index.html
 
 Every push triggers an automated pipeline:
 
-| Step | Tool | Details |
-|------|------|---------|
-| Secret scanning | GitLeaks | Full history scan |
-| Code style | Checkstyle + Spotless | Google Style variant, zero violations; the step is non-blocking for now |
-| Tests | JUnit 5 + Mockito + Testcontainers | Unit, web slice and integration layers |
-| Coverage | JaCoCo + Codecov | 80% threshold |
-| Dependency CVEs | OWASP Dependency Check | NVD database |
-| Docker image scan | Trivy | Blocks on CRITICAL CVEs |
-| Deployment | SSH + shared deployment script | Hetzner VPS, single script shared with the frontend pipeline, aborts on registry refusal |
-| Deploy verification | Image digest | Running container compared to published image |
-| Health check | Spring Actuator | 3 min retry |
-| Rollback | Automatic | On health check failure |
+| Step                | Tool                               | Details                                                                                  |
+|---------------------|------------------------------------|------------------------------------------------------------------------------------------|
+| Secret scanning     | GitLeaks                           | Full history scan                                                                        |
+| Formatting          | Spotless                           | google-java-format, AOSP variant; blocks on any deviation                                |
+| Code style          | Checkstyle                         | Google Style variant; blocks on any violation                                            |
+| Tests               | JUnit 5 + Mockito + Testcontainers | Unit, web slice and integration layers                                                   |
+| Coverage            | JaCoCo + Codecov                   | 80% threshold                                                                            |
+| Dependency CVEs     | OWASP Dependency Check             | NVD database                                                                             |
+| Docker image scan   | Trivy                              | Blocks on CRITICAL CVEs                                                                  |
+| Deployment          | SSH + shared deployment script     | Hetzner VPS, single script shared with the frontend pipeline, aborts on registry refusal |
+| Deploy verification | Image digest                       | Running container compared to published image                                            |
+| Health check        | Spring Actuator                    | 3 min retry                                                                              |
+| Rollback            | Automatic                          | On health check failure                                                                  |
 
 Push to `main` → CI passes → Docker image built → deployed to production automatically.
 
