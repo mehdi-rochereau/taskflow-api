@@ -2,11 +2,7 @@ package com.mehdi.taskflow.exception;
 
 import com.mehdi.taskflow.config.AuditService;
 import com.mehdi.taskflow.config.MessageService;
-import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
@@ -16,6 +12,12 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 /**
  * Centralized exception handler for the entire REST API.
@@ -182,5 +184,28 @@ public class GlobalExceptionHandler {
         body.put("status", status.value());
         body.put("message", message);
         return ResponseEntity.status(status).body(body);
+    }
+
+    /**
+     * Handles a password that fails verification against the stored hash.
+     *
+     * <p>Returns {@code 422} rather than a member of the {@code 401} family. A {@code 401} on an
+     * endpoint outside {@code /api/auth} is read by the frontend interceptor as an expired session:
+     * it refreshes silently, succeeds since the session is in fact valid, then replays the original
+     * request with the same wrong password. On account deletion that replay would be a second
+     * deletion attempt the user never asked for.
+     *
+     * <p>Returns {@code 422} rather than {@code 400} because the request is well formed and the
+     * field is present: what fails is the verification, not the shape of the payload. A missing
+     * password still yields {@code 400} through bean validation, which is the distinction the
+     * client needs to place the error under the right field.
+     *
+     * @param ex exception carrying the message resolved for the current locale
+     * @return {@code 422 Unprocessable Entity} response with the error message
+     */
+    @ExceptionHandler(PasswordVerificationException.class)
+    public ResponseEntity<Map<String, Object>> handlePasswordVerification(
+            PasswordVerificationException ex) {
+        return buildResponse(HttpStatus.UNPROCESSABLE_ENTITY, ex.getMessage());
     }
 }
