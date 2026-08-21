@@ -240,15 +240,16 @@ jobs:
       # the most granular metric and best reflects actual code execution.
       # It is also the counter jacocoTestCoverageVerification uses, so both
       # gates measure the same thing.
-      # Threshold: 80% — blocks the pipeline if coverage drops below.
-      # The same 80 is enforced by jacocoTestCoverageVerification in
+      # Threshold: 95% — blocks the pipeline if coverage drops below.
+      # Raised from 80 in #76, see build.gradle for the reasoning.
+      # The same 95 is enforced by jacocoTestCoverageVerification in
       # build.gradle, which is the gate that fails locally before a push.
       # Changing the value here means changing it there too.
       # This step is kept alongside it because it is what surfaces the figure
       # in the run summary, which the Gradle task does not do.
       # Exclusions are declared once in build.gradle, in coverageExclusions,
       # and consumed by both the report and the verification task.
-      - name: Check coverage threshold (80%)
+      - name: Check coverage threshold (95%)
         id: coverage
         run: |
           # Fail on any unset variable or failed command rather than carrying
@@ -296,11 +297,11 @@ jobs:
 
           echo "coverage=${COVERAGE}" >> $GITHUB_OUTPUT
           echo "Coverage: ${COVERAGE}%"
-          if (( $(echo "$COVERAGE < 80" | bc -l) )); then
-            echo "❌ Coverage ${COVERAGE}% is below the 80% threshold"
+          if (( $(echo "$COVERAGE < 95" | bc -l) )); then
+            echo "❌ Coverage ${COVERAGE}% is below the 95% threshold"
             exit 1
           else
-            echo "✅ Coverage ${COVERAGE}% meets the 80% threshold"
+            echo "✅ Coverage ${COVERAGE}% meets the 95% threshold"
           fi
 
       # ── Codecov ──────────────────────────────────────────
