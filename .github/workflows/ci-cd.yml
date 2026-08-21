@@ -202,9 +202,19 @@ jobs:
       # real rather than approximated by an in-memory engine.
       # jacocoTestReport is chained via finalizedBy in build.gradle,
       # but called explicitly here for clarity.
+      # jacocoTestCoverageVerification is named explicitly for a different
+      # reason: this workflow calls Gradle task by task and never goes through
+      # `check` or `build`, so a task attached to the lifecycle runs on a
+      # developer machine and never here. Omitting it would leave the gate
+      # declared in build.gradle and absent from the pipeline, which is the
+      # failure this issue exists to remove.
+      # It runs on the same JaCoCo execution data as the "Check coverage
+      # threshold" step below, so both gates report the same figure on the same
+      # run. The redundancy is the point: if one of them ever starts lying, the
+      # other says so.
       - name: Run tests and generate JaCoCo report
         id: tests
-        run: ./gradlew test jacocoTestReport --no-daemon
+        run: ./gradlew test jacocoTestReport jacocoTestCoverageVerification --no-daemon
         env:
           SPRING_PROFILES_ACTIVE: test
 
@@ -228,14 +238,38 @@ jobs:
       # Parses the JaCoCo XML report and extracts INSTRUCTION coverage.
       # INSTRUCTION coverage is used (not LINE or BRANCH) because it is
       # the most granular metric and best reflects actual code execution.
+      # It is also the counter jacocoTestCoverageVerification uses, so both
+      # gates measure the same thing.
       # Threshold: 80% — blocks the pipeline if coverage drops below.
-      # DTOs, config classes, exceptions, and Application.java are
-      # excluded from coverage measurement (see build.gradle exclusions).
+      # The same 80 is enforced by jacocoTestCoverageVerification in
+      # build.gradle, which is the gate that fails locally before a push.
+      # Changing the value here means changing it there too.
+      # This step is kept alongside it because it is what surfaces the figure
+      # in the run summary, which the Gradle task does not do.
+      # Exclusions are declared once in build.gradle, in coverageExclusions,
+      # and consumed by both the report and the verification task.
       - name: Check coverage threshold (80%)
         id: coverage
         run: |
+          # Fail on any unset variable or failed command rather than carrying
+          # an empty value forward. Without this the checks below are the only
+          # thing standing between a missing report and a green gate.
+          set -euo pipefail
+
           REPORT_PATH=$(find build/reports/jacoco -name "*.xml" | head -1)
+          
+          # A JaCoCo version bump or a task rename can move this report without
+          # a word. Dependency-Check 13.0.0 did exactly that to the OWASP report
+          # and the upload step silently collected nothing for a full run.
+          # An empty path would reach python as ET.parse(''), which raises, and
+          # COVERAGE would arrive empty at the comparison below.
+          if [ -z "$REPORT_PATH" ]; then
+            echo "❌ No JaCoCo XML report found under build/reports/jacoco"
+            echo "The report location may have moved. This gate cannot measure anything."
+            exit 1
+          fi
           echo "Found report at: $REPORT_PATH"
+
           COVERAGE=$(python3 -c "
           import xml.etree.ElementTree as ET
           tree = ET.parse('$REPORT_PATH')
@@ -249,6 +283,17 @@ jobs:
                   print(f'{pct:.2f}')
                   break
           ")
+
+          # The report can exist and still carry no INSTRUCTION counter, in
+          # which case the loop above prints nothing and COVERAGE is empty.
+          # `bc` would then evaluate a malformed expression, and a gate that
+          # compares nothing is not a gate.
+          if [ -z "$COVERAGE" ]; then
+            echo "❌ No INSTRUCTION counter found in $REPORT_PATH"
+            echo "The report exists but carries no usable coverage figure."
+            exit 1
+          fi
+
           echo "coverage=${COVERAGE}" >> $GITHUB_OUTPUT
           echo "Coverage: ${COVERAGE}%"
           if (( $(echo "$COVERAGE < 80" | bc -l) )); then

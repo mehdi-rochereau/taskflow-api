@@ -125,6 +125,20 @@ dependencyCheck {
     }
 }
 
+// Single source of truth for what coverage ignores. Declared once and consumed
+// by both jacocoTestReport and jacocoTestCoverageVerification below. Duplicating
+// the list would let the two drift apart in silence: the report would state one
+// perimeter while the gate enforced another, and nothing would say so.
+// These four patterns are inherited and exclude by package rather than by class,
+// which drops classes carrying real logic alongside classes with nothing to
+// test. Revising them class by class, with a reason on each, is #76.
+def coverageExclusions = [
+        '**/dto/**',
+        '**/*Application*',
+        '**/config/**',
+        '**/*Exception*'
+]
+
 tasks.jacocoTestReport {
     dependsOn test  // ensures tests run before report generation
     reports {
@@ -135,14 +149,44 @@ tasks.jacocoTestReport {
     }
     afterEvaluate {
         classDirectories.setFrom(files(classDirectories.files.collect {
-            fileTree(dir: it, exclude: [
-                    '**/dto/**',
-                    '**/*Application*',
-                    '**/config/**',
-                    '**/*Exception*'
-            ])
+            fileTree(dir: it, exclude: coverageExclusions)
         }))
     }
+}
+
+// Coverage gate. Until #71 this threshold existed only as a bash comparison in
+// ci-cd.yml, so the build passed locally whatever the coverage and the gate was
+// only ever felt after a push. It now fails the build where the code is written.
+// INSTRUCTION is the counter used, matching the one ci-cd.yml parses out of the
+// XML report. Any other counter here would have the two gates measuring
+// different things while both claiming to enforce 80 percent.
+// The 80 percent value appears in two places: here and in the "Check coverage
+// threshold" step of ci-cd.yml. Changing one means changing the other.
+tasks.jacocoTestCoverageVerification {
+    // The verification reads the execution data, not the report, but the report
+    // must exist for the two gates to be comparable on the same run.
+    dependsOn jacocoTestReport
+    violationRules {
+        rule {
+            limit {
+                counter = 'INSTRUCTION'
+                value = 'COVEREDRATIO'
+                minimum = 0.80
+            }
+        }
+    }
+    afterEvaluate {
+        classDirectories.setFrom(files(classDirectories.files.collect {
+            fileTree(dir: it, exclude: coverageExclusions)
+        }))
+    }
+}
+
+// Attaches the gate to `check`, which `build` depends on. Without this the task
+// exists but nothing ever runs it, and the gate would be present in the file
+// while enforcing nothing — the exact failure this issue exists to remove.
+tasks.check {
+    dependsOn tasks.jacocoTestCoverageVerification
 }
 
 tasks.test {
