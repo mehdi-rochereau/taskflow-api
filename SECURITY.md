@@ -97,6 +97,12 @@ Rate limiting is enforced via Bucket4j (Token Bucket algorithm) per IP address:
 
 Blocked requests receive a `429 Too Many Requests` response and are logged in the audit log.
 
+These three limits are covered by tests that exhaust each bucket and assert the `429` on the next request, so the table
+above is a statement about the code rather than about an intention. The same tests check that buckets are held per IP
+address and per endpoint: one client exhausting the login allowance neither locks other clients out nor consumes its own
+registration allowance. The client address is resolved from `X-Forwarded-For` when present, taking the first entry,
+because behind the reverse proxy every request would otherwise carry the proxy's own address and share a single bucket.
+
 ### Input Sanitization
 
 All user-provided text fields are sanitized using the

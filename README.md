@@ -95,7 +95,8 @@ concerns stay out of the routing code.
 - Referential integrity enforced at database level — cascade rules and CHECK constraints, not application-side
   conventions
 - Interactive API documentation via Swagger UI
-- 80%+ coverage (JUnit 5 + Mockito + MockMvc + Testcontainers)
+- Coverage measured by JaCoCo behind a blocking 95% instruction gate — see the badge above for the current figure (JUnit
+  5 + Mockito + MockMvc + Testcontainers)
 
 ---
 
@@ -329,6 +330,23 @@ The JaCoCo coverage report is generated at:
 build/reports/jacoco/html/index.html
 ```
 
+### Coverage
+
+Coverage is enforced at 95% of instructions, in two places: `jacocoTestCoverageVerification` in `build.gradle`, and the
+`Check coverage threshold (95%)` step of the pipeline. Both read the same JaCoCo execution data on the same run, so the
+figure is verifiable locally before a push rather than discovered after one. `./gradlew build` fails below the
+threshold; until August 2026 only the CI arbitrated, and a local build passed whatever the coverage.
+
+The Codecov badge at the top of this file does not show the same number as the pipeline, and neither is wrong: Codecov
+counts lines, 674 out of 695 on 21 August 2026, while the gate counts instructions. A line executed only in part counts
+as missed on one side and as partially covered on the other, which leaves a gap of roughly one point between the two.
+
+Nothing here has to be taken on trust. Run logs are public on a public repository, and the `Check coverage threshold
+(95%)` step prints the measured value. Every run also publishes a `jacoco-report` artefact, kept for seven days and
+downloadable from the run page, holding the full HTML report. Triggering the pipeline yourself means forking first:
+GitHub refuses to let anyone without write access run a workflow, which is what keeps public repositories from being
+used as free compute.
+
 ---
 
 ## CI/CD Pipeline
@@ -341,7 +359,7 @@ Every push triggers an automated pipeline:
 | Formatting          | Spotless                           | google-java-format, AOSP variant; blocks on any deviation                                |
 | Code style          | Checkstyle                         | Google Style variant; blocks on any violation                                            |
 | Tests               | JUnit 5 + Mockito + Testcontainers | Unit, web slice and integration layers                                                   |
-| Coverage            | JaCoCo + Codecov                   | 80% threshold                                                                            |
+| Coverage            | JaCoCo + Codecov                   | 95% threshold, enforced by Gradle and by the pipeline                                    |
 | Dependency CVEs     | OWASP Dependency Check             | NVD database, blocking; remaining findings carry dated suppressions                      |
 | Docker image scan   | Trivy                              | Blocks on CRITICAL CVEs                                                                  |
 | Deployment          | SSH + shared deployment script     | Hetzner VPS, single script shared with the frontend pipeline, aborts on registry refusal |
