@@ -239,13 +239,13 @@ the state this gate was closed to end.
 
 ## Security Principles Applied
 
-| Principle                    | Implementation                                                                                                                                                           |
-|------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| **Defense in Depth**         | HttpOnly cookies + input sanitization + ownership checks + Spring Security + database-level constraints                                                                  |
-| **Least Privilege**          | Scoped cookies (`/api`, `/api/auth`), ownership enforced per resource, registry token limited to `read:packages`                                                         |
-| **Fail Secure**              | Invalid/expired tokens → `401`, access denied → `403`, unexpected errors → `500`, schema mismatch → application refuses to start, unverified deployment → pipeline fails |
-| **Separation of Concerns**   | Auth logic in `UserService`, token lifecycle in `RefreshTokenService`, audit in `AuditService`, integrity in the schema                                                  |
-| **No Security by Obscurity** | Security relies on proven standards (JWT, BCrypt, HttpOnly, SameSite)                                                                                                    |
+| Principle                    | Implementation                                                                                                                                                                                           |
+|------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| **Defense in Depth**         | HttpOnly cookies + input sanitization + ownership checks + Spring Security + database-level constraints                                                                                                  |
+| **Least Privilege**          | Scoped cookies (`/api`, `/api/auth`), ownership enforced per resource, registry token limited to `read:packages`                                                                                         |
+| **Fail Secure**              | Invalid/expired tokens → `401`, access denied → `403`, unexpected errors → `500`, schema mismatch → application refuses to start, unverified deployment → pipeline fails                                 |
+| **Separation of Concerns**   | Token lifecycle in `RefreshTokenService`, audit in `AuditService`, integrity in the schema. Partial: `UserService` still carries both session establishment and account management, split deferred (#75) |
+| **No Security by Obscurity** | Security relies on proven standards (JWT, BCrypt, HttpOnly, SameSite)                                                                                                                                    |
 
 ---
 
