@@ -256,7 +256,7 @@ jobs:
           # thing standing between a missing report and a green gate.
           set -euo pipefail
 
-          REPORT_PATH=$(find build/reports/jacoco -name "*.xml" | head -1)
+          REPORT_PATH=$(find build/reports/tests -name "*.xml" | head -1)
 
           # A JaCoCo version bump or a task rename can move this report without
           # a word. Dependency-Check 13.0.0 did exactly that to the OWASP report
