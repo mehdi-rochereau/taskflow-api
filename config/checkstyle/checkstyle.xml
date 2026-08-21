@@ -144,19 +144,22 @@
             <property name="max" value="50"/>
         </module>
 
-        <!-- Max parameters per method: 9.
-            Raised from the Checkstyle default of 7, which is an arbitrary value and
-            not a Google Java Style requirement. The threshold is set here by the
-            largest constructor in the codebase, UserService and its nine injected
-            dependencies, which makes it a description of the current state rather
-            than a constraint on it.
-            The dependency count is a real design signal: UserService establishes
-            sessions and manages accounts, two responsibilities that could live in
-            separate services. Splitting it was considered and deliberately deferred.
-            Lower this back towards 7 if that split ever happens. -->
-        <module name="ParameterNumber">
-            <property name="max" value="9"/>
-        </module>
+        <!-- ParameterNumber removed on 21 August 2026 (#75).
+            The rule belongs to sun_checks.xml and is absent from google_checks.xml,
+            the style this project formats against through google-java-format. Its
+            purpose is call-site readability: a call with nine positional arguments
+            is unreadable and misordering same-typed arguments is easy. That harm
+            does not exist for an injection constructor, which Spring resolves by
+            type and which no one ever calls by hand.
+            The dependency count remains a design signal, but it makes a poor
+            blocking gate: the usual way past such a gate is a parameter object,
+            which changes nothing about the design it was meant to flag.
+            The signal itself has been acted on separately. UserService establishes
+            sessions and manages accounts, two responsibilities that belong in
+            separate services. The split is recorded in the pending items of
+            avancement-api.md and deferred to after November 2026; SECURITY.md and
+            the class Javadoc state the separation is partial, rather than claiming
+            it is applied. -->
 
         <!-- ── Javadoc ────────────────────────────────── -->
 
