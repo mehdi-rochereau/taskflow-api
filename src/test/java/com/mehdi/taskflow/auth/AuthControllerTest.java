@@ -2,6 +2,7 @@ package com.mehdi.taskflow.auth;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -11,6 +12,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mehdi.taskflow.config.AuditService;
 import com.mehdi.taskflow.config.MessageService;
 import com.mehdi.taskflow.config.SecurityConfig;
+import com.mehdi.taskflow.exception.ResourceNotFoundException;
 import com.mehdi.taskflow.security.JwtFilter;
 import com.mehdi.taskflow.security.JwtService;
 import com.mehdi.taskflow.security.RateLimitFilter;
@@ -33,6 +35,7 @@ import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.test.context.support.WithAnonymousUser;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -425,5 +428,105 @@ class AuthControllerTest {
                 .andExpect(jsonPath("$.status").value(401))
                 .andExpect(jsonPath("$.message").value("Invalid username or password"))
                 .andExpect(jsonPath("$.timestamp").exists());
+    }
+
+    // ── refresh ──────────────────────────────────────────────────────
+    // /api/auth/** is permitAll in SecurityConfig, so there is no 401 case on
+    // these two endpoints: refreshing happens precisely when the JWT has
+    // expired, and logging out must never fail for lack of a valid token.
+
+    @Test
+    void refresh_shouldReturn200_whenRefreshTokenIsValid() throws Exception {
+        // GIVEN
+        when(refreshTokenService.refresh(any(), any()))
+                .thenReturn(new AuthResponse("mehdi", "mehdi@example.com"));
+
+        // WHEN & THEN
+        // The new JWT is written to the cookie by the service, never to the
+        // body: the response carries the identity only.
+        mockMvc.perform(post("/api/auth/refresh"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.username").value("mehdi"))
+                .andExpect(jsonPath("$.email").value("mehdi@example.com"))
+                .andExpect(jsonPath("$.token").doesNotExist());
+    }
+
+    @Test
+    void refresh_shouldReturn400_whenRefreshTokenCookieIsMissing() throws Exception {
+        // GIVEN
+        when(refreshTokenService.refresh(any(), any()))
+                .thenThrow(new IllegalArgumentException("Refresh token not found"));
+
+        // WHEN & THEN
+        mockMvc.perform(post("/api/auth/refresh"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("Refresh token not found"));
+    }
+
+    @Test
+    void refresh_shouldReturn404_whenRefreshTokenIsUnknown() throws Exception {
+        // GIVEN
+        // A token absent from the database is a missing resource, unlike a
+        // token that exists and is no longer usable.
+        when(refreshTokenService.refresh(any(), any()))
+                .thenThrow(new ResourceNotFoundException("Refresh token not found"));
+
+        // WHEN & THEN
+        mockMvc.perform(post("/api/auth/refresh"))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.message").value("Refresh token not found"));
+    }
+
+    @Test
+    void refresh_shouldReturn400_whenRefreshTokenIsRevoked() throws Exception {
+        // GIVEN
+        // Rotation revokes a token on use, so a revoked token reaching this
+        // endpoint means it is being replayed.
+        when(refreshTokenService.refresh(any(), any()))
+                .thenThrow(new IllegalArgumentException("Refresh token has been revoked"));
+
+        // WHEN & THEN
+        mockMvc.perform(post("/api/auth/refresh"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("Refresh token has been revoked"));
+    }
+
+    @Test
+    void refresh_shouldReturn400_whenRefreshTokenIsExpired() throws Exception {
+        // GIVEN
+        when(refreshTokenService.refresh(any(), any()))
+                .thenThrow(new IllegalArgumentException("Refresh token has expired"));
+
+        // WHEN & THEN
+        mockMvc.perform(post("/api/auth/refresh"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("Refresh token has expired"));
+    }
+
+    // ── logout ───────────────────────────────────────────────────────
+
+    @Test
+    void logout_shouldReturn204_andDelegateToTheService() throws Exception {
+        // WHEN & THEN
+        mockMvc.perform(post("/api/auth/logout")).andExpect(status().isNoContent());
+
+        // THEN
+        // The controller carries no logic of its own here, so the only thing
+        // worth asserting beyond the status is that the call reaches the
+        // service that revokes the tokens and clears the cookies.
+        verify(refreshTokenService).logout(any(), any());
+    }
+
+    @Test
+    @WithAnonymousUser
+    void logout_shouldReturn204_whenUnauthenticated() throws Exception {
+        // GIVEN
+        // Logging out without a valid JWT must still succeed: the endpoint is
+        // permitAll, and a user whose token expired needs the cookies cleared
+        // just as much as one whose token is still valid.
+
+        // WHEN & THEN
+        mockMvc.perform(post("/api/auth/logout")).andExpect(status().isNoContent());
+        verify(refreshTokenService).logout(any(), any());
     }
 }
