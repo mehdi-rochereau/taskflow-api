@@ -131,12 +131,34 @@ dependencyCheck {
 // perimeter while the gate enforced another, and nothing would say so.
 // These four patterns are inherited and exclude by package rather than by class,
 // which drops classes carrying real logic alongside classes with nothing to
-// test. Revising them class by class, with a reason on each, is #76.
+// test. Revised class by class in #76. The two patterns removed there, `**/config/**`
+// and `**/*Exception*`, each swept up classes carrying real logic alongside the
+// ones they were meant to exclude: four services in the config package, and
+// GlobalExceptionHandler, excluded for no reason other than the string
+// "Exception" appearing in its name.
 def coverageExclusions = [
+        // Data transfer objects. Kept as a directory pattern rather than listed
+        // class by class: the eleven files under these directories are all DTOs
+        // and the convention guarantees the next one will be too, so the pattern
+        // describes a real category instead of a filing convenience. A hand-kept
+        // list would go stale the first time someone forgot to add an entry, and
+        // coverage would drop for no legible reason.
+        // Revisit if a DTO ever carries transformation or validation logic of its
+        // own rather than annotations alone.
         '**/dto/**',
-        '**/*Application*',
-        '**/config/**',
-        '**/*Exception*'
+
+        // Bootstrap class. Nothing to test beyond Spring starting, which the
+        // context load test already covers.
+        '**/TaskflowApiApplication.class',
+
+        // Configuration classes that declare beans and nothing else. Testing them
+        // would amount to asserting that Spring wires what the file says it wires.
+        '**/config/OpenApiConfig.class',
+        '**/config/SecurityConfig.class',
+        '**/config/ValidationConfig.class',
+
+        // Exception type carrying no behaviour beyond its constructors.
+        '**/exception/ResourceNotFoundException.class'
 ]
 
 tasks.jacocoTestReport {
@@ -159,8 +181,14 @@ tasks.jacocoTestReport {
 // only ever felt after a push. It now fails the build where the code is written.
 // INSTRUCTION is the counter used, matching the one ci-cd.yml parses out of the
 // XML report. Any other counter here would have the two gates measuring
-// different things while both claiming to enforce 80 percent.
-// The 80 percent value appears in two places: here and in the "Check coverage
+// different things while both claiming to enforce the same figure.
+// Raised from 80 to 95 in #76. The measured figure went from 81 to 98 percent
+// once the exclusions stopped dropping classes that carry logic and those
+// classes were covered. Leaving the gate at 80 would have left eighteen points
+// of slack, which is not a gate. 98 was rejected in turn: the first untested
+// else branch would turn the pipeline red, and a threshold lowered to get work
+// through is worse than a low one assumed.
+// The 95 percent value appears in two places: here and in the "Check coverage
 // threshold" step of ci-cd.yml. Changing one means changing the other.
 tasks.jacocoTestCoverageVerification {
     // The verification reads the execution data, not the report, but the report
@@ -171,7 +199,7 @@ tasks.jacocoTestCoverageVerification {
             limit {
                 counter = 'INSTRUCTION'
                 value = 'COVEREDRATIO'
-                minimum = 0.80
+                minimum = 0.95
             }
         }
     }
