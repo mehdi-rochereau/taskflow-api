@@ -18,12 +18,16 @@ Refs #
 
 ## Tests
 
+<!-- Every box below except the last describes a blocking gate: the pipeline
+     cannot be green while one of them fails. Ticking them is a reading of the
+     run, not a claim made on trust. -->
+
 - [ ] GitLeaks: no secrets detected
 - [ ] Compile passing
 - [ ] Test suite passing
-- [ ] Coverage above the 80% threshold
-- [ ] Checkstyle report reviewed (non-blocking)
-- [ ] OWASP Dependency Check report reviewed (non-blocking)
+- [ ] Coverage above the 95% threshold
+- [ ] Checkstyle: no violations
+- [ ] OWASP Dependency Check: no active finding
 - [ ] CI green on the branch
 
 ## Verification
