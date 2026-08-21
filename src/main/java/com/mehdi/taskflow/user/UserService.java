@@ -26,17 +26,26 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Service handling user authentication operations.
+ * Service carrying both session establishment and account management for users.
  *
- * <p>Provides user registration and login functionality. Passwords are encoded using BCrypt before
- * persistence. On successful authentication a signed JWT is written to the {@code jwt} HttpOnly
- * cookie, alongside a {@code refreshToken} cookie; neither value appears in the response body.
+ * <p>Session establishment covers {@code register} and {@code login}. Passwords are encoded using
+ * BCrypt before persistence. On success a signed JWT is written to the {@code jwt} HttpOnly cookie,
+ * alongside a {@code refreshToken} cookie; neither value appears in the response body. Login
+ * accepts either a username or an email address as identifier, delegating credential verification
+ * to {@link AuthenticationManager}.
  *
- * <p>Login accepts either a username or an email address as identifier, delegating credential
- * verification to {@link AuthenticationManager}.
+ * <p>Account management covers {@code getUserProfile}, {@code changePassword}, {@code
+ * updateProfile} and {@code deleteAccount}, all operating on the user resolved from the current
+ * security context through {@link SecurityUtils}.
+ *
+ * <p>These are two responsibilities, not one, and they belong in separate services. The split into
+ * a dedicated authentication service was measured and deliberately deferred, and is recorded in the
+ * pending items of {@code avancement-api.md}. This Javadoc describes what the class currently does
+ * rather than what its name suggests.
  *
  * @see JwtService
  * @see AuthenticationManager
+ * @see SecurityUtils
  */
 @Service
 public class UserService {
