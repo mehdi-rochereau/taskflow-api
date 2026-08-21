@@ -202,9 +202,19 @@ jobs:
       # real rather than approximated by an in-memory engine.
       # jacocoTestReport is chained via finalizedBy in build.gradle,
       # but called explicitly here for clarity.
+      # jacocoTestCoverageVerification is named explicitly for a different
+      # reason: this workflow calls Gradle task by task and never goes through
+      # `check` or `build`, so a task attached to the lifecycle runs on a
+      # developer machine and never here. Omitting it would leave the gate
+      # declared in build.gradle and absent from the pipeline, which is the
+      # failure this issue exists to remove.
+      # It runs on the same JaCoCo execution data as the "Check coverage
+      # threshold" step below, so both gates report the same figure on the same
+      # run. The redundancy is the point: if one of them ever starts lying, the
+      # other says so.
       - name: Run tests and generate JaCoCo report
         id: tests
-        run: ./gradlew test jacocoTestReport --no-daemon
+        run: ./gradlew test jacocoTestReport jacocoTestCoverageVerification --no-daemon
         env:
           SPRING_PROFILES_ACTIVE: test
 
@@ -246,7 +256,7 @@ jobs:
           # thing standing between a missing report and a green gate.
           set -euo pipefail
 
-          REPORT_PATH=$(find build/reports/jacoco -name "*.xml.disabled" | head -1)
+          REPORT_PATH=$(find build/reports/jacoco -name "*.xml" | head -1)
 
           # A JaCoCo version bump or a task rename can move this report without
           # a word. Dependency-Check 13.0.0 did exactly that to the OWASP report
