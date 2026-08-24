@@ -2,7 +2,11 @@ package com.mehdi.taskflow.exception;
 
 import com.mehdi.taskflow.config.AuditService;
 import com.mehdi.taskflow.config.MessageService;
-
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
@@ -12,12 +16,6 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
-
-import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
 
 /**
  * Centralized exception handler for the entire REST API.
@@ -172,21 +170,6 @@ public class GlobalExceptionHandler {
     }
 
     /**
-     * Builds a standardized error response body.
-     *
-     * @param status HTTP status code
-     * @param message error message to include in the response body
-     * @return {@link ResponseEntity} with the structured error body
-     */
-    private ResponseEntity<Map<String, Object>> buildResponse(HttpStatus status, String message) {
-        Map<String, Object> body = new HashMap<>();
-        body.put("timestamp", LocalDateTime.now());
-        body.put("status", status.value());
-        body.put("message", message);
-        return ResponseEntity.status(status).body(body);
-    }
-
-    /**
      * Handles a password that fails verification against the stored hash.
      *
      * <p>Returns {@code 422} rather than a member of the {@code 401} family. A {@code 401} on an
@@ -207,5 +190,20 @@ public class GlobalExceptionHandler {
     public ResponseEntity<Map<String, Object>> handlePasswordVerification(
             PasswordVerificationException ex) {
         return buildResponse(HttpStatus.UNPROCESSABLE_ENTITY, ex.getMessage());
+    }
+
+    /**
+     * Builds a standardized error response body.
+     *
+     * @param status HTTP status code
+     * @param message error message to include in the response body
+     * @return {@link ResponseEntity} with the structured error body
+     */
+    private ResponseEntity<Map<String, Object>> buildResponse(HttpStatus status, String message) {
+        Map<String, Object> body = new HashMap<>();
+        body.put("timestamp", LocalDateTime.now());
+        body.put("status", status.value());
+        body.put("message", message);
+        return ResponseEntity.status(status).body(body);
     }
 }
