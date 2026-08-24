@@ -18,6 +18,7 @@ import com.mehdi.taskflow.auth.RefreshTokenService;
 import com.mehdi.taskflow.config.AuditService;
 import com.mehdi.taskflow.config.MessageService;
 import com.mehdi.taskflow.config.SanitizationService;
+import com.mehdi.taskflow.exception.PasswordVerificationException;
 import com.mehdi.taskflow.security.JwtService;
 import com.mehdi.taskflow.security.SecurityUtils;
 import com.mehdi.taskflow.user.dto.AuthResponse;
@@ -329,9 +330,13 @@ class UserServiceTest {
         request.setNewPassword("NewPassword@2026");
 
         // WHEN
-        IllegalArgumentException ex =
+        // A verification of identity, not a constraint on the submitted value:
+        // the test below on an identical new password keeps
+        // IllegalArgumentException, and that pairing is the distinction.
+        PasswordVerificationException ex =
                 assertThrows(
-                        IllegalArgumentException.class, () -> userService.changePassword(request));
+                        PasswordVerificationException.class,
+                        () -> userService.changePassword(request));
 
         // THEN
         assertEquals("Current password is incorrect", ex.getMessage());
@@ -354,6 +359,8 @@ class UserServiceTest {
         request.setNewPassword("SamePassword@2026");
 
         // WHEN
+        // Deliberately IllegalArgumentException, unlike the wrong-password test
+        // above: this rule constrains the submitted value and keeps its 400.
         IllegalArgumentException ex =
                 assertThrows(
                         IllegalArgumentException.class, () -> userService.changePassword(request));
@@ -505,9 +512,9 @@ class UserServiceTest {
         request.setPassword("WrongPassword@2026");
 
         // WHEN
-        IllegalArgumentException ex =
+        PasswordVerificationException ex =
                 assertThrows(
-                        IllegalArgumentException.class,
+                        PasswordVerificationException.class,
                         () -> userService.deleteAccount(request, httpServletResponse));
 
         // THEN
