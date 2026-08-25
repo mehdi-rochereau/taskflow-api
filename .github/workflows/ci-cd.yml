@@ -326,9 +326,17 @@ jobs:
       # Uploads the JaCoCo XML report to Codecov for trend tracking
       # and PR coverage diff comments.
       # fail_ci_if_error: false — Codecov outages don't block the pipeline.
+      #
+      # v6 is the Node 24 release. This action is composite, so it declares no
+      # runtime of its own and never appeared by name in the deprecation
+      # annotation; what surfaced instead was actions/github-script pinned to
+      # 7.0.1, which v5 calls internally. That is why the annotation named an
+      # action absent from this file. Bumping v5 to v6 is what clears it, and
+      # no version of this workflow could have done so by editing github-script
+      # directly.
       - name: Upload coverage to Codecov
         id: codecov
-        uses: codecov/codecov-action@v5
+        uses: codecov/codecov-action@v6
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: build/reports/jacoco/test/jacocoTestReport.xml
