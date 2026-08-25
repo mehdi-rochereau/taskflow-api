@@ -382,13 +382,14 @@ class UserServiceTest {
         when(userRepository.existsByUsername("mehdi_updated")).thenReturn(false);
         when(userRepository.existsByEmail("mehdi.updated@test.com")).thenReturn(false);
         when(userRepository.save(any(User.class))).thenReturn(user);
+        when(jwtService.generateToken(any(User.class))).thenReturn("fake-jwt-token");
 
         UpdateProfileRequest request = new UpdateProfileRequest();
         request.setUsername("mehdi_updated");
         request.setEmail("mehdi.updated@test.com");
 
         // WHEN
-        UserResponse response = userService.updateProfile(request);
+        UserResponse response = userService.updateProfile(request, httpServletResponse);
 
         // THEN
         assertNotNull(response);
@@ -404,6 +405,10 @@ class UserServiceTest {
                                         u.getUsername().equals("mehdi_updated")
                                                 && u.getEmail().equals("mehdi.updated@test.com")));
         verify(auditService).logProfileUpdate("mehdi_updated");
+        // The username changed, so the JWT is re-issued: the old token carries
+        // the old name as subject and would fail to resolve on the next request.
+        verify(jwtService).generateToken(user);
+        verify(httpServletResponse).addHeader(eq("Set-Cookie"), contains("jwt="));
     }
 
     @Test
@@ -419,7 +424,7 @@ class UserServiceTest {
         request.setEmail("mehdi@test.com");
 
         // WHEN
-        UserResponse response = userService.updateProfile(request);
+        UserResponse response = userService.updateProfile(request, httpServletResponse);
 
         // THEN
         assertNotNull(response);
@@ -428,6 +433,35 @@ class UserServiceTest {
         verify(userRepository, never()).existsByUsername(any());
         verify(userRepository, never()).existsByEmail(any());
         verify(userRepository).save(any(User.class));
+        // No rename, so no re-issue: doing it anyway would silently extend the
+        // session window on every profile save.
+        verify(jwtService, never()).generateToken(any());
+        verify(httpServletResponse, never()).addHeader(eq("Set-Cookie"), contains("jwt="));
+    }
+
+    @Test
+    void updateProfile_shouldNotReissueTheToken_whenOnlyTheEmailChanges() {
+        // GIVEN
+        // The uniqueness check on the username is skipped since it is unchanged,
+        // and the token stays valid because its subject is untouched.
+        when(securityUtils.getCurrentUser()).thenReturn(user);
+        when(sanitizationService.sanitizeAndLog(any(), any(), any()))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+        when(userRepository.existsByEmail("new.email@test.com")).thenReturn(false);
+        when(userRepository.save(any(User.class))).thenReturn(user);
+
+        UpdateProfileRequest request = new UpdateProfileRequest();
+        request.setUsername("mehdi");
+        request.setEmail("new.email@test.com");
+
+        // WHEN
+        UserResponse response = userService.updateProfile(request, httpServletResponse);
+
+        // THEN
+        assertEquals("mehdi", response.getUsername());
+        assertEquals("new.email@test.com", response.getEmail());
+        verify(jwtService, never()).generateToken(any());
+        verify(userRepository, never()).existsByUsername(any());
     }
 
     @Test
@@ -447,7 +481,8 @@ class UserServiceTest {
         // WHEN
         IllegalArgumentException ex =
                 assertThrows(
-                        IllegalArgumentException.class, () -> userService.updateProfile(request));
+                        IllegalArgumentException.class,
+                        () -> userService.updateProfile(request, httpServletResponse));
 
         // THEN
         assertEquals("This username is already taken by another account", ex.getMessage());
@@ -459,6 +494,7 @@ class UserServiceTest {
     void updateProfile_shouldThrow_whenEmailAlreadyTakenByAnotherAccount() {
         // GIVEN
         when(securityUtils.getCurrentUser()).thenReturn(user);
+
         when(sanitizationService.sanitizeAndLog(any(), any(), any()))
                 .thenAnswer(invocation -> invocation.getArgument(0));
         when(userRepository.existsByUsername("mehdi_updated")).thenReturn(false);
@@ -473,7 +509,8 @@ class UserServiceTest {
         // WHEN
         IllegalArgumentException ex =
                 assertThrows(
-                        IllegalArgumentException.class, () -> userService.updateProfile(request));
+                        IllegalArgumentException.class,
+                        () -> userService.updateProfile(request, httpServletResponse));
 
         // THEN
         assertEquals("This email is already in use by another account", ex.getMessage());

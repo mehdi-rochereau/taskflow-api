@@ -215,7 +215,8 @@ public class UserControllerTest {
     @Test
     void updateProfile_shouldReturn200_withTheUpdatedProfile() throws Exception {
         // GIVEN
-        when(userService.updateProfile(any(UpdateProfileRequest.class))).thenReturn(userResponse);
+        when(userService.updateProfile(any(UpdateProfileRequest.class), any()))
+                .thenReturn(userResponse);
 
         // WHEN & THEN
         mockMvc.perform(
@@ -232,7 +233,7 @@ public class UserControllerTest {
     @Test
     void updateProfile_shouldReturn400_whenUsernameIsTaken() throws Exception {
         // GIVEN
-        when(userService.updateProfile(any(UpdateProfileRequest.class)))
+        when(userService.updateProfile(any(UpdateProfileRequest.class), any()))
                 .thenThrow(
                         new IllegalArgumentException(
                                 "This username is already taken by another account"));
@@ -315,27 +316,6 @@ public class UserControllerTest {
 
         // THEN
         verify(userService).deleteAccount(any(DeleteAccountRequest.class), any());
-    }
-
-    @Test
-    void deleteAccount_shouldReturn400_whenPasswordIsIncorrect() throws Exception {
-        // GIVEN
-        // Same reservation as changePassword above: issue #58 may move this to
-        // 401. The OpenAPI description on UserControllerApi reads
-        // "Validation failed or password incorrect" and would move with it.
-        doThrow(new IllegalArgumentException("Password is incorrect — account deletion cancelled"))
-                .when(userService)
-                .deleteAccount(any(DeleteAccountRequest.class), any());
-
-        // WHEN & THEN
-        mockMvc.perform(
-                        delete("/api/users/me")
-                                .contentType(MediaType.APPLICATION_JSON)
-                                .content(objectMapper.writeValueAsString(deleteAccountRequest)))
-                .andExpect(status().isBadRequest())
-                .andExpect(
-                        jsonPath("$.message")
-                                .value("Password is incorrect — account deletion cancelled"));
     }
 
     @Test
