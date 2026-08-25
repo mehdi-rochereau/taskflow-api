@@ -245,13 +245,13 @@ the state this gate was closed to end.
 
 ## Security Principles Applied
 
-| Principle                    | Implementation                                                                                                                                                                                                  |
-|------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| **Defense in Depth**         | HttpOnly cookies + input sanitization + ownership checks + Spring Security + database-level constraints                                                                                                         |
-| **Least Privilege**          | Scoped cookies (`/api`, `/api/auth`), ownership enforced per resource, registry token limited to `read:packages`                                                                                                |
-| **Fail Secure**              | Invalid/expired tokens → `401`, access denied → `403`, password verification failure → `422`, unexpected errors → `500`, schema mismatch → application refuses to start, unverified deployment → pipeline fails |
-| **Separation of Concerns**   | Token lifecycle in `RefreshTokenService`, audit in `AuditService`, integrity in the schema. Partial: `UserService` still carries both session establishment and account management, split deferred (#75)        |
-| **No Security by Obscurity** | Security relies on proven standards (JWT, BCrypt, HttpOnly, SameSite)                                                                                                                                           |
+| Principle                    | Implementation                                                                                                                                                                                                                                                      |
+|------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| **Defense in Depth**         | HttpOnly cookies + input sanitization + ownership checks + Spring Security + database-level constraints                                                                                                                                                             |
+| **Least Privilege**          | Scoped cookies (`/api`, `/api/auth`), ownership enforced per resource, registry token limited to `read:packages`                                                                                                                                                    |
+| **Fail Secure**              | Invalid/expired tokens → `401`, access denied → `403`, password verification failure → `422`, unexpected errors → `500`, schema mismatch → application refuses to start, missing secret file → application refuses to start, unverified deployment → pipeline fails |
+| **Separation of Concerns**   | Token lifecycle in `RefreshTokenService`, audit in `AuditService`, integrity in the schema. Partial: `UserService` still carries both session establishment and account management, split deferred (#75)                                                            |
+| **No Security by Obscurity** | Security relies on proven standards (JWT, BCrypt, HttpOnly, SameSite)                                                                                                                                                                                               |
 
 ---
 
@@ -269,6 +269,17 @@ the state this gate was closed to end.
 
 The defaults above are development values. In production the database account is a dedicated user with a strong
 password, not `root`.
+
+`JWT_SECRET` and `DB_PASSWORD` are read as environment variables in local development only. The `prod` profile imports
+`configtree:/run/secrets/` and reads the two properties `jwt.secret` and `db.password` from files mounted by Docker,
+which keeps both out of `Config.Env` and therefore out of `docker inspect`: an environment variable is recorded verbatim
+by the daemon and stays readable to anyone able to query it, whatever the permissions on the file it came from. Neither
+property is named after the one it feeds. Naming the secret `spring.datasource.password` would let the development
+default fill the gap when the file is absent, and the application would start, serve traffic and report healthy on the
+wrong credential. Distinct names with no default turn that absence into a refused startup, and the import carries no
+`optional:` prefix so a missing directory stops it too. `DB_USERNAME` stays a plain variable: a user name is no
+credential on its own, and the same value creates the account on the database side, where a single source avoids a
+divergence between the two.
 
 `CORS_ALLOWED_ORIGINS` is split on commas and trimmed before being handed to Spring Security. A wildcard is not an
 option here: credentials are enabled so that the browser attaches the authentication cookies, and the CORS specification
