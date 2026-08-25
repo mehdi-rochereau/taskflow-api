@@ -120,13 +120,18 @@ cp .env.example .env
 
 | Variable                        | Description                                                              | Default                 |
 |---------------------------------|--------------------------------------------------------------------------|-------------------------|
-| `JWT_SECRET`                    | HMAC-SHA512 signing key — min 32 chars                                   | —                       |
+| `JWT_SECRET`                    | HMAC-SHA512 signing key — min 32 chars (local only, see below)           | —                       |
 | `JWT_EXPIRATION`                | JWT expiry in milliseconds                                               | `900000` (15 min)       |
 | `COOKIE_SECURE`                 | Enable `Secure` flag on cookies                                          | `false`                 |
 | `REFRESH_TOKEN_EXPIRATION_DAYS` | Refresh token validity in days                                           | `7`                     |
 | `CORS_ALLOWED_ORIGINS`          | Comma-separated list of origins allowed to call the API with credentials | `http://localhost:4200` |
 | `DB_USERNAME`                   | MySQL username                                                           | `root`                  |
-| `DB_PASSWORD`                   | MySQL password                                                           | `root`                  |
+| `DB_PASSWORD`                   | MySQL password (local only, see below)                                   | `root`                  |
+
+Two of these are local development only. In production the `prod` profile reads the JWT signing key and the database
+password from files mounted by Docker under `/run/secrets`, not from `JWT_SECRET` and `DB_PASSWORD`, so that neither
+appears in the output of `docker inspect`. Setting them for a production deployment has no effect, and a missing secret
+file stops the application at startup rather than letting it fall back to a default.
 
 **2. Start MySQL**
 
