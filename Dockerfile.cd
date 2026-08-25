@@ -26,9 +26,25 @@ WORKDIR /app
 # Create a dedicated non-root system user and group.
 # Running as root inside a container is a security risk —
 # a compromised application would have root access to the host.
-# -S creates a system account: no password, no home directory,
+# -r creates a system account: no password, no home directory,
 # no login shell — principle of least privilege.
-RUN groupadd -r taskflow && useradd -r -g taskflow taskflow
+#
+# Both identifiers are pinned, and the GID matters as much as the UID.
+# taskflow-deploy grants the container read access to the mounted secret
+# files by setting their group to 999 on the host: Compose outside Swarm
+# ignores the uid, gid and mode fields on secrets, so the permissions
+# inside the container are the ones the source file carries. Change either
+# number here and the application stops reading its secrets in production,
+# with no application test seeing it go past — the image builds, the suite
+# passes, the pipeline is green, and startup fails on an
+# AccessDeniedException the first time it runs against the real files.
+#
+# Left implicit, -r would assign the highest free identifier below 1000,
+# which lands on 999 only for as long as no other system account is created
+# first. That is not a property to inherit. Worth noting that the Alpine
+# tools in Dockerfile go the other way, counting up from 100, which is why
+# the two images have never carried the same numbers.
+RUN groupadd -r -g 999 taskflow && useradd -r -u 999 -g taskflow taskflow
 
 # Update system packages to get latest security patches.
 # eclipse-temurin:21-jre-jammy may ship with vulnerable versions

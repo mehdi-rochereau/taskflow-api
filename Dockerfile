@@ -43,6 +43,15 @@ WORKDIR /app
 # Running as root inside a container is a security risk —
 # if the app is compromised, the attacker gets root on the host.
 # -S creates a system user/group (no password, no home directory).
+#
+# Deliberately not pinned here, unlike Dockerfile.cd. This image is for local
+# development only and never reads mounted secrets, so its identifiers carry no
+# functional weight. They are also nowhere near the production ones: -S counts
+# up from 100 in this base image and lands on uid 100, gid 101, while the CD
+# image sits at 999. The two have always diverged, unnoticed because nothing
+# depended on the numbers before #59. Aligning them here would gain nothing and
+# GID 999 is taken in eclipse-temurin:21-jre-alpine anyway. Dockerfile.cd is the
+# file whose numbers taskflow-deploy depends on.
 RUN addgroup -S taskflow && adduser -S taskflow -G taskflow
 
 # Copy only the built JAR from Stage 1.
