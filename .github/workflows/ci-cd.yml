@@ -90,8 +90,12 @@ jobs:
     steps:
 
       # ── Checkout ─────────────────────────────────────────
+      # v5 and not v6: v5.0.0 is the release that moves the runtime to Node 24
+      # and needs a v2.327.1 runner. v6 additionally relocates the persisted
+      # credentials into $RUNNER_TEMP and demands a v2.329.0 runner, a breaking
+      # change that buys nothing here.
       - name: Checkout source code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           # fetch-depth: 0 fetches full git history.
           # Required by GitLeaks to scan all commits, not just HEAD.
@@ -106,7 +110,12 @@ jobs:
       # from Swagger/OpenAPI example token values in annotations.
       - name: Scan for secrets with GitLeaks
         id: gitleaks
-        uses: gitleaks/gitleaks-action@v2
+        # v3 migrates the runtime to Node 24 with no change to inputs, outputs
+        # or behaviour. The maintainer gives 16 September 2026 as the date v2
+        # stops working. This action calls actions/github-script internally,
+        # which is why that action shows up in the deprecation annotation
+        # without appearing anywhere in this file.
+        uses: gitleaks/gitleaks-action@v3
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -117,7 +126,9 @@ jobs:
       # ensures consistency between local dev and CI environments.
       - name: Set up Java ${{ env.JAVA_VERSION }}
         id: java
-        uses: actions/setup-java@v4
+        # v5 and not v6: the only change in v6 is renaming the jdkFile input to
+        # jdk-file, an input this workflow does not use. Both carry Node 24.
+        uses: actions/setup-java@v5
         with:
           java-version: ${{ env.JAVA_VERSION }}
           distribution: 'temurin'
@@ -129,7 +140,7 @@ jobs:
       # restore-keys provides a fallback to the most recent cache
       # if no exact match is found (partial cache hit).
       - name: Cache Gradle packages
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             ~/.gradle/caches
@@ -143,7 +154,7 @@ jobs:
       # Cache key is based on build.gradle — invalidated when
       # dependencies change and a fresh CVE check is needed.
       - name: Cache OWASP NVD database
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ~/.gradle/dependency-check-data
           key: owasp-nvd-${{ runner.os }}-${{ hashFiles('build.gradle') }}
@@ -178,9 +189,14 @@ jobs:
         id: checkstyle
         run: ./gradlew checkstyleMain checkstyleTest --no-daemon
 
+      # v6 and not v5. v5 carried preliminary Node 24 support only and still
+      # defaulted to Node 20, so stopping at v5 would leave the deprecation
+      # annotation exactly where it is. v6 is the first release where Node 24
+      # is the default runtime. The same offset applies to download-artifact in
+      # the CD job, shifted by one version.
       - name: Upload Checkstyle report
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: checkstyle-report
           path: build/reports/checkstyle/
@@ -218,17 +234,19 @@ jobs:
         env:
           SPRING_PROFILES_ACTIVE: test
 
+      # v6 and not v5: see the Checkstyle report step.
       - name: Upload JaCoCo HTML report
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: jacoco-report
           path: build/reports/jacoco/html/
           retention-days: 7
 
+      # v6 and not v5: see the Checkstyle report step.
       - name: Upload test results
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: test-results
           path: build/reports/tests/test/
@@ -343,9 +361,10 @@ jobs:
       # outcome once the step becomes blocking: a failing pipeline with no
       # report to explain why. Uploading the directory also captures the JSON
       # report, which the HTML-only path was leaving behind.
+      # v6 and not v5: see the Checkstyle report step.
       - name: Upload OWASP report
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: owasp-report
           path: build/reports/dependency-check/
@@ -360,8 +379,9 @@ jobs:
         id: jar
         run: ./gradlew bootJar --no-daemon -x test
 
+      # v6 and not v5: see the Checkstyle report step.
       - name: Upload JAR artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: taskflow-api-jar
           path: build/libs/*.jar
