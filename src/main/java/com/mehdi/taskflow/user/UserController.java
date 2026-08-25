@@ -62,9 +62,10 @@ public class UserController implements UserControllerApi {
      * all active refresh tokens to invalidate existing sessions.
      *
      * @param request the change password data — current and new passwords
-     * @return {@code 204 No Content} on success, {@code 400 Bad Request} if validation fails or
-     *     current password is incorrect, or {@code 401 Unauthorized} if no valid JWT token is
-     *     present
+     * @return {@code 204 No Content} on success, {@code 400 Bad Request} if validation fails or the
+     *     new password is identical to the current one, {@code 422 Unprocessable Entity} if the
+     *     current password does not match the stored hash, or {@code 401 Unauthorized} if no valid
+     *     JWT token is present
      */
     @Override
     @PostMapping("/me/password")
@@ -79,7 +80,12 @@ public class UserController implements UserControllerApi {
      * <p>Validates uniqueness of the new username and email before applying changes. The username
      * is sanitized before persistence.
      *
+     * <p>A rename re-issues the JWT cookie: the token subject carries the username, so the previous
+     * token would designate a row that no longer answers to that name and every later request would
+     * be rejected as an invalid token.
+     *
      * @param request the updated profile data — new username and email
+     * @param response the HTTP response used to write the refreshed JWT cookie on a rename
      * @return {@code 200 OK} with the updated user profile as {@link UserResponse}, {@code 400 Bad
      *     Request} if validation fails or username/email is already taken, or {@code 401
      *     Unauthorized} if no valid JWT token is present
@@ -87,8 +93,8 @@ public class UserController implements UserControllerApi {
     @Override
     @PutMapping("/me")
     public ResponseEntity<UserResponse> updateProfile(
-            @Valid @RequestBody UpdateProfileRequest request) {
-        return ResponseEntity.ok(userService.updateProfile(request));
+            @Valid @RequestBody UpdateProfileRequest request, HttpServletResponse response) {
+        return ResponseEntity.ok(userService.updateProfile(request, response));
     }
 
     /**
@@ -103,8 +109,9 @@ public class UserController implements UserControllerApi {
      *
      * @param request the deletion confirmation data — user's current password
      * @param response the HTTP response used to clear the session cookies
-     * @return {@code 204 No Content} on success, {@code 400 Bad Request} if validation fails or
-     *     password is incorrect, or {@code 401 Unauthorized} if no valid JWT token is present
+     * @return {@code 204 No Content} on success, {@code 400 Bad Request} if validation fails,
+     *     {@code 422 Unprocessable Entity} if the confirmation password does not match the stored
+     *     hash, or {@code 401 Unauthorized} if no valid JWT token is present
      */
     @Override
     @DeleteMapping("/me")

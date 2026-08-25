@@ -170,6 +170,29 @@ public class GlobalExceptionHandler {
     }
 
     /**
+     * Handles a password that fails verification against the stored hash.
+     *
+     * <p>Returns {@code 422} rather than a member of the {@code 401} family. A {@code 401} on an
+     * endpoint outside {@code /api/auth} is read by the frontend interceptor as an expired session:
+     * it refreshes silently, succeeds since the session is in fact valid, then replays the original
+     * request with the same wrong password. On account deletion that replay would be a second
+     * deletion attempt the user never asked for.
+     *
+     * <p>Returns {@code 422} rather than {@code 400} because the request is well formed and the
+     * field is present: what fails is the verification, not the shape of the payload. A missing
+     * password still yields {@code 400} through bean validation, which is the distinction the
+     * client needs to place the error under the right field.
+     *
+     * @param ex exception carrying the message resolved for the current locale
+     * @return {@code 422 Unprocessable Entity} response with the error message
+     */
+    @ExceptionHandler(PasswordVerificationException.class)
+    public ResponseEntity<Map<String, Object>> handlePasswordVerification(
+            PasswordVerificationException ex) {
+        return buildResponse(HttpStatus.UNPROCESSABLE_ENTITY, ex.getMessage());
+    }
+
+    /**
      * Builds a standardized error response body.
      *
      * @param status HTTP status code

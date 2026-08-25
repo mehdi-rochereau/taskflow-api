@@ -18,6 +18,7 @@ import com.mehdi.taskflow.auth.RefreshTokenService;
 import com.mehdi.taskflow.config.AuditService;
 import com.mehdi.taskflow.config.MessageService;
 import com.mehdi.taskflow.config.SanitizationService;
+import com.mehdi.taskflow.exception.PasswordVerificationException;
 import com.mehdi.taskflow.security.JwtService;
 import com.mehdi.taskflow.security.SecurityUtils;
 import com.mehdi.taskflow.user.dto.AuthResponse;
@@ -329,9 +330,13 @@ class UserServiceTest {
         request.setNewPassword("NewPassword@2026");
 
         // WHEN
-        IllegalArgumentException ex =
+        // A verification of identity, not a constraint on the submitted value:
+        // the test below on an identical new password keeps
+        // IllegalArgumentException, and that pairing is the distinction.
+        PasswordVerificationException ex =
                 assertThrows(
-                        IllegalArgumentException.class, () -> userService.changePassword(request));
+                        PasswordVerificationException.class,
+                        () -> userService.changePassword(request));
 
         // THEN
         assertEquals("Current password is incorrect", ex.getMessage());
@@ -354,6 +359,8 @@ class UserServiceTest {
         request.setNewPassword("SamePassword@2026");
 
         // WHEN
+        // Deliberately IllegalArgumentException, unlike the wrong-password test
+        // above: this rule constrains the submitted value and keeps its 400.
         IllegalArgumentException ex =
                 assertThrows(
                         IllegalArgumentException.class, () -> userService.changePassword(request));
@@ -375,13 +382,14 @@ class UserServiceTest {
         when(userRepository.existsByUsername("mehdi_updated")).thenReturn(false);
         when(userRepository.existsByEmail("mehdi.updated@test.com")).thenReturn(false);
         when(userRepository.save(any(User.class))).thenReturn(user);
+        when(jwtService.generateToken(any(User.class))).thenReturn("fake-jwt-token");
 
         UpdateProfileRequest request = new UpdateProfileRequest();
         request.setUsername("mehdi_updated");
         request.setEmail("mehdi.updated@test.com");
 
         // WHEN
-        UserResponse response = userService.updateProfile(request);
+        UserResponse response = userService.updateProfile(request, httpServletResponse);
 
         // THEN
         assertNotNull(response);
@@ -397,6 +405,10 @@ class UserServiceTest {
                                         u.getUsername().equals("mehdi_updated")
                                                 && u.getEmail().equals("mehdi.updated@test.com")));
         verify(auditService).logProfileUpdate("mehdi_updated");
+        // The username changed, so the JWT is re-issued: the old token carries
+        // the old name as subject and would fail to resolve on the next request.
+        verify(jwtService).generateToken(user);
+        verify(httpServletResponse).addHeader(eq("Set-Cookie"), contains("jwt="));
     }
 
     @Test
@@ -412,7 +424,7 @@ class UserServiceTest {
         request.setEmail("mehdi@test.com");
 
         // WHEN
-        UserResponse response = userService.updateProfile(request);
+        UserResponse response = userService.updateProfile(request, httpServletResponse);
 
         // THEN
         assertNotNull(response);
@@ -421,6 +433,35 @@ class UserServiceTest {
         verify(userRepository, never()).existsByUsername(any());
         verify(userRepository, never()).existsByEmail(any());
         verify(userRepository).save(any(User.class));
+        // No rename, so no re-issue: doing it anyway would silently extend the
+        // session window on every profile save.
+        verify(jwtService, never()).generateToken(any());
+        verify(httpServletResponse, never()).addHeader(eq("Set-Cookie"), contains("jwt="));
+    }
+
+    @Test
+    void updateProfile_shouldNotReissueTheToken_whenOnlyTheEmailChanges() {
+        // GIVEN
+        // The uniqueness check on the username is skipped since it is unchanged,
+        // and the token stays valid because its subject is untouched.
+        when(securityUtils.getCurrentUser()).thenReturn(user);
+        when(sanitizationService.sanitizeAndLog(any(), any(), any()))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+        when(userRepository.existsByEmail("new.email@test.com")).thenReturn(false);
+        when(userRepository.save(any(User.class))).thenReturn(user);
+
+        UpdateProfileRequest request = new UpdateProfileRequest();
+        request.setUsername("mehdi");
+        request.setEmail("new.email@test.com");
+
+        // WHEN
+        UserResponse response = userService.updateProfile(request, httpServletResponse);
+
+        // THEN
+        assertEquals("mehdi", response.getUsername());
+        assertEquals("new.email@test.com", response.getEmail());
+        verify(jwtService, never()).generateToken(any());
+        verify(userRepository, never()).existsByUsername(any());
     }
 
     @Test
@@ -440,7 +481,8 @@ class UserServiceTest {
         // WHEN
         IllegalArgumentException ex =
                 assertThrows(
-                        IllegalArgumentException.class, () -> userService.updateProfile(request));
+                        IllegalArgumentException.class,
+                        () -> userService.updateProfile(request, httpServletResponse));
 
         // THEN
         assertEquals("This username is already taken by another account", ex.getMessage());
@@ -452,6 +494,7 @@ class UserServiceTest {
     void updateProfile_shouldThrow_whenEmailAlreadyTakenByAnotherAccount() {
         // GIVEN
         when(securityUtils.getCurrentUser()).thenReturn(user);
+
         when(sanitizationService.sanitizeAndLog(any(), any(), any()))
                 .thenAnswer(invocation -> invocation.getArgument(0));
         when(userRepository.existsByUsername("mehdi_updated")).thenReturn(false);
@@ -466,7 +509,8 @@ class UserServiceTest {
         // WHEN
         IllegalArgumentException ex =
                 assertThrows(
-                        IllegalArgumentException.class, () -> userService.updateProfile(request));
+                        IllegalArgumentException.class,
+                        () -> userService.updateProfile(request, httpServletResponse));
 
         // THEN
         assertEquals("This email is already in use by another account", ex.getMessage());
@@ -505,9 +549,9 @@ class UserServiceTest {
         request.setPassword("WrongPassword@2026");
 
         // WHEN
-        IllegalArgumentException ex =
+        PasswordVerificationException ex =
                 assertThrows(
-                        IllegalArgumentException.class,
+                        PasswordVerificationException.class,
                         () -> userService.deleteAccount(request, httpServletResponse));
 
         // THEN

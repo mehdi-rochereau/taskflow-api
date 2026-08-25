@@ -16,6 +16,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mehdi.taskflow.config.AuditService;
 import com.mehdi.taskflow.config.MessageService;
 import com.mehdi.taskflow.config.SecurityConfig;
+import com.mehdi.taskflow.exception.PasswordVerificationException;
 import com.mehdi.taskflow.security.JwtFilter;
 import com.mehdi.taskflow.security.JwtService;
 import com.mehdi.taskflow.security.RateLimitFilter;
@@ -161,12 +162,9 @@ public class UserControllerTest {
     }
 
     @Test
-    void changePassword_shouldReturn400_whenCurrentPasswordIsIncorrect() throws Exception {
+    void changePassword_shouldReturn422_whenCurrentPasswordIsIncorrect() throws Exception {
         // GIVEN
-        // Current behaviour: a wrong password is reported as a validation
-        // error. Issue #58 questions this and may move it to the 401 family;
-        // this test documents what the API does today, not what it should do.
-        doThrow(new IllegalArgumentException("Current password is incorrect"))
+        doThrow(new PasswordVerificationException("Current password is incorrect"))
                 .when(userService)
                 .changePassword(any(ChangePasswordRequest.class));
 
@@ -175,29 +173,28 @@ public class UserControllerTest {
                         post("/api/users/me/password")
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(objectMapper.writeValueAsString(changePasswordRequest)))
-                .andExpect(status().isBadRequest())
+                .andExpect(status().isUnprocessableEntity())
                 .andExpect(jsonPath("$.message").value("Current password is incorrect"));
     }
 
     @Test
-    void changePassword_shouldReturn400_whenNewPasswordIsIdenticalToTheCurrentOne()
-            throws Exception {
+    void deleteAccount_shouldReturn422_whenPasswordIsIncorrect() throws Exception {
         // GIVEN
         doThrow(
-                        new IllegalArgumentException(
-                                "New password must be different from the current password"))
+                        new PasswordVerificationException(
+                                "Password is incorrect — account deletion cancelled"))
                 .when(userService)
-                .changePassword(any(ChangePasswordRequest.class));
+                .deleteAccount(any(DeleteAccountRequest.class), any());
 
         // WHEN & THEN
         mockMvc.perform(
-                        post("/api/users/me/password")
+                        delete("/api/users/me")
                                 .contentType(MediaType.APPLICATION_JSON)
-                                .content(objectMapper.writeValueAsString(changePasswordRequest)))
-                .andExpect(status().isBadRequest())
+                                .content(objectMapper.writeValueAsString(deleteAccountRequest)))
+                .andExpect(status().isUnprocessableEntity())
                 .andExpect(
                         jsonPath("$.message")
-                                .value("New password must be different from the current password"));
+                                .value("Password is incorrect — account deletion cancelled"));
     }
 
     @Test
@@ -218,7 +215,8 @@ public class UserControllerTest {
     @Test
     void updateProfile_shouldReturn200_withTheUpdatedProfile() throws Exception {
         // GIVEN
-        when(userService.updateProfile(any(UpdateProfileRequest.class))).thenReturn(userResponse);
+        when(userService.updateProfile(any(UpdateProfileRequest.class), any()))
+                .thenReturn(userResponse);
 
         // WHEN & THEN
         mockMvc.perform(
@@ -235,7 +233,7 @@ public class UserControllerTest {
     @Test
     void updateProfile_shouldReturn400_whenUsernameIsTaken() throws Exception {
         // GIVEN
-        when(userService.updateProfile(any(UpdateProfileRequest.class)))
+        when(userService.updateProfile(any(UpdateProfileRequest.class), any()))
                 .thenThrow(
                         new IllegalArgumentException(
                                 "This username is already taken by another account"));
@@ -318,27 +316,6 @@ public class UserControllerTest {
 
         // THEN
         verify(userService).deleteAccount(any(DeleteAccountRequest.class), any());
-    }
-
-    @Test
-    void deleteAccount_shouldReturn400_whenPasswordIsIncorrect() throws Exception {
-        // GIVEN
-        // Same reservation as changePassword above: issue #58 may move this to
-        // 401. The OpenAPI description on UserControllerApi reads
-        // "Validation failed or password incorrect" and would move with it.
-        doThrow(new IllegalArgumentException("Password is incorrect — account deletion cancelled"))
-                .when(userService)
-                .deleteAccount(any(DeleteAccountRequest.class), any());
-
-        // WHEN & THEN
-        mockMvc.perform(
-                        delete("/api/users/me")
-                                .contentType(MediaType.APPLICATION_JSON)
-                                .content(objectMapper.writeValueAsString(deleteAccountRequest)))
-                .andExpect(status().isBadRequest())
-                .andExpect(
-                        jsonPath("$.message")
-                                .value("Password is incorrect — account deletion cancelled"));
     }
 
     @Test

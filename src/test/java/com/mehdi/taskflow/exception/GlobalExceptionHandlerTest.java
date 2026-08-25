@@ -3,6 +3,7 @@ package com.mehdi.taskflow.exception;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
@@ -141,6 +142,43 @@ public class GlobalExceptionHandlerTest {
 
         // THEN
         assertStandardBody(response, HttpStatus.BAD_REQUEST, "This username is already taken");
+    }
+
+    // ── 422 ──────────────────────────────────────────────────────────
+
+    @Test
+    void handlePasswordVerification_shouldReturn422_withTheExceptionMessage() {
+        // GIVEN
+        PasswordVerificationException ex =
+                new PasswordVerificationException("Current password is incorrect");
+
+        // WHEN
+        ResponseEntity<Map<String, Object>> response =
+                globalExceptionHandler.handlePasswordVerification(ex);
+
+        // THEN
+        assertStandardBody(
+                response, HttpStatus.UNPROCESSABLE_ENTITY, "Current password is incorrect");
+    }
+
+    @Test
+    void handlePasswordVerification_shouldNotReturn401_whichTheFrontendReadsAsAnExpiredSession() {
+        // GIVEN
+        // The frontend interceptor treats any 401 outside /api/auth as an
+        // expired session: it refreshes silently, succeeds since the session is
+        // valid, then replays the request with the same wrong password. On
+        // account deletion that replay is a second deletion attempt.
+        PasswordVerificationException ex =
+                new PasswordVerificationException("Password is incorrect");
+
+        // WHEN
+        ResponseEntity<Map<String, Object>> response =
+                globalExceptionHandler.handlePasswordVerification(ex);
+
+        // THEN
+        assertEquals(422, response.getStatusCode().value());
+        assertNotEquals(HttpStatus.UNAUTHORIZED, response.getStatusCode());
+        assertNotEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
     }
 
     // ── 400, validation ──────────────────────────────────────────────

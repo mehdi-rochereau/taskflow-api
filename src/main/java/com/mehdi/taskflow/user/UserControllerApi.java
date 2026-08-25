@@ -116,8 +116,8 @@ public interface UserControllerApi {
      * user must authenticate again, including on the device that made the change.
      *
      * @param request the current and new passwords
-     * @return {@code 204 No Content}, or {@code 400} if the current password is wrong or the new
-     *     one is identical to it
+     * @return {@code 204 No Content}, {@code 422} if the current password is wrong, or {@code 400}
+     *     if the new one is identical to it
      */
     @Operation(
             summary = "Change authenticated user password",
@@ -142,8 +142,7 @@ public interface UserControllerApi {
                         content = @Content),
                 @ApiResponse(
                         responseCode = "400",
-                        description =
-                                "Validation failed, current password incorrect or new password identical to current",
+                        description = "Validation failed or new password identical to current",
                         content =
                                 @Content(
                                         mediaType = "application/json",
@@ -161,16 +160,6 @@ public interface UserControllerApi {
                                                             }
                                                             """),
                                             @ExampleObject(
-                                                    name = "Incorrect current password",
-                                                    value =
-                                                            """
-                                                            {
-                                                              "timestamp": "2026-04-18T10:00:00",
-                                                              "status": 400,
-                                                              "message": "Current password is incorrect"
-                                                            }
-                                                            """),
-                                            @ExampleObject(
                                                     name = "Same password",
                                                     value =
                                                             """
@@ -181,6 +170,23 @@ public interface UserControllerApi {
                                                             }
                                                             """)
                                         })),
+                @ApiResponse(
+                        responseCode = "422",
+                        description = "Current password does not match the stored hash",
+                        content =
+                                @Content(
+                                        mediaType = "application/json",
+                                        examples =
+                                                @ExampleObject(
+                                                        name = "Incorrect current password",
+                                                        value =
+                                                                """
+                                                    {
+                                                      "timestamp": "2026-04-18T10:00:00",
+                                                      "status": 422,
+                                                      "message": "Current password is incorrect"
+                                                    }
+                                                    """))),
                 @ApiResponse(
                         responseCode = "401",
                         description = "Missing or invalid JWT token",
@@ -334,7 +340,8 @@ public interface UserControllerApi {
                                                     }
                                                     """)))
             })
-    ResponseEntity<UserResponse> updateProfile(@Valid @RequestBody UpdateProfileRequest request);
+    ResponseEntity<UserResponse> updateProfile(
+            @Valid @RequestBody UpdateProfileRequest request, HttpServletResponse response);
 
     /**
      * Permanently deletes the authenticated user's account.
@@ -381,34 +388,40 @@ public interface UserControllerApi {
                         content = @Content),
                 @ApiResponse(
                         responseCode = "400",
-                        description = "Validation failed or password incorrect",
+                        description = "Validation failed",
                         content =
                                 @Content(
                                         mediaType = "application/json",
-                                        examples = {
-                                            @ExampleObject(
-                                                    name = "Validation error",
-                                                    value =
-                                                            """
-                                                            {
-                                                              "timestamp": "2026-04-18T10:00:00",
-                                                              "status": 400,
-                                                              "errors": {
-                                                                "password": ["Current password is required"]
-                                                              }
-                                                            }
-                                                            """),
-                                            @ExampleObject(
-                                                    name = "Incorrect password",
-                                                    value =
-                                                            """
-                                                            {
-                                                              "timestamp": "2026-04-18T10:00:00",
-                                                              "status": 400,
-                                                              "message": "Password is incorrect — account deletion cancelled"
-                                                            }
-                                                            """)
-                                        })),
+                                        examples =
+                                                @ExampleObject(
+                                                        name = "Validation error",
+                                                        value =
+                                                                """
+                                                    {
+                                                      "timestamp": "2026-04-18T10:00:00",
+                                                      "status": 400,
+                                                      "errors": {
+                                                        "password": ["Current password is required"]
+                                                      }
+                                                    }
+                                                    """))),
+                @ApiResponse(
+                        responseCode = "422",
+                        description = "Confirmation password does not match the stored hash",
+                        content =
+                                @Content(
+                                        mediaType = "application/json",
+                                        examples =
+                                                @ExampleObject(
+                                                        name = "Incorrect password",
+                                                        value =
+                                                                """
+                                                    {
+                                                      "timestamp": "2026-04-18T10:00:00",
+                                                      "status": 422,
+                                                      "message": "Password is incorrect — account deletion cancelled"
+                                                    }
+                                                    """))),
                 @ApiResponse(
                         responseCode = "401",
                         description = "Missing or invalid JWT token",
