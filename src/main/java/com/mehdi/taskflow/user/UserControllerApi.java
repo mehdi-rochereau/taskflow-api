@@ -116,8 +116,8 @@ public interface UserControllerApi {
      * user must authenticate again, including on the device that made the change.
      *
      * @param request the current and new passwords
-     * @return {@code 204 No Content}, or {@code 400} if the current password is wrong or the new
-     *     one is identical to it
+     * @return {@code 204 No Content}, {@code 422} if the current password is wrong, or {@code 400}
+     *     if the new one is identical to it
      */
     @Operation(
             summary = "Change authenticated user password",
