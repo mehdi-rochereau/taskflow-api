@@ -443,16 +443,21 @@ jobs:
       # ── Checkout ─────────────────────────────────────────
       # Required for Docker build context (Dockerfile.cd, .dockerignore).
       # Source code itself is not recompiled here — the JAR from CI is used.
+      # v5 and not v6: see the checkout step in the CI job.
       - name: Checkout source code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       # ── Download JAR from CI ──────────────────────────────
       # Downloads the JAR artifact built by the CI job.
       # This avoids recompiling the application in the CD job,
       # ensuring the exact same binary that passed all CI checks
       # is the one packaged into the Docker image.
+      # v7 and not v6. Same trap as upload-artifact in the CI job, offset by
+      # one version: v6 carried preliminary Node 24 support only and still
+      # defaulted to Node 20. v7 is the first release where Node 24 is the
+      # default runtime.
       - name: Download JAR artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: taskflow-api-jar
           path: build/libs/
@@ -471,8 +476,11 @@ jobs:
       # Required to enable GitHub Actions cache (type=gha) for
       # Docker layer caching. The default docker driver does not
       # support external cache backends.
+      # v4, v4, v7 and v6 for the four Docker actions below: each of these
+      # majors is the release that switches the runtime to Node 24, all
+      # requiring runner v2.327.1 or later.
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@v4
 
       # ── Docker login ─────────────────────────────────────
       # Authenticates to GitHub Container Registry using GITHUB_TOKEN.
@@ -481,7 +489,7 @@ jobs:
       # The package must have the repository added in "Manage Actions access"
       # under the package settings on GitHub.
       - name: Log in to GitHub Container Registry
-        uses: docker/login-action@v3
+        uses: docker/login-action@v4
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
@@ -493,9 +501,12 @@ jobs:
       # - latest: mutable tag for docker compose pull on the VPS
       # Labels include source repo, commit SHA, build date — visible
       # in the GitHub Packages UI and useful for incident investigation.
+      # v6 also switches this action to ESM internally and changes how a #
+      # character inside a list value is parsed. Neither touches our use: the
+      # tags below carry no # and the module format is internal to the action.
       - name: Extract Docker metadata
         id: meta
-        uses: docker/metadata-action@v5
+        uses: docker/metadata-action@v6
         with:
           images: ${{ env.IMAGE_NAME }}
           tags: |
@@ -517,7 +528,7 @@ jobs:
       # with private registries in some Trivy scan configurations.
       - name: Build and push Docker image
         id: build
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: .
           file: Dockerfile.cd
@@ -553,9 +564,10 @@ jobs:
           TRIVY_USERNAME: ${{ github.actor }}
           TRIVY_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
 
+      # v6 and not v5: see the Checkstyle report step in the CI job.
       - name: Upload Trivy report
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: trivy-report
           path: trivy-report.txt
