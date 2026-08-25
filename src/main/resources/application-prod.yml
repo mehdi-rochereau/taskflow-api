@@ -3,16 +3,36 @@
 # Properties not defined here inherit from application.yml.
 
 spring:
+  # Secrets are mounted by Docker as files under /run/secrets and read here as a
+  # property source, one property per file name. They never pass through an
+  # environment variable, which is the whole point: Docker records `environment`
+  # verbatim in Config.Env, where `docker inspect` exposes it to anyone able to
+  # query the daemon, permanently and regardless of file permissions.
+  #
+  # No `optional:` prefix on purpose. A missing directory must stop the
+  # application, not start it on whatever defaults happen to be reachable.
+  config:
+    import: configtree:/run/secrets/
+
   datasource:
     # DB_HOST defaults to "mysql" — the Docker Compose service name.
     # On the Docker internal network, services reach each other by name.
     # useSSL=false — both containers are on the same private Docker network,
     # SSL between containers on the same host adds no security benefit.
     url: jdbc:mysql://${DB_HOST:mysql}:${DB_PORT:3306}/${DB_NAME:taskflow}?createDatabaseIfNotExist=true&useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
-    # No defaults — these MUST be provided via environment variables.
-    # The application will refuse to start if they are missing.
+    # No defaults — it MUST be provided, and the application refuses to start
+    # if they are missing. DB_USERNAME stays an environment variable: a user name
+    # is not a credential and its exposure in `docker inspect` grants nothing.
     username: ${DB_USERNAME}
-    password: ${DB_PASSWORD}
+    # Read from /run/secrets/db.password, not from DB_PASSWORD.
+    #
+    # The property is deliberately not named spring.datasource.password. Naming
+    # it so would let application.yml's ${DB_PASSWORD:root} fill the gap when the
+    # secret file is absent: the API would start on the default, serve traffic and
+    # report healthy, with a clean `docker inspect` to prove nothing was leaked.
+    # A distinct name with no default turns that same absence into an
+    # unresolvable placeholder and a refused startup.
+    password: ${db.password}
     driver-class-name: com.mysql.cj.jdbc.Driver
 
   jpa:
@@ -48,8 +68,11 @@ server:
 
 application:
   jwt:
-    # No default — must be provided. Missing value causes startup failure.
-    secret: ${JWT_SECRET}
+    # Read from /run/secrets/jwt.secret, not from JWT_SECRET, for the same reason
+    # as the database password and with more at stake: this key signs the tokens,
+    # so anyone reading it forges a valid session for any account without ever
+    # touching the database. No default, so a missing file refuses startup.
+    secret: ${jwt.secret}
     # Default 15 minutes — short-lived tokens reduce exposure window.
     expiration: ${JWT_EXPIRATION:900000}
   cookie:
