@@ -90,8 +90,12 @@ jobs:
     steps:
 
       # ── Checkout ─────────────────────────────────────────
+      # v5 and not v6: v5.0.0 is the release that moves the runtime to Node 24
+      # and needs a v2.327.1 runner. v6 additionally relocates the persisted
+      # credentials into $RUNNER_TEMP and demands a v2.329.0 runner, a breaking
+      # change that buys nothing here.
       - name: Checkout source code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           # fetch-depth: 0 fetches full git history.
           # Required by GitLeaks to scan all commits, not just HEAD.
@@ -106,7 +110,12 @@ jobs:
       # from Swagger/OpenAPI example token values in annotations.
       - name: Scan for secrets with GitLeaks
         id: gitleaks
-        uses: gitleaks/gitleaks-action@v2
+        # v3 migrates the runtime to Node 24 with no change to inputs, outputs
+        # or behaviour. The maintainer gives 16 September 2026 as the date v2
+        # stops working. This action calls actions/github-script internally,
+        # which is why that action shows up in the deprecation annotation
+        # without appearing anywhere in this file.
+        uses: gitleaks/gitleaks-action@v3
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -117,7 +126,9 @@ jobs:
       # ensures consistency between local dev and CI environments.
       - name: Set up Java ${{ env.JAVA_VERSION }}
         id: java
-        uses: actions/setup-java@v4
+        # v5 and not v6: the only change in v6 is renaming the jdkFile input to
+        # jdk-file, an input this workflow does not use. Both carry Node 24.
+        uses: actions/setup-java@v5
         with:
           java-version: ${{ env.JAVA_VERSION }}
           distribution: 'temurin'
@@ -129,7 +140,7 @@ jobs:
       # restore-keys provides a fallback to the most recent cache
       # if no exact match is found (partial cache hit).
       - name: Cache Gradle packages
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             ~/.gradle/caches
@@ -143,7 +154,7 @@ jobs:
       # Cache key is based on build.gradle — invalidated when
       # dependencies change and a fresh CVE check is needed.
       - name: Cache OWASP NVD database
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ~/.gradle/dependency-check-data
           key: owasp-nvd-${{ runner.os }}-${{ hashFiles('build.gradle') }}
@@ -178,9 +189,14 @@ jobs:
         id: checkstyle
         run: ./gradlew checkstyleMain checkstyleTest --no-daemon
 
+      # v6 and not v5. v5 carried preliminary Node 24 support only and still
+      # defaulted to Node 20, so stopping at v5 would leave the deprecation
+      # annotation exactly where it is. v6 is the first release where Node 24
+      # is the default runtime. The same offset applies to download-artifact in
+      # the CD job, shifted by one version.
       - name: Upload Checkstyle report
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: checkstyle-report
           path: build/reports/checkstyle/
@@ -218,17 +234,19 @@ jobs:
         env:
           SPRING_PROFILES_ACTIVE: test
 
+      # v6 and not v5: see the Checkstyle report step.
       - name: Upload JaCoCo HTML report
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: jacoco-report
           path: build/reports/jacoco/html/
           retention-days: 7
 
+      # v6 and not v5: see the Checkstyle report step.
       - name: Upload test results
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: test-results
           path: build/reports/tests/test/
@@ -308,9 +326,17 @@ jobs:
       # Uploads the JaCoCo XML report to Codecov for trend tracking
       # and PR coverage diff comments.
       # fail_ci_if_error: false — Codecov outages don't block the pipeline.
+      #
+      # v6 is the Node 24 release. This action is composite, so it declares no
+      # runtime of its own and never appeared by name in the deprecation
+      # annotation; what surfaced instead was actions/github-script pinned to
+      # 7.0.1, which v5 calls internally. That is why the annotation named an
+      # action absent from this file. Bumping v5 to v6 is what clears it, and
+      # no version of this workflow could have done so by editing github-script
+      # directly.
       - name: Upload coverage to Codecov
         id: codecov
-        uses: codecov/codecov-action@v5
+        uses: codecov/codecov-action@v6
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: build/reports/jacoco/test/jacocoTestReport.xml
@@ -343,9 +369,10 @@ jobs:
       # outcome once the step becomes blocking: a failing pipeline with no
       # report to explain why. Uploading the directory also captures the JSON
       # report, which the HTML-only path was leaving behind.
+      # v6 and not v5: see the Checkstyle report step.
       - name: Upload OWASP report
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: owasp-report
           path: build/reports/dependency-check/
@@ -360,8 +387,9 @@ jobs:
         id: jar
         run: ./gradlew bootJar --no-daemon -x test
 
+      # v6 and not v5: see the Checkstyle report step.
       - name: Upload JAR artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: taskflow-api-jar
           path: build/libs/*.jar
@@ -415,16 +443,21 @@ jobs:
       # ── Checkout ─────────────────────────────────────────
       # Required for Docker build context (Dockerfile.cd, .dockerignore).
       # Source code itself is not recompiled here — the JAR from CI is used.
+      # v5 and not v6: see the checkout step in the CI job.
       - name: Checkout source code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       # ── Download JAR from CI ──────────────────────────────
       # Downloads the JAR artifact built by the CI job.
       # This avoids recompiling the application in the CD job,
       # ensuring the exact same binary that passed all CI checks
       # is the one packaged into the Docker image.
+      # v7 and not v6. Same trap as upload-artifact in the CI job, offset by
+      # one version: v6 carried preliminary Node 24 support only and still
+      # defaulted to Node 20. v7 is the first release where Node 24 is the
+      # default runtime.
       - name: Download JAR artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: taskflow-api-jar
           path: build/libs/
@@ -443,8 +476,11 @@ jobs:
       # Required to enable GitHub Actions cache (type=gha) for
       # Docker layer caching. The default docker driver does not
       # support external cache backends.
+      # v4, v4, v7 and v6 for the four Docker actions below: each of these
+      # majors is the release that switches the runtime to Node 24, all
+      # requiring runner v2.327.1 or later.
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@v4
 
       # ── Docker login ─────────────────────────────────────
       # Authenticates to GitHub Container Registry using GITHUB_TOKEN.
@@ -453,7 +489,7 @@ jobs:
       # The package must have the repository added in "Manage Actions access"
       # under the package settings on GitHub.
       - name: Log in to GitHub Container Registry
-        uses: docker/login-action@v3
+        uses: docker/login-action@v4
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
@@ -465,9 +501,12 @@ jobs:
       # - latest: mutable tag for docker compose pull on the VPS
       # Labels include source repo, commit SHA, build date — visible
       # in the GitHub Packages UI and useful for incident investigation.
+      # v6 also switches this action to ESM internally and changes how a #
+      # character inside a list value is parsed. Neither touches our use: the
+      # tags below carry no # and the module format is internal to the action.
       - name: Extract Docker metadata
         id: meta
-        uses: docker/metadata-action@v5
+        uses: docker/metadata-action@v6
         with:
           images: ${{ env.IMAGE_NAME }}
           tags: |
@@ -489,7 +528,7 @@ jobs:
       # with private registries in some Trivy scan configurations.
       - name: Build and push Docker image
         id: build
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: .
           file: Dockerfile.cd
@@ -525,9 +564,10 @@ jobs:
           TRIVY_USERNAME: ${{ github.actor }}
           TRIVY_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
 
+      # v6 and not v5: see the Checkstyle report step in the CI job.
       - name: Upload Trivy report
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: trivy-report
           path: trivy-report.txt
