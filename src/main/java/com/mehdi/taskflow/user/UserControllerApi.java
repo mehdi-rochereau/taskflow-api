@@ -340,7 +340,8 @@ public interface UserControllerApi {
                                                     }
                                                     """)))
             })
-    ResponseEntity<UserResponse> updateProfile(@Valid @RequestBody UpdateProfileRequest request);
+    ResponseEntity<UserResponse> updateProfile(
+            @Valid @RequestBody UpdateProfileRequest request, HttpServletResponse response);
 
     /**
      * Permanently deletes the authenticated user's account.

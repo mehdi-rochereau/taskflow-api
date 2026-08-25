@@ -285,14 +285,19 @@ public class UserService {
      *
      * <p>The new username is sanitized before persistence to prevent XSS attacks.
      *
+     * <p>When the username changes, a new JWT is issued and written to the {@code jwt} cookie. The
+     * token subject carries the username, so the previous one would designate a row that no longer
+     * answers to that name, and every subsequent request would be rejected as an invalid token.
+     *
      * @param request the updated profile data containing the new username and email
+     * @param response the HTTP response used to write the refreshed JWT cookie on a rename
      * @return a {@link UserResponse} containing the updated user's public profile
      * @throws IllegalArgumentException if the new username or email is already taken by another
      *     account
      */
     @PreAuthorize("isAuthenticated()")
     @Transactional
-    public UserResponse updateProfile(UpdateProfileRequest request) {
+    public UserResponse updateProfile(UpdateProfileRequest request, HttpServletResponse response) {
         User currentUser = securityUtils.getCurrentUser();
 
         String sanitizedUsername =
@@ -308,9 +313,29 @@ public class UserService {
             throw new IllegalArgumentException(messageService.get("error.email.taken.other"));
         }
 
+        // Captured before the change: the JWT subject carries the username, so a
+        // rename leaves every already-issued token pointing at a row that no
+        // longer answers to that name. JwtFilter then fails to load the user and
+        // answers 401 on a session that never expired and was never revoked.
+        boolean usernameChanged = !currentUser.getUsername().equals(sanitizedUsername);
+
         currentUser.setUsername(sanitizedUsername);
         currentUser.setEmail(request.getEmail());
         userRepository.save(currentUser);
+
+        // Re-issued only on a rename. Doing it on every update would silently
+        // extend the fifteen-minute window each time an email is corrected,
+        // which is a session lifetime decision nobody asked for.
+        if (usernameChanged) {
+            String token = jwtService.generateToken(currentUser);
+            CookieUtils.addCookie(
+                    response,
+                    "jwt",
+                    token,
+                    "/api",
+                    (int) Duration.ofMillis(jwtExpiration).toSeconds(),
+                    cookieSecure);
+        }
 
         auditService.logProfileUpdate(currentUser.getUsername());
 

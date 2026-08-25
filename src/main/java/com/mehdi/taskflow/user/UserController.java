@@ -79,7 +79,12 @@ public class UserController implements UserControllerApi {
      * <p>Validates uniqueness of the new username and email before applying changes. The username
      * is sanitized before persistence.
      *
+     * <p>A rename re-issues the JWT cookie: the token subject carries the username, so the previous
+     * token would designate a row that no longer answers to that name and every later request would
+     * be rejected as an invalid token.
+     *
      * @param request the updated profile data — new username and email
+     * @param response the HTTP response used to write the refreshed JWT cookie on a rename
      * @return {@code 200 OK} with the updated user profile as {@link UserResponse}, {@code 400 Bad
      *     Request} if validation fails or username/email is already taken, or {@code 401
      *     Unauthorized} if no valid JWT token is present
@@ -87,8 +92,8 @@ public class UserController implements UserControllerApi {
     @Override
     @PutMapping("/me")
     public ResponseEntity<UserResponse> updateProfile(
-            @Valid @RequestBody UpdateProfileRequest request) {
-        return ResponseEntity.ok(userService.updateProfile(request));
+            @Valid @RequestBody UpdateProfileRequest request, HttpServletResponse response) {
+        return ResponseEntity.ok(userService.updateProfile(request, response));
     }
 
     /**
