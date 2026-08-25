@@ -281,6 +281,14 @@ wrong credential. Distinct names with no default turn that absence into a refuse
 credential on its own, and the same value creates the account on the database side, where a single source avoids a
 divergence between the two.
 
+The container runs as the unprivileged `taskflow` account, never as root, so a compromised application does not hold
+root inside the container. That identity is not only a hardening measure here, it is what governs access to the secret
+files: Docker Compose outside Swarm mounts secrets with the owner and mode of the source file and ignores the `uid`,
+`gid` and `mode` fields, so the files on the host are group-readable by the container's group. Both identifiers are
+therefore pinned in `Dockerfile.cd` rather than inherited from the base image, and `taskflow-deploy` sets the group of
+the secret files to match. Changing either number breaks secret reading in production, and no application test would
+catch it.
+
 `CORS_ALLOWED_ORIGINS` is split on commas and trimmed before being handed to Spring Security. A wildcard is not an
 option here: credentials are enabled so that the browser attaches the authentication cookies, and the CORS specification
 forbids combining a wildcard origin with credentials. Origins are therefore enumerated, and an unlisted one is rejected
